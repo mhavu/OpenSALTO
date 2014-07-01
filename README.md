@@ -1,0 +1,4 @@
+OpenSALTO
+=========
+
+Signal analysis tool
