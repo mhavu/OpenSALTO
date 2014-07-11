@@ -40,37 +40,42 @@ start times.
 The plugins are expected to implement the following functions:
 ```C
 int registerFileFormat(const char *format, const char **exts);
-int readFile(const char *filename);
-int writeFile(const char *filename, const char **ch);
+int readFile(const char *filename, const char *chTable);
+int writeFile(const char *filename, const char *chTable);
 const char *describeError(int err);
 ```
 
 The following functions are available for the plugins:
 ```C
-const char *getUniqueName(const char *name);
-uint8_t *newUInt8Channel(const char *name, size_t length);
-uint16_t *newUInt16Channel(const char *name, size_t length);
-uint32_t *newUInt32Channel(const char *name, size_t length);
-float *newFloatChannel(const char *name, size_t length);
-double *newDoubleChannel(const char *name, size_t length);
-void deleteChannel(const char *name);
-void *getChannelData(const char *name);
-const char *getChannelName(void *ptr);
-int setSampleRate(const char *name, double samplerate);
-int setScaleAndOffset(const char *name, double scale, double offset);
-int setStartTime(const char *name, struct timespec start);
-int setUnit(const char *name, const char *unit);
-int setDevice(const char *name, const char *device, const char *serial);
-double sampleRate(const char *name);
-double scale(const char *name);
-double offset(const char *name);
-struct timespec startTime(const char *name);
-struct timespec endTime(const char *name);
-size_t length(const char *name);
-double duration(const char *name);
-const char *unit(const char *name);
-const char *device(const char *name);
-const char *serial(const char *name);
+const char *getUniqueName(const char *chTable, const char *name);
+uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length);
+uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length);
+uint32_t *newUInt32Channel(const char *chTable, const char *name, size_t length);
+float *newFloatChannel(const char *chTable, const char *name, size_t length);
+double *newDoubleChannel(const char *chTable, const char *name, size_t length);
+
+void deleteChannel(const char *chTable, const char *name);
+
+void *getChannelData(const char *chTable, const char *name, size_t *length);
+const char *getChannelName(const char *chTable, void *ptr);
+
+int setScaleAndOffset(const char *chTable, const char *ch, double scale, double offset);
+double scale(const char *chTable, const char *ch);
+double offset(const char *chTable, const char *ch);
+int setUnit(const char *chTable, const char *ch, const char *unit);
+const char *unit(const char *chTable, const char *ch);
+
+int setSampleRate(const char *chTable, const char *ch, double samplerate);
+double sampleRate(const char *chTable, const char *ch);
+int setStartTime(const char *chTable, const char *ch, struct timespec start);
+struct timespec startTime(const char *chTable, const char *ch);
+struct timespec endTime(const char *chTable, const char *ch);
+size_t length(const char *chTable, const char *ch);
+double duration(const char *chTable, const char *ch);
+
+int setDevice(const char *chTable, const char *ch, const char *device, const char *serial);
+const char *device(const char *chTable, const char *ch);
+const char *serial(const char *chTable, const char *ch);
 ```
 
 ##Filter API

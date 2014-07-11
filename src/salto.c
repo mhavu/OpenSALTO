@@ -17,58 +17,87 @@
 #include <Python.h>
 #endif
 
-static PyObject *channelTable = NULL;
+static PyObject *saltoDict = NULL;
 
-Channel *getChannel(const char *name) {
-    PyObject *channels, *capsule;
+Channel *getChannel(const char *chTable, const char *name) {
+    PyObject *channelTable, *channels, *capsule;
+    void *ptr = NULL;
 
-    channels = PyObject_GetAttrString(channelTable, "channels");
-    capsule = PyDict_GetItemString(channels, name);
+    channelTable = PyDict_GetItemString(saltoDict, chTable);
+    if (channelTable) {
+        channels = PyObject_GetAttrString(channelTable, "channels");
+        capsule = PyDict_GetItemString(channels, name);
+        ptr = PyCapsule_GetPointer(capsule, "Channel");
+    }
 
-    return PyCapsule_GetPointer(capsule, "Channel");
+    return ptr;
 }
 
-const char *getNameForData(void *ptr) {
-    PyObject *capsule, *name;
+const char *getNameForData(const char *chTable, void *ptr) {
+    PyObject *channelTable, *capsule, *name;
+    char *s = NULL;
     
     capsule = PyCapsule_New(ptr, "ChannelData", NULL);
-    name = PyObject_CallMethod(channelTable, "findKeyForPointer", "(O)", capsule);
+    channelTable = PyDict_GetItemString(saltoDict, chTable);
+    if (channelTable) {
+        name = PyObject_CallMethod(channelTable, "findKeyForPointer", "(O)", capsule);
+        s = PyString_AsString(name);
+    }
 
-    return PyString_AsString(name);
+    return s;
 }
 
-int addChannel(const char *name, Channel *ch) {
-    PyObject *success, *capsule;
+int addChannel(const char *chTable, const char *name, Channel *ch) {
+    PyObject *channelTable, *capsule, *success = NULL;
     Channel *channel;
 
     channel = (Channel *)malloc(sizeof(Channel));
     *channel = *ch;
     capsule = PyCapsule_New(channel, "Channel", NULL);
-    success = PyObject_CallMethod(channelTable, "add", "(sO)", name, capsule);
+    channelTable = PyDict_GetItemString(saltoDict, chTable);
+    if (channelTable) {
+        success = PyObject_CallMethod(channelTable, "add", "(sO)", name, capsule);
+    }
 
     return (success ? 0 : -1);
 }
 
-void removeChannel(const char *name) {
-    Channel *ch = getChannel(name);
-    PyObject_CallMethod(channelTable, "remove", "(s)", name);
-    free(ch);
+void removeChannel(const char *chTable, const char *name) {
+    PyObject *channelTable;
+    Channel *ch;
+    
+    channelTable = PyDict_GetItemString(saltoDict, chTable);
+    if (channelTable) {
+        ch = getChannel(chTable, name);
+        PyObject_CallMethod(channelTable, "remove", "(s)", name);
+        free(ch);
+    }
 }
 
-const char *getUniqueName(const char *name) {
-    PyObject *unique = PyObject_CallMethod(channelTable, "getUnique", "(s)", name);
+const char *getUniqueName(const char *chTable, const char *name) {
+    PyObject *channelTable, *unique;
+    char *s = NULL;
 
-    return PyString_AsString(unique);
+    channelTable = PyDict_GetItemString(saltoDict, chTable);
+    if (channelTable) {
+        unique = PyObject_CallMethod(channelTable, "getUnique", "(s)", name);
+        s = PyString_AsString(unique);
+    }
+
+    return s;
 }
 
 static PyObject*
 getData(PyObject *self, PyObject *args)
 {
     PyObject *capsule = NULL;
-    char *name;
+    char *name, *chTable;
+    size_t length;
+    void *ptr;
     
-    if (PyArg_ParseTuple(args, "s:getData", &name)) {
-        capsule = PyCapsule_New(getChannelData(name), "ChannelData", NULL);
+    if (PyArg_ParseTuple(args, "ss:getData", &name, &chTable)) {
+        ptr = getChannelData(chTable, name, &length);
+        capsule = PyCapsule_New(ptr, "ChannelData", NULL);
     }
     
     return capsule;
@@ -77,11 +106,11 @@ getData(PyObject *self, PyObject *args)
 static PyObject*
 readATSF(PyObject *self, PyObject *args)
 {
-    char *filename;
+    char *filename, *chTable;
     int errCode = -1;
 
-    if (PyArg_ParseTuple(args, "s:readATSF", &filename)) {
-        errCode = readFile(filename);
+    if (PyArg_ParseTuple(args, "ss:readATSF", &filename, &chTable)) {
+        errCode = readFile(filename, chTable);
     }
 
     return Py_BuildValue("i", errCode);
@@ -111,25 +140,17 @@ int main(int argc, const char * argv[]) {
     // Get a reference to the Python global dictionary.
     PyObject *mainModule = PyImport_AddModule("__main__");  // borrowed
     if (mainModule) {
-        mainDict = PyModule_GetDict(mainModule);  // borrowed
-        Py_XINCREF(mainDict);
+        saltoDict = PyModule_GetDict(mainModule);  // borrowed
+        Py_XINCREF(saltoDict);
     } else {
         fprintf(stderr, "Python module __main__ not found\n");
         exit(EXIT_FAILURE);
     }
 
     // Run the python interpreter.
-    channelTable = PyDict_GetItemString(mainDict, "channelTable");   // borrowed
-    if (channelTable) {
-        Py_XINCREF(channelTable);
-        Py_Main(argc, (char **)argv);
-    } else {
-        fprintf(stderr, "Channel table not found\n");
-        exit(EXIT_FAILURE);
-    }
+    Py_Main(argc, (char **)argv);
 
     // Release the Python objects.
-    Py_XDECREF(channelTable);
     Py_XDECREF(tuple);
     Py_XDECREF(mainDict);
 

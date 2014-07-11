@@ -13,7 +13,7 @@
 #include "salto.h"
 
 
-static void *newIntegerChannel(const char *name, size_t length, size_t size) {
+static void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size) {
     Channel ch = {
         .length = length,
         .bytes_per_sample = size,
@@ -22,12 +22,12 @@ static void *newIntegerChannel(const char *name, size_t length, size_t size) {
 
     ch.ptr = calloc(length, size);
     if (ch.ptr)
-        addChannel(name, &ch);
+        addChannel(chTable, name, &ch);
 
     return ch.ptr;
 }
 
-static void *newRealChannel(const char *name, size_t length, size_t size) {
+static void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size) {
     Channel ch = {
         .length = length,
         .bytes_per_sample = size,
@@ -37,51 +37,55 @@ static void *newRealChannel(const char *name, size_t length, size_t size) {
 
     ch.ptr = calloc(length, size);
     if (ch.ptr)
-        addChannel(name, &ch);
+        addChannel(chTable, name, &ch);
 
     return ch.ptr;
 }
 
-uint8_t *newUInt8Channel(const char *name, size_t length) {
-    return newIntegerChannel(name, length, sizeof(uint8_t));
+uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint8_t));
 }
 
-uint16_t *newUInt16Channel(const char *name, size_t length) {
-    return newIntegerChannel(name, length, sizeof(uint16_t));
+uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint16_t));
 }
 
-uint32_t *newUInt32Channel(const char *name, size_t length) {
-    return newIntegerChannel(name, length, sizeof(uint32_t));
+uint32_t *newUInt32Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint32_t));
 }
 
-float *newFloatChannel(const char *name, size_t length) {
-    return newIntegerChannel(name, length, sizeof(float));
+float *newFloatChannel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(float));
 }
 
-double *newDoubleChannel(const char *name, size_t length) {
-    return newIntegerChannel(name, length, sizeof(double));
+double *newDoubleChannel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(double));
 }
 
-void deleteChannel(const char *name) {
-    Channel *ch = getChannel(name);
-    removeChannel(name);
-    free(ch->ptr);
-}
-
-
-void *getChannelData(const char *name) {
-    return getChannel(name)->ptr;
-}
-
-const char *getChannelName(void *ptr) {
-    return getNameForData(ptr);
+void deleteChannel(const char *chTable, const char *name) {
+    Channel *ch = getChannel(chTable, name);
+    if (ch) {
+        removeChannel(chTable, name);
+        free(ch->ptr);
+    }
 }
 
 
-int setSampleRate(const char *name, double samplerate) {
+void *getChannelData(const char *chTable, const char *name, size_t *length) {
+    Channel *ch = getChannel(chTable, name);
+    *length = ch->length;
+    return ch->ptr;
+}
+
+const char *getChannelName(const char *chTable, void *ptr) {
+    return getNameForData(chTable, ptr);
+}
+
+
+int setSampleRate(const char *chTable, const char *name, double samplerate) {
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         ch->samplerate = samplerate;
     } else {
@@ -91,10 +95,10 @@ int setSampleRate(const char *name, double samplerate) {
     return 0;
 }
 
-int setScaleAndOffset(const char *name, double scale, double offset) {
+int setScaleAndOffset(const char *chTable, const char *name, double scale, double offset) {
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         ch->scale = scale;
         ch->offset = offset;
@@ -105,10 +109,10 @@ int setScaleAndOffset(const char *name, double scale, double offset) {
     return 0;
 }
 
-int setStartTime(const char *name, struct timespec start) {
+int setStartTime(const char *chTable, const char *name, struct timespec start) {
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         ch->start_sec = start.tv_sec;
         ch->start_nsec = start.tv_nsec;
@@ -119,10 +123,10 @@ int setStartTime(const char *name, struct timespec start) {
     return 0;
 }
 
-int setUnit(const char *name, const char *unit) {
+int setUnit(const char *chTable, const char *name, const char *unit) {
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         ch->unit = (char *)unit;
     } else {
@@ -132,10 +136,10 @@ int setUnit(const char *name, const char *unit) {
     return 0;
 }
 
-int setDevice(const char *name, const char *device, const char *serial) {
+int setDevice(const char *chTable, const char *name, const char *device, const char *serial) {
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         ch->device = (char *)device;
         ch->serial_no = (char *)serial;
@@ -146,11 +150,11 @@ int setDevice(const char *name, const char *device, const char *serial) {
     return 0;
 }
 
-double sampleRate(const char *name) {
+double sampleRate(const char *chTable, const char *name) {
     Channel *ch;
     double samplerate;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         samplerate = ch->samplerate;
     } else {
@@ -160,11 +164,11 @@ double sampleRate(const char *name) {
     return samplerate;
 }
 
-double scale(const char *name) {
+double scale(const char *chTable, const char *name) {
     Channel *ch;
     double scale;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         scale = ch->scale;
     } else {
@@ -174,11 +178,11 @@ double scale(const char *name) {
     return scale;
 }
 
-double offset(const char *name) {
+double offset(const char *chTable, const char *name) {
     Channel *ch;
     double offset;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         offset = ch->offset;
     } else {
@@ -188,11 +192,11 @@ double offset(const char *name) {
     return offset;
 }
 
-struct timespec startTime(const char *name) {
+struct timespec startTime(const char *chTable, const char *name) {
     struct timespec t;
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         t.tv_sec = ch->start_sec;
         t.tv_nsec = ch->start_nsec;
@@ -204,14 +208,14 @@ struct timespec startTime(const char *name) {
     return t;
 }
 
-struct timespec endTime(const char *name) {
+struct timespec endTime(const char *chTable, const char *name) {
     struct timespec t;
     double duration;
     time_t s;
     long ns;
     Channel *ch;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         duration = ch->length / ch->samplerate;
         s = duration;
@@ -226,11 +230,11 @@ struct timespec endTime(const char *name) {
     return t;
 }
 
-size_t length(const char *name) {
+size_t length(const char *chTable, const char *name) {
     Channel *ch;
     size_t len = 0;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         len = ch->length;
     }
@@ -238,11 +242,11 @@ size_t length(const char *name) {
     return len;
 }
 
-double duration(const char *name) {
+double duration(const char *chTable, const char *name) {
     Channel *ch;
     double duration;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         duration = ch->length / ch->samplerate;
     } else {
@@ -252,11 +256,11 @@ double duration(const char *name) {
     return duration;
 }
 
-const char *unit(const char *name) {
+const char *unit(const char *chTable, const char *name) {
     Channel *ch;
     char *unit = NULL;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         unit = ch->unit;
     }
@@ -264,11 +268,11 @@ const char *unit(const char *name) {
     return unit;
 }
 
-const char *device(const char *name) {
+const char *device(const char *chTable, const char *name) {
     Channel *ch;
     char *device = NULL;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         device = ch->device;
     }
@@ -276,11 +280,11 @@ const char *device(const char *name) {
     return device;
 }
 
-const char *serial(const char *name) {
+const char *serial(const char *chTable, const char *name) {
     Channel *ch;
     char *serial = NULL;
 
-    ch = getChannel(name);
+    ch = getChannel(chTable, name);
     if (ch) {
         serial = ch->serial_no;
     }

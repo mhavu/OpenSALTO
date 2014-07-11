@@ -23,10 +23,10 @@ typedef struct {
     char *serial_no;
 } Channel;
 
-Channel *getChannel(const char *name);
-const char *getNameForData(void *ptr);
-int addChannel(const char *name, Channel *ch);
-void removeChannel(const char *name);
-const char *getUniqueName(const char *name);
+Channel *getChannel(const char *chTable, const char *name);
+const char *getNameForData(const char *chTable, void *ptr);
+int addChannel(const char *chTable, const char *name, Channel *ch);
+void removeChannel(const char *chTable, const char *name);
+const char *getUniqueName(const char *chTable, const char *name);
 
 #endif

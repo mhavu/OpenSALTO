@@ -66,7 +66,7 @@ off_t fsize(const char *filename) {
 //     success = registerFileFormat("Alive Heart and Activity Monitor", extensions);
 // }
 
-int readFile(const char *filename) {
+int readFile(const char *filename, const char *chTable) {
     uint8_t header[128];
     uint8_t *buffer;
     long long blk, nBlocks;
@@ -152,8 +152,8 @@ int readFile(const char *filename) {
                         channel[ch].sub[0] = "Button event";
                         channel[ch].sub[1] = "Battery voltage";
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(channel[ch].sub[1], channel[ch].length);
+                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
+                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
                         channel[ch].scale = 0.5;
                         channel[ch].offset = 0.0;
                         channel[ch].unit = "%";
@@ -177,7 +177,7 @@ int readFile(const char *filename) {
                         channel[ch].sub = calloc(1, sizeof(char *));
                         channel[ch].sub[0] = "ECG";
                         channel[ch].dset = calloc(1, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(channel[ch].sub[0], channel[ch].length);
+                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
                         // range: [-2.66 2.66] mV
                         channel[ch].scale = 2 * 2.66 / 256;
                         channel[ch].offset = -2.66;
@@ -201,8 +201,8 @@ int readFile(const char *filename) {
                         channel[ch].sub[0] = "X";
                         channel[ch].sub[1] = "Y";
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(channel[ch].sub[1], channel[ch].length);
+                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
+                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
                         break;
                     case 0x56:
                         // 3-axis accelerometer channel
@@ -223,9 +223,9 @@ int readFile(const char *filename) {
                         channel[ch].sub[1] = "Y";
                         channel[ch].sub[2] = "Z";
                         channel[ch].dset = calloc(3, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(channel[ch].sub[1], channel[ch].length);
-                        channel[ch].dset[2] = newUInt8Channel(channel[ch].sub[2], channel[ch].length);
+                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
+                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
+                        channel[ch].dset[2] = newUInt8Channel(chTable, channel[ch].sub[2], channel[ch].length);
                         break;
                     default:
                         // unknown channel type
@@ -274,13 +274,13 @@ int readFile(const char *filename) {
                 if (channel[ch].type == 0x11 && sub == 0) {
                     // TODO: add this as events to all channels
                     // Bit 7 (LSB) = Button Event
-                    deleteChannel(channel[ch].sub[sub]);
+                    deleteChannel(chTable, channel[ch].sub[sub]);
                 } else {
-                    setScaleAndOffset(channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
-                    setUnit(channel[ch].sub[sub], "m/s²");
-                    setSampleRate(channel[ch].sub[sub], channel[ch].samplerate);
-                    setDevice(channel[ch].sub[sub], device, "unknown");
-                    setStartTime(channel[ch].sub[sub], startTime);
+                    setScaleAndOffset(chTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
+                    setUnit(chTable, channel[ch].sub[sub], "m/s²");
+                    setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
+                    setDevice(chTable, channel[ch].sub[sub], device, "unknown");
+                    setStartTime(chTable, channel[ch].sub[sub], startTime);
                 }
             }
         }
