@@ -1,0 +1,23 @@
+.DS_Store
+.Trashes
+
+# Temporary or discarded files
+*.swp
+*.lock
+*.moved-aside
+*~.nib
+
+# Xcode build files
+DerivedData/
+build/
+
+# Xcode private settings
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+xcuserdata
