@@ -73,17 +73,6 @@ const char *device(const char *name);
 const char *serial(const char *name);
 ```
 
-// think these through
-int addEvent(name, type, start, end, description)
-Event *events(name, *size)
-Event *events(type, *size)
-
-Additional metadata
-- original resolution
-- mark and model of the device that was used to acquire the data
-- serial number of the device
-- signal type (electrical, mechanical, biosignal, audio, etc.)
-
 ##Filter API
 
 Filter plugins are modules that perform computations on one or more
