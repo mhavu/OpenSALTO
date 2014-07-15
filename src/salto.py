@@ -1,8 +1,10 @@
-from salto import *
+import salto
 import re
+from datetime import datetime
+import json
 
 class ChannelTable:
-    "Table of all OpenSALTO channels"
+    "OpenSALTO channel table"
     ordinal = re.compile(r'\d+$')
     def __init__(self):
         self.channels = {}
@@ -11,7 +13,7 @@ class ChannelTable:
     def remove(self, name):
         self.channels.pop(name, None)
     def findKeyForPointer(self, ptr):
-        return next(key for key, ch in self.channels.iteritems() if getData(ch) == ptr)
+        return next(key for key, ch in self.channels.iteritems() if getDataPtr(ch) == ptr)
     def getUnique(self, name):
         """Get a unique channel name by adding or
             incrementing an ordinal"""
@@ -29,4 +31,4 @@ class ChannelTable:
         return unique
 
 if __name__ == "__main__":
-    channelTable = ChannelTable()
+    salto.channelTables = {'main': ChannelTable()}

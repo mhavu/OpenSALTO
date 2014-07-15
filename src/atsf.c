@@ -135,8 +135,6 @@ int readFile(const char *filename, const char *chTable) {
                 channel[ch].pktlen = betoh16(&header[2]);
                 channel[ch].length = nBlocks * channel[ch].pktlen;
 
-                // TODO: Channel names should be unique
-
                 switch (channel[ch].type) {
                     case 0x11:
                         // status channel
@@ -189,10 +187,10 @@ int readFile(const char *filename, const char *chTable) {
                             // unknown data format
                             // TODO: handle nicely
                         }
-                        // range: [-2.0 2.0] * 9.81 m/s²
+                        // range: [-2.0 2.0] * 9.81 m/s^2
                         channel[ch].scale = 2 * 2.0 / 256 * 9.81;
                         channel[ch].offset = -2.0 * 9.81;
-                        channel[ch].unit = "m/s²";
+                        channel[ch].unit = "m/s^2";
                         channel[ch].samplerate = 75.0;
                         device = "Alive HM120";
                         channel[ch].nsubs = 2;
@@ -210,10 +208,10 @@ int readFile(const char *filename, const char *chTable) {
                             // unknown data format
                             // TODO: handle nicely
                         }
-                        // range: [-2.7 2.7] * 9.81 m/s²
+                        // range: [-2.7 2.7] * 9.81 m/s^2
                         channel[ch].scale = 2 * 2.7 / 256 * 9.81;
                         channel[ch].offset = -2.7 * 9.81;
-                        channel[ch].unit = "m/s²";
+                        channel[ch].unit = "m/s^2";
                         channel[ch].samplerate = 75.0;
                         device = "Alive HM131";
                         channel[ch].nsubs = 3;
@@ -277,7 +275,7 @@ int readFile(const char *filename, const char *chTable) {
                     deleteChannel(chTable, channel[ch].sub[sub]);
                 } else {
                     setScaleAndOffset(chTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
-                    setUnit(chTable, channel[ch].sub[sub], "m/s²");
+                    setUnit(chTable, channel[ch].sub[sub], "m/s^2");
                     setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
                     setDevice(chTable, channel[ch].sub[sub], device, "unknown");
                     setStartTime(chTable, channel[ch].sub[sub], startTime);

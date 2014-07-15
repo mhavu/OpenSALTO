@@ -22,7 +22,7 @@ static void *newIntegerChannel(const char *chTable, const char *name, size_t len
 
     ch.ptr = calloc(length, size);
     if (ch.ptr)
-        addChannel(chTable, name, &ch);
+        addChannel(chTable, name, &ch);  // TODO: Check return value
 
     return ch.ptr;
 }
@@ -37,7 +37,7 @@ static void *newRealChannel(const char *chTable, const char *name, size_t length
 
     ch.ptr = calloc(length, size);
     if (ch.ptr)
-        addChannel(chTable, name, &ch);
+        addChannel(chTable, name, &ch);  // TODO: Check return value
 
     return ch.ptr;
 }

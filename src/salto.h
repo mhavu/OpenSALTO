@@ -16,11 +16,12 @@ typedef struct {
     double samplerate;
     double scale;
     double offset;
+    char *unit;
     long long start_sec;
     long start_nsec;
-    char *unit;
     char *device;
     char *serial_no;
+    char *json;
 } Channel;
 
 Channel *getChannel(const char *chTable, const char *name);

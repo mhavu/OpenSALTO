@@ -42,6 +42,7 @@
 		27F183D5196D6AB900FCD050 /* salto.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = salto.h; sourceTree = "<group>"; };
 		27F183DC196EAC9D00FCD050 /* TINY.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = TINY.ATS; path = test/TINY.ATS; sourceTree = SOURCE_ROOT; };
 		27F183DD196EAC9D00FCD050 /* HUGE.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = HUGE.ATS; path = test/HUGE.ATS; sourceTree = SOURCE_ROOT; };
+		27F183E21975429F00FCD050 /* test.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = test.py; path = test/test.py; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -108,6 +109,7 @@
 		27F183D7196EAC2E00FCD050 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				27F183E21975429F00FCD050 /* test.py */,
 				27F183DC196EAC9D00FCD050 /* TINY.ATS */,
 				27F183DD196EAC9D00FCD050 /* HUGE.ATS */,
 			);
