@@ -50,7 +50,7 @@ static uint32_t betoh32(uint8_t *buf)
             (uint32_t)buf[2] << 8 | (uint32_t)buf[3]);
 }
 
-off_t fsize(const char *filename) {
+static off_t fsize(const char *filename) {
     struct stat st;
 
     if (stat(filename, &st) != 0) {
@@ -279,10 +279,12 @@ int readFile(const char *filename, const char *chTable) {
                     setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
                     setDevice(chTable, channel[ch].sub[sub], device, "unknown");
                     setStartTime(chTable, channel[ch].sub[sub], startTime);
+                    setResolution(chTable, channel[ch].sub[sub], 8);
                 }
             }
         }
         free(channel);
+        fclose(fp);
     }
 
     return err;

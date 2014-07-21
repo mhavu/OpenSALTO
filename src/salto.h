@@ -13,6 +13,7 @@ typedef struct {
     void *ptr;
     size_t length;
     size_t bytes_per_sample;
+    int is_signed;
     double samplerate;
     double scale;
     double offset;
@@ -21,6 +22,7 @@ typedef struct {
     long start_nsec;
     char *device;
     char *serial_no;
+    int resolution;
     char *json;
 } Channel;
 

@@ -13,11 +13,12 @@
 #include "salto.h"
 
 
-static void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size) {
+static void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed) {
     Channel ch = {
         .length = length,
         .bytes_per_sample = size,
-        .scale = 1.0
+        .scale = 1.0,
+        .is_signed = is_signed
     };
 
     ch.ptr = calloc(length, size);
@@ -32,7 +33,8 @@ static void *newRealChannel(const char *chTable, const char *name, size_t length
         .length = length,
         .bytes_per_sample = size,
         .scale = nan(NULL),
-        .offset = nan(NULL)
+        .offset = nan(NULL),
+        .is_signed = 1
     };
 
     ch.ptr = calloc(length, size);
@@ -43,23 +45,35 @@ static void *newRealChannel(const char *chTable, const char *name, size_t length
 }
 
 uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint8_t));
+    return newIntegerChannel(chTable, name, length, sizeof(uint8_t), 0);
 }
 
 uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint16_t));
+    return newIntegerChannel(chTable, name, length, sizeof(uint16_t), 0);
 }
 
 uint32_t *newUInt32Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint32_t));
+    return newIntegerChannel(chTable, name, length, sizeof(uint32_t), 0);
+}
+
+int8_t *newInt8Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(int8_t), 1);
+}
+
+int16_t *newInt16Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(int16_t), 1);
+}
+
+int32_t *newInt32Channel(const char *chTable, const char *name, size_t length) {
+    return newIntegerChannel(chTable, name, length, sizeof(int32_t), 1);
 }
 
 float *newFloatChannel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(float));
+    return newRealChannel(chTable, name, length, sizeof(float));
 }
 
 double *newDoubleChannel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(double));
+    return newRealChannel(chTable, name, length, sizeof(double));
 }
 
 void deleteChannel(const char *chTable, const char *name) {
@@ -129,6 +143,19 @@ int setUnit(const char *chTable, const char *name, const char *unit) {
     ch = getChannel(chTable, name);
     if (ch) {
         ch->unit = (char *)unit;
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+int setResolution(const char *chTable, const char *name, int resolution) {
+    Channel *ch;
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        ch->resolution = resolution;
     } else {
         return -1;
     }
@@ -266,6 +293,18 @@ const char *unit(const char *chTable, const char *name) {
     }
     
     return unit;
+}
+
+int resolution(const char *chTable, const char *name) {
+    Channel *ch;
+    int resolution = 0;
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        resolution = ch->resolution;
+    }
+
+    return resolution;
 }
 
 const char *device(const char *chTable, const char *name) {

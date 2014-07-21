@@ -8,7 +8,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 #include "salto_api.h"
 #include "salto.h"
 #ifdef __APPLE__
@@ -110,7 +109,7 @@ metadata(PyObject *self, PyObject *args)
 {
     PyObject *capsule, *dict = NULL;
     PyObject *dtClass, *datetime, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace;
-    PyObject *length, *wordsize, *samplerate, *scale, *offset, *unit, *device, *serial;
+    PyObject *length, *wordsize, *samplerate, *scale, *offset, *unit, *device, *serial, *resolution;
     PyObject *jsonClass, *loads, *json;
     Channel *ch;
     int err;
@@ -149,6 +148,7 @@ metadata(PyObject *self, PyObject *args)
 
             device = PyUnicode_FromString(ch->device);  // new
             serial = PyUnicode_FromString(ch->serial_no);  // new
+            resolution = Py_BuildValue("i", ch->resolution);  // new
 
             // Parse JSON
             if (ch->json) {
@@ -170,6 +170,8 @@ metadata(PyObject *self, PyObject *args)
                    PyDict_SetItemString(dict, "datetime", datetime) != 0 ||
                    PyDict_SetItemString(dict, "device", device) != 0 ||
                    PyDict_SetItemString(dict, "serial", serial) != 0 ||
+                   PyDict_SetItemString(dict, "resolution", resolution) != 0 ||
+                   PyDict_SetItemString(dict, "signed", ch->is_signed ? Py_True : Py_False) != 0 ||
                    PyDict_Merge(dict, json, 0) != 0);
             if (err) {
                 Py_DECREF(dict);
@@ -185,6 +187,7 @@ metadata(PyObject *self, PyObject *args)
             Py_XDECREF(datetime);
             Py_XDECREF(device);
             Py_XDECREF(serial);
+            Py_XDECREF(resolution);
             Py_XDECREF(json);
         }
     }

@@ -10,9 +10,10 @@
 		27C6E4E119669CD5004192BD /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
 		27F183D2196A922600FCD050 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		27F183D4196D683C00FCD050 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
-		27F183D6196D85BA00FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
 		27F183DF196EB3D500FCD050 /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
 		27F183E0196FDC0C00FCD050 /* Python.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C6E5171966F5A8004192BD /* Python.framework */; };
+		27F183E6197561A300FCD050 /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
+		27F183E719770B7900FCD050 /* gcdc.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183E31975550100FCD050 /* gcdc.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -22,6 +23,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				27F183E6197561A300FCD050 /* GCDC.CSV in CopyFiles */,
 				27F183DF196EB3D500FCD050 /* TINY.ATS in CopyFiles */,
 				27F183D2196A922600FCD050 /* salto.py in CopyFiles */,
 			);
@@ -43,6 +45,8 @@
 		27F183DC196EAC9D00FCD050 /* TINY.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = TINY.ATS; path = test/TINY.ATS; sourceTree = SOURCE_ROOT; };
 		27F183DD196EAC9D00FCD050 /* HUGE.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = HUGE.ATS; path = test/HUGE.ATS; sourceTree = SOURCE_ROOT; };
 		27F183E21975429F00FCD050 /* test.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = test.py; path = test/test.py; sourceTree = SOURCE_ROOT; };
+		27F183E31975550100FCD050 /* gcdc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = gcdc.c; sourceTree = "<group>"; };
+		27F183E51975619000FCD050 /* GCDC.CSV */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = GCDC.CSV; path = test/GCDC.CSV; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +85,7 @@
 			isa = PBXGroup;
 			children = (
 				27C6E4DB19669CD5004192BD /* atsf.c */,
+				27F183E31975550100FCD050 /* gcdc.c */,
 				27C6E4DD19669CD5004192BD /* salto_api.c */,
 				27C6E4DE19669CD5004192BD /* salto_api.h */,
 				27F183D3196D683C00FCD050 /* salto.c */,
@@ -111,6 +116,7 @@
 			children = (
 				27F183E21975429F00FCD050 /* test.py */,
 				27F183DC196EAC9D00FCD050 /* TINY.ATS */,
+				27F183E51975619000FCD050 /* GCDC.CSV */,
 				27F183DD196EAC9D00FCD050 /* HUGE.ATS */,
 			);
 			name = test;
@@ -170,7 +176,7 @@
 			files = (
 				27C6E4E119669CD5004192BD /* salto_api.c in Sources */,
 				27F183D4196D683C00FCD050 /* salto.c in Sources */,
-				27F183D6196D85BA00FCD050 /* atsf.c in Sources */,
+				27F183E719770B7900FCD050 /* gcdc.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
