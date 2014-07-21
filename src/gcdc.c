@@ -62,7 +62,7 @@ typedef enum {
 
 typedef struct {
     double t;
-    int value[3];
+    int a[3];
 } Sample;
 
 static off_t fsize(const char *filename) {
@@ -87,7 +87,7 @@ int readFile(const char *filename, const char *chTable) {
     char *model, *buffer, *line, *token;
     size_t j, length, lines, nSamples, n;
     int i, resolution, result, divisor, nChannels;
-    double samplerate, duration, first, t;
+    double samplerate, duration, first, t, scale;
     struct tm tm;
     struct timespec start;
     Sample *sample, *data;
@@ -137,7 +137,7 @@ int readFile(const char *filename, const char *chTable) {
                         err = INVALID_HEADER;
                     }
                 } else if (strcmp(token, "Headers") == 0) {
-                    // TODO: headers
+                    // Ignore column headers.
                 } else if (strcmp(token, "HPF filter set to:") == 0) {
                     // TODO: high pass filter value
                 } else if (strcmp(token, "SampleRate") == 0) {
@@ -167,7 +167,7 @@ int readFile(const char *filename, const char *chTable) {
                 } else if (strcmp(token, "Switch") == 0) {
                     // TODO: Don't know what this is.
                 } else if (strcmp(token, "Temperature") == 0) {
-                    // TODO: temperature in °C and Vbat in mV
+                    // TODO: temperature in °C and battery voltage in mV
                 } else if (strcmp(token, "Version") == 0) {
                     // TODO: get firmware version
                     while (line) {
@@ -180,26 +180,56 @@ int readFile(const char *filename, const char *chTable) {
             }
         }
     }
-    
+
+    // Determine resolution and scale based on model description.
     if (!err) {
         if (strncmp(model, "X16-", 4) == 0) {
-            // range = [-16.0 16.0]
+            // range: [-16.0 16.0] * 9.81 m/s^2
             resolution = 16;
-            divisor = 1024;
+            scale = 9.81 / (2 * 1024);
         } else if (strncmp(model, "X6-", 3) == 0) {
             if (strcmp(gain, "high") == 0) {
-                // range = [-2.0 2.0]
+                // range: [-2.0 2.0] * 9.81 m/s^2
                 divisor = (resolution == 16) ? 16384 : 1024;
             } else {
-                // range = [-6.0 6.0]
+                // range: [-6.0 6.0] * 9.81 m/s^2
                 divisor = (resolution == 16) ? 5440 : 340;
             }
+            scale = 9.81 / (2 * divisor);
+        } else if (strncmp(model, "X2-", 3) == 0) {
+            resolution = 15;
+            if (strcmp(gain, "high") == 0) {
+                // range: [-1.25 1.25] * 9.81 m/s^2
+                divisor = 13108;
+            } else {
+                // range: [-2.0 2.0] * 9.81 m/s^2
+                divisor = 6554;
+            }
+            scale = 9.81 / (2 * divisor);
+        } else if (strncmp(model, "X50-", 4) == 0) {
+            // range: [-50.0 50.0] * 9.81 m/s^2
+            resolution = 14;
+            scale = 9.81 * 130 / 16384;
+        } else if (strncmp(model, "X250-", 5) == 0) {
+            // range: [-250.0 250.0] * 9.81 m/s^2
+            resolution = 14;
+            scale = 9.81 * 625 / 16384;
+        } else if (strncmp(model, "X500-", 5) == 0) {
+            // range: [-500.0 500.0] * 9.81 m/s^2
+            resolution = 14;
+            scale = 9.81 * 1500 / 16384;
+        } else if (strncmp(model, "B1100-", 6) == 0) {
+            fclose(fp);
+            fprintf(stderr, "readFile(): Barometric pressure sensors not supported yet\n");
+            err = UNKNOWN_MODEL;
         } else {
-            // unknown model
-            resolution = 0;
-            divisor = 1;
+            fclose(fp);
+            fprintf(stderr, "readFile(): Unknown GCDC model\n");
+            err = UNKNOWN_MODEL;
         }
+    }
 
+    if (!err) {
         // Read the data.
         fseek(fp, -1, SEEK_CUR);
         length = fsize(filename) - ftell(fp);
@@ -215,8 +245,8 @@ int readFile(const char *filename, const char *chTable) {
             data = calloc(lines, sizeof(Sample));
             sample = data;
             line = buffer;
-            while (sscanf(line, "%lf, %d, %d, %d%n", &sample->t, &sample->value[0],
-                          &sample->value[1], &sample->value[2], &i) == 4) {
+            while (sscanf(line, "%lf, %d, %d, %d%n", &sample->t,
+                          &sample->a[0], &sample->a[1], &sample->a[2], &i) == 4) {
                 // Adjust sample times and start time so that first sample is at start time.
                 if (nSamples == 0) {
                     first = sample->t;
@@ -246,8 +276,8 @@ int readFile(const char *filename, const char *chTable) {
             // Create the channels.
             for (i = 0; i < nChannels; i++) {
                 channel[i] = newInt16Channel(chTable, name[i], length);
-                channel[i][j] = data[0].value[i];
-                setScaleAndOffset(chTable, name[i], 9.81 / (2 * divisor), 0.0);
+                channel[i][j] = data[0].a[i];
+                setScaleAndOffset(chTable, name[i], scale, 0.0);
                 setUnit(chTable, name[i], "m/s^2");
                 setSampleRate(chTable, name[i], samplerate);
                 setDevice(chTable, name[i], device, serial);
@@ -261,7 +291,7 @@ int readFile(const char *filename, const char *chTable) {
                 for (i = 0; i < nChannels; i++) {
                     if (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t))
                         n++;
-                    channel[i][j] = data[n].value[i];
+                    channel[i][j] = data[n].a[i];
                     t += 1.0 / samplerate;
                 }
             }

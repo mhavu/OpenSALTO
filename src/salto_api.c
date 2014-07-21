@@ -275,7 +275,7 @@ double duration(const char *chTable, const char *name) {
 
     ch = getChannel(chTable, name);
     if (ch) {
-        duration = ch->length / ch->samplerate;
+        duration = (ch->length - 1) / ch->samplerate;
     } else {
         duration = NAN;
     }

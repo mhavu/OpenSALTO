@@ -105,14 +105,43 @@ const char *getUniqueName(const char *chTable, const char *name) {
 }
 
 static PyObject*
+datetimeFromDouble(double t) {
+    // Convert timespec to a Python datetime object.
+    PyObject *dtClass, *datetime, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace;
+    
+    dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
+    utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
+    dt = PyObject_CallFunction(utcfromtimestamp, "(L)", (long long)t);  // new
+    replace = PyObject_GetAttrString(dt, "replace");  // new
+    empty = PyTuple_New(0);  // new
+    keywords = PyDict_New();  // new
+    micro = Py_BuildValue("l", (long)(fmod(t, 1.0) * 1000000));  // new
+    if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
+        datetime = PyObject_Call(replace, empty, keywords);  // new
+    } else {
+        Py_INCREF(Py_None);
+        datetime = Py_None;
+    }
+    Py_XDECREF(utcfromtimestamp);
+    Py_XDECREF(dt);
+    Py_XDECREF(replace);
+    Py_XDECREF(empty);
+    Py_XDECREF(keywords);
+    Py_XDECREF(micro);
+
+    return datetime;
+}
+
+static PyObject*
 metadata(PyObject *self, PyObject *args)
 {
     PyObject *capsule, *dict = NULL;
-    PyObject *dtClass, *datetime, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace;
+    PyObject *start, *end, *duration;
     PyObject *length, *wordsize, *samplerate, *scale, *offset, *unit, *device, *serial, *resolution;
     PyObject *jsonClass, *loads, *json;
     Channel *ch;
     int err;
+    double t, dt;
 
     if (PyArg_ParseTuple(args, "O:metadata", &capsule)) {
         ch = PyCapsule_GetPointer(capsule, "Channel");
@@ -124,28 +153,12 @@ metadata(PyObject *self, PyObject *args)
             scale = Py_BuildValue("d", ch->scale);  // new
             offset = Py_BuildValue("d", ch->offset);  // new
             unit = PyUnicode_FromString(ch->unit);  // new
-
-            // Convert start time to Python datetime object
-            dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
-            utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
-            dt = PyObject_CallFunction(utcfromtimestamp, "(L)", ch->start_sec);  // new
-            replace = PyObject_GetAttrString(dt, "replace");  // new
-            empty = PyTuple_New(0);  // new
-            keywords = PyDict_New();  // new
-            micro = Py_BuildValue("l", ch->start_nsec / 1000);  // new
-            if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
-                datetime = PyObject_Call(replace, empty, keywords);  // new
-            } else {
-                Py_INCREF(Py_None);
-                datetime = Py_None;
-            }
-            Py_XDECREF(utcfromtimestamp);
-            Py_XDECREF(dt);
-            Py_XDECREF(replace);
-            Py_XDECREF(empty);
-            Py_XDECREF(keywords);
-            Py_XDECREF(micro);
-
+            t = ch->start_sec + ch->start_nsec / 1000000000.0;
+            start = datetimeFromDouble(t);  // new
+            dt = (ch->length - 1) / ch->samplerate;
+            duration = Py_BuildValue("d", dt);  // new
+            end = datetimeFromDouble(t + dt);  // new
+            
             device = PyUnicode_FromString(ch->device);  // new
             serial = PyUnicode_FromString(ch->serial_no);  // new
             resolution = Py_BuildValue("i", ch->resolution);  // new
@@ -167,7 +180,9 @@ metadata(PyObject *self, PyObject *args)
                    PyDict_SetItemString(dict, "scale", scale) != 0 ||
                    PyDict_SetItemString(dict, "offset", offset) != 0 ||
                    PyDict_SetItemString(dict, "unit", unit) != 0 ||
-                   PyDict_SetItemString(dict, "datetime", datetime) != 0 ||
+                   PyDict_SetItemString(dict, "start", start) != 0 ||
+                   PyDict_SetItemString(dict, "end", end) != 0 ||
+                   PyDict_SetItemString(dict, "duration", duration) != 0 ||
                    PyDict_SetItemString(dict, "device", device) != 0 ||
                    PyDict_SetItemString(dict, "serial", serial) != 0 ||
                    PyDict_SetItemString(dict, "resolution", resolution) != 0 ||
@@ -184,7 +199,9 @@ metadata(PyObject *self, PyObject *args)
             Py_XDECREF(scale);
             Py_XDECREF(offset);
             Py_XDECREF(unit);
-            Py_XDECREF(datetime);
+            Py_XDECREF(start);
+            Py_XDECREF(end);
+            Py_XDECREF(duration);
             Py_XDECREF(device);
             Py_XDECREF(serial);
             Py_XDECREF(resolution);
