@@ -12,16 +12,15 @@
 #include <stdint.h>
 #include <time.h>
 
-// Discovery
+// Application hooks to which plugins attach
+typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
+typedef int (*WriteFileFunc)(const char *filename, const char *chTable);
+typedef const char (*DescribeErrorFunc)(int err);
+typedef int (*InitPluginFunc)(void);
 
 // Registration
-int registerFileFormat(const char *format, const char **exts);
-
-// Application hooks to which plugins attach
-int readFile(const char *filename, const char *chTable);
-int writeFile(const char *filename, const char *chTable);
-const char *describeError(int err);
-// initPlugin();
+int registerFileFormat(const char *format, const char **exts, size_t extsize,
+                       ReadFileFunc importer, WriteFileFunc exporter);
 
 // Exposing application capabilities back to plugins
 const char *getUniqueName(const char *chTable, const char *name);

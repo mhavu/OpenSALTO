@@ -22,7 +22,9 @@ static PyObject *saltoDict = NULL;  // salto namespace
 Channel *getChannel(const char *chTable, const char *name) {
     PyObject *chTableDict, *channelTable, *channels, *capsule;
     Channel *ch = NULL;
+    PyGILState_STATE state;
 
+    state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
@@ -31,6 +33,7 @@ Channel *getChannel(const char *chTable, const char *name) {
         ch = PyCapsule_GetPointer(capsule, "Channel");
         Py_DECREF(channels);
     }
+    PyGILState_Release(state);
 
     return ch;
 }
@@ -38,7 +41,9 @@ Channel *getChannel(const char *chTable, const char *name) {
 const char *getNameForData(const char *chTable, void *ptr) {
     PyObject *chTableDict, *channelTable, *capsule, *name;
     char *s = NULL;
-    
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
@@ -48,6 +53,7 @@ const char *getNameForData(const char *chTable, void *ptr) {
         Py_XDECREF(name);
         Py_XDECREF(capsule);
     }
+    PyGILState_Release(state);
 
     return s;
 }
@@ -56,9 +62,11 @@ int addChannel(const char *chTable, const char *name, Channel *ch) {
     PyObject *chTableDict, *channelTable, *capsule, *o = NULL;
     Channel *channel;
     int result = -1;
+    PyGILState_STATE state;
 
     channel = (Channel *)malloc(sizeof(Channel));
     *channel = *ch;
+    state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
@@ -67,7 +75,10 @@ int addChannel(const char *chTable, const char *name, Channel *ch) {
         result = (o ? 0 : -1);
         Py_XDECREF(o);
         Py_XDECREF(capsule);
+    } else {
+        free(channel);
     }
+    PyGILState_Release(state);
 
     return result;
 }
@@ -75,7 +86,9 @@ int addChannel(const char *chTable, const char *name, Channel *ch) {
 void removeChannel(const char *chTable, const char *name) {
     PyObject *chTableDict, *channelTable, *o;
     Channel *ch;
+    PyGILState_STATE state;
     
+    state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
@@ -84,13 +97,16 @@ void removeChannel(const char *chTable, const char *name) {
         Py_XDECREF(o);
         free(ch);
     }
+    PyGILState_Release(state);
 }
 
 const char *getUniqueName(const char *chTable, const char *name) {
     PyObject *chTableDict, *channelTable, *unique;
     char *buffer, *s = NULL;
     size_t length;
+    PyGILState_STATE state;
 
+    state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
@@ -100,6 +116,7 @@ const char *getUniqueName(const char *chTable, const char *name) {
         strlcpy(s, buffer, length);
         Py_XDECREF(unique);
     }
+    PyGILState_Release(state);
 
     return s;
 }
@@ -108,7 +125,9 @@ static PyObject*
 datetimeFromDouble(double t) {
     // Convert timespec to a Python datetime object.
     PyObject *dtClass, *datetime, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace;
-    
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
     dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
     utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
     dt = PyObject_CallFunction(utcfromtimestamp, "(L)", (long long)t);  // new
@@ -128,6 +147,7 @@ datetimeFromDouble(double t) {
     Py_XDECREF(empty);
     Py_XDECREF(keywords);
     Py_XDECREF(micro);
+    PyGILState_Release(state);
 
     return datetime;
 }
@@ -142,7 +162,9 @@ metadata(PyObject *self, PyObject *args)
     Channel *ch;
     int err;
     double t, dt;
+    PyGILState_STATE state;
 
+    state = PyGILState_Ensure();
     if (PyArg_ParseTuple(args, "O:metadata", &capsule)) {
         ch = PyCapsule_GetPointer(capsule, "Channel");
         dict = PyDict_New();  // new
@@ -208,6 +230,7 @@ metadata(PyObject *self, PyObject *args)
             Py_XDECREF(json);
         }
     }
+    PyGILState_Release(state);
 
     return dict;
 }
@@ -219,41 +242,21 @@ getDataPtr(PyObject *self, PyObject *args)
     char *name, *chTable;
     size_t length;
     void *ptr;
-    
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
     if (PyArg_ParseTuple(args, "ss:getDataPtr", &name, &chTable)) {
         ptr = getChannelData(chTable, name, &length);
         capsule = PyCapsule_New(ptr, "ChannelData", NULL);  // new
     }
-    
+    PyGILState_Release(state);
+
     return capsule;
-}
-
-static PyObject*
-readATSF(PyObject *self, PyObject *args)
-{
-    char *filename, *chTable;
-    int errCode = -1;
-    PyObject *result;
-
-    if (PyArg_ParseTuple(args, "ss:readATSF", &filename, &chTable)) {
-        errCode = readFile(filename, chTable);
-        if (errCode) {
-            result = PyErr_Format(PyExc_IOError, "readATSF(): %s", describeError(errCode));
-        } else {
-            Py_INCREF(Py_None);
-            result = Py_None;
-        }
-    } else {
-        result = PyErr_Format(PyExc_SyntaxError, "readATSF expects two string arguments");
-    }
-
-    return result;
 }
 
 static PyMethodDef SaltoMethods[] = {
     {"metadata", metadata, METH_VARARGS, "Return the metadata for a channel"},
     {"getDataPtr", getDataPtr, METH_VARARGS, "Get pointer to channel data"},
-    {"readFile", readATSF, METH_VARARGS, "Open ATSF data file"},
     {NULL, NULL, 0, NULL}  // sentinel
 };
 

@@ -61,10 +61,12 @@ static off_t fsize(const char *filename) {
     return st.st_size;
 }
 
-// init() {
-//     const char *extensions[1] = {".ATS"};
-//     success = registerFileFormat("Alive Heart and Activity Monitor", extensions);
-// }
+int initPlugin(void) {
+    const char *extensions[1] = {".ATS"};
+    size_t nExts = 1;
+    
+    return registerFileFormat("Alive Heart and Activity Monitor", extensions, nExts, &readFile, NULL);
+}
 
 int readFile(const char *filename, const char *chTable) {
     uint8_t header[128];

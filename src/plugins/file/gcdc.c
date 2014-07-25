@@ -76,10 +76,12 @@ static off_t fsize(const char *filename) {
     return st.st_size;
 }
 
-// init() {
-//     const char *extensions[1] = {".CSV"};
-//     success = registerFileFormat("Gulf Coast Data Concepts", extensions);
-// }
+int initPlugin(void) {
+    const char *extensions[1] = {".ATS"};
+    size_t nExts = 1;
+
+    return registerFileFormat("Gulf Coast Data Concepts", extensions, nExts, &readFile, NULL);
+}
 
 int readFile(const char *filename, const char *chTable) {
     Error err = SUCCESS;
