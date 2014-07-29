@@ -16,11 +16,11 @@
 typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
 typedef int (*WriteFileFunc)(const char *filename, const char *chTable);
 typedef const char (*DescribeErrorFunc)(int err);
-typedef int (*InitPluginFunc)(void);
+typedef int (*InitPluginFunc)(void *handle);
 
 // Registration
-int registerFileFormat(const char *format, const char **exts, size_t extsize,
-                       ReadFileFunc importer, WriteFileFunc exporter);
+int registerImportFunc(void *handle, const char *format, const char *funcname, const char **exts, size_t n_exts);
+int registerExportFunc(void *handle, const char *format, const char *funcname, const char **exts, size_t n_exts);
 
 // Exposing application capabilities back to plugins
 const char *getUniqueName(const char *chTable, const char *name);

@@ -61,13 +61,6 @@ static off_t fsize(const char *filename) {
     return st.st_size;
 }
 
-int initPlugin(void) {
-    const char *extensions[1] = {".ATS"};
-    size_t nExts = 1;
-    
-    return registerFileFormat("Alive Heart and Activity Monitor", extensions, nExts, &readFile, NULL);
-}
-
 int readFile(const char *filename, const char *chTable) {
     uint8_t header[128];
     uint8_t *buffer;
@@ -316,4 +309,10 @@ const char *describeError(int err) {
     }
 
     return str;
+}
+
+int initPlugin(void *handle) {
+    const char *exts[1] = {".ATS"};
+    
+    return registerImportFunc(handle, "Alive Heart and Activity Monitor", "readFile", exts, 1);
 }

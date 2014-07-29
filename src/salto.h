@@ -31,5 +31,7 @@ const char *getNameForData(const char *chTable, void *ptr);
 int addChannel(const char *chTable, const char *name, Channel *ch);
 void removeChannel(const char *chTable, const char *name);
 const char *getUniqueName(const char *chTable, const char *name);
+int setCallback(void *obj, const char *method, const char *format,
+                const char *funcname, const char **exts, size_t n_exts);
 
 #endif

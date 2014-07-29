@@ -76,13 +76,6 @@ static off_t fsize(const char *filename) {
     return st.st_size;
 }
 
-int initPlugin(void) {
-    const char *extensions[1] = {".ATS"};
-    size_t nExts = 1;
-
-    return registerFileFormat("Gulf Coast Data Concepts", extensions, nExts, &readFile, NULL);
-}
-
 int readFile(const char *filename, const char *chTable) {
     Error err = SUCCESS;
     char header[4096], gain[256] = "", serial[256] = "unknown", device[256] = "GCDC ";
@@ -328,4 +321,10 @@ const char *describeError(int err) {
     }
 
     return str;
+}
+
+int initPlugin(void *handle) {
+    const char *exts[1] = {".CSV"};
+
+    return registerImportFunc(handle, "Gulf Coast Data Concepts", "readFile", exts, 1);
 }
