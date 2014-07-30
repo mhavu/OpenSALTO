@@ -128,7 +128,7 @@ int setCallback(void *obj, const char *method, const char *format,
     int result = 0;
 
     state = PyGILState_Ensure();
-    pluginClass = PyDict_GetItemString(saltoDict, "CPlugin");  // borrowed
+    pluginClass = PyDict_GetItemString(saltoDict, "Plugin");  // borrowed
     if (PyObject_IsInstance(obj, pluginClass)) {
         extList = PyList_New(n_exts);  // new
         if (extList) {
@@ -142,9 +142,10 @@ int setCallback(void *obj, const char *method, const char *format,
             if (cdll) {
                 readFunc = PyObject_GetAttrString(cdll, funcname);  // new
                 if (readFunc) {
-                    c_char_p = PyDict_GetItemString(mainDict, "c_char_p");  // borrowed
+                    c_char_p = PyObject_GetAttrString(PyDict_GetItemString(mainDict, "c"), "c_char_p");  // new
                     argtypes = PyTuple_Pack(2, c_char_p, c_char_p);  // new
                     PyObject_SetAttrString(readFunc, "argtypes", argtypes);
+                    Py_XDECREF(c_char_p);
                     Py_XDECREF(argtypes);
                     PyObject_CallMethod(obj, (char *)method, "(sO)", format, readFunc);
                     Py_DECREF(readFunc);

@@ -1,6 +1,6 @@
 import re, json, os
 from datetime import datetime
-from ctypes import CDLL, RTLD_LOCAL, c_char_p, c_void_p, pointer
+import ctypes as c
 
 # Load the OpenSALTO C extension module and extend it with native Python classes.
 import salto
@@ -41,9 +41,9 @@ class Plugin:
         self.cdll = cdll
         self.formats = {}
         if self.cdll:
-            self.cdll.describeError.restype = c_char_p
-            self.cdll.initPlugin.argtypes = [c_void_p]
-            self.cdll.initPlugin(pointer(self))
+            self.cdll.describeError.restype = c.c_char_p
+            self.cdll.initPlugin.argtypes = [c.py_object]
+            self.cdll.initPlugin(self)
     def registerFormat(self, name, exts):
         self.formats.setdefault(name, {'exts':exts, 'readfunc':None, 'writefunc':None})
     def unregisterFormat(self, name):
@@ -83,7 +83,7 @@ class PluginManager:
             if isLoadable: #and isNew:
                 self.load(filename)
     def load(self, filename):
-        cdll = CDLL(filename, mode = RTLD_LOCAL)
+        cdll = c.CDLL(filename, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
     def register(self, plugin):
         if plugin not in self.plugins:
@@ -103,6 +103,7 @@ del ChannelTable
 del Plugin
 del PluginManager
 __name__ = moduleName
+del moduleName
 
 
 if __name__ == "__main__":
