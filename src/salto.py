@@ -9,7 +9,7 @@ __name__ = 'salto'
 
 class ChannelTable:
     "OpenSALTO channel table"
-    ordinal = re.compile(r'\d+$')
+    ordinal = re.compile(r"\d+$")
     def __init__(self):
         self.channels = {}
     def add(self, name, ch):
@@ -30,7 +30,7 @@ class ChannelTable:
                 n += 1
                 unique = name[0:match.start()] + str(n)
             else:
-                unique = '%s %d' % (name, 2)
+                unique = "%s %d" % (name, 2)
             unique = self.getUnique(unique)
         return unique
 
@@ -80,7 +80,7 @@ class PluginManager:
     def discover(self, path):
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
-            isLoadable = ext.lower() in ('.dylib', '.so', '.dll')
+            isLoadable = ext.lower() in (".dylib", ".so", ".dll")
             isNew = filename not in [p.cdll._name for p in self.plugins]
             if isLoadable and isNew:
                 self.load(filename)
@@ -119,7 +119,7 @@ __name__ = moduleName
 del moduleName
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     salto.channelTables = {'main': salto.ChannelTable()}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover('.')
