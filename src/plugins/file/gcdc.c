@@ -89,7 +89,7 @@ int readFile(const char *filename, const char *chTable) {
     Sample *sample, *data;
     nChannels = 3;
     int16_t *channel[3];
-    char *name[3] = {"X", "Y", "Z"};
+    const char *name[3] = {"X", "Y", "Z"};
 
     FILE *fp = fopen(filename, "r");
     if (!fp) {
@@ -271,7 +271,8 @@ int readFile(const char *filename, const char *chTable) {
             length = lrint(duration * samplerate) + 1;
             // Create the channels.
             for (i = 0; i < nChannels; i++) {
-                channel[i] = newInt16Channel(chTable, getUniqueName(chTable, name[i]), length);
+                name[i] = getUniqueName(chTable, name[i]);
+                channel[i] = newInt16Channel(chTable, name[i], length);
                 channel[i][j] = data[0].a[i];
                 setScaleAndOffset(chTable, name[i], scale, 0.0);
                 setUnit(chTable, name[i], "m/s^2");
