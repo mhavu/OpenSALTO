@@ -17,7 +17,7 @@ class ChannelTable:
     def remove(self, name):
         self.channels.pop(name, None)
     def findKeyForPointer(self, ptr):
-        return next(key for key, ch in self.channels.iteritems() if getDataPtr(ch) == ptr)
+        return next((key for key, ch in self.channels.iteritems() if getDataPtr(ch) == ptr), None)
     def getUnique(self, name):
         """Get a unique channel name by adding or
             incrementing an ordinal"""
@@ -80,9 +80,9 @@ class PluginManager:
     def discover(self, path):
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
-            isLoadable = ext in ('.dylib', '.so', '.dll')
-            #isNew = plugin not in self.plugins
-            if isLoadable: #and isNew:
+            isLoadable = ext.lower() in ('.dylib', '.so', '.dll')
+            isNew = filename not in [p.cdll._name for p in self.plugins]
+            if isLoadable and isNew:
                 self.load(filename)
     def load(self, filename):
         cdll = c.CDLL(filename, mode = c.RTLD_LOCAL)
@@ -104,10 +104,10 @@ class PluginManager:
             for key, value in self.exportFormats.items()
             if value is not plugin}
     def query(self, **kwargs):
-        # TODO: implement
-        "Query for plugins capable of doing x"
-        for plugin in self.plugins:
-            pass
+        ext = kwargs.get('ext')
+        if ext:
+            return [format for format, plugin in self.importFormats.iteritems()
+                           if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
 
 setattr(salto, 'ChannelTable', ChannelTable)
 setattr(salto, 'Plugin', Plugin)

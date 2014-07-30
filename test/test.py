@@ -8,3 +8,6 @@ rf[alive].read("TINY.ATS", alive, "main")
 rf[gcdc].read("GCDC.CSV", gcdc, "main")
 z = m.channels["Z"]
 salto.metadata(z)
+salto.pluginManager.register(salto.Plugin(salto.pluginManager))
+salto.pluginManager.query(ext='.ats')
+salto.pluginManager.query(ext='.csv')
