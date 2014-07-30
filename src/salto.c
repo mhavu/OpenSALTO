@@ -15,9 +15,45 @@
 #else
 #include <Python.h>
 #endif
+#include "numpy/arrayobject.h"
 
 static PyObject *mainDict = NULL;   // global namespace
 static PyObject *saltoDict = NULL;  // salto namespace
+
+int numpyType(Channel *ch) {
+    int typenum;
+
+    if (ch->is_integer) {
+        switch (ch->bytes_per_sample) {
+            case 1:
+                typenum = (ch->is_signed ? NPY_BYTE : NPY_UBYTE);
+                break;
+            case 2:
+                typenum = (ch->is_signed ? NPY_INT16 : NPY_UINT16);
+                break;
+            case 4:
+                typenum = (ch->is_signed ? NPY_INT32 : NPY_UINT32);
+                break;
+            default:
+                typenum = NPY_NOTYPE;
+                break;
+        }
+    } else {
+        switch (ch->bytes_per_sample) {
+            case 4:
+                typenum = NPY_FLOAT;
+                break;
+            case 8:
+                typenum = NPY_DOUBLE;
+                break;
+            default:
+                typenum = NPY_NOTYPE;
+                break;
+        }
+    }
+
+    return typenum;
+}
 
 Channel *getChannel(const char *chTable, const char *name) {
     PyObject *chTableDict, *channelTable, *channels, *capsule;
@@ -59,8 +95,10 @@ const char *getNameForData(const char *chTable, void *ptr) {
 }
 
 int addChannel(const char *chTable, const char *name, Channel *ch) {
-    PyObject *chTableDict, *channelTable, *capsule, *o = NULL;
+    PyObject *chTableDict, *channelTable, *capsule, *ndarray, *o;
     Channel *channel;
+    int typenum;
+    npy_intp dims[1];
     int result = -1;
     PyGILState_STATE state;
 
@@ -71,9 +109,20 @@ int addChannel(const char *chTable, const char *name, Channel *ch) {
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
         capsule = PyCapsule_New(channel, "Channel", NULL);  // new
-        o = PyObject_CallMethod(channelTable, "add", "(sO)", name, capsule);  // new
-        result = (o ? 0 : -1);
-        Py_XDECREF(o);
+        dims[0] = ch->length;
+        typenum = numpyType(ch);
+        if (typenum != NPY_NOTYPE) {
+            ndarray = PyArray_SimpleNewFromData(1, dims, typenum, ch->ptr);  // new
+            // TODO: Add ndarray to Python side
+            o = PyObject_CallMethod(channelTable, "add", "(sO)", name, capsule);  // new
+            result = (o ? 0 : -1);
+            Py_XDECREF(ndarray);
+            Py_XDECREF(o);
+        } else {
+            fprintf(stderr, "Invalid channel data type (%ssigned %s, %d bytes per sample)",
+                    (ch->is_signed ? "" : "un"), (ch->is_integer ? "integer" : "real"),
+                    (int)ch->bytes_per_sample);
+        }
         Py_XDECREF(capsule);
     } else {
         free(channel);
@@ -123,9 +172,9 @@ const char *getUniqueName(const char *chTable, const char *name) {
 
 int registerFileFormat(void *obj, const char *format, const char **exts, size_t n_exts)
 {
-    PyObject *pluginClass, *extList, *name, *registerFormat;
+    PyObject *pluginClass, *extList, *name, *registerFormat, *o;
     PyGILState_STATE state;
-    int result = 0;
+    int result = -1;
 
     state = PyGILState_Ensure();
     pluginClass = PyDict_GetItemString(saltoDict, "Plugin");  // borrowed
@@ -137,16 +186,15 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
             for (int i = 0; i < n_exts; i++) {
                 PyList_SET_ITEM(extList, i, PyString_FromString(exts[i]));  // stolen
             }
-            PyObject_CallMethodObjArgs(obj, registerFormat, name, extList, NULL);
-         } else {
-            result = -1;
+            o = PyObject_CallMethodObjArgs(obj, registerFormat, name, extList, NULL);  // new
+            result = (o ? 0 : -1);
+            Py_XDECREF(o);
         }
         Py_XDECREF(registerFormat);
         Py_XDECREF(name);
         Py_XDECREF(extList);
     } else {
         PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument");
-        result = -1;
     }
     PyGILState_Release(state);
     
@@ -154,9 +202,9 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
 }
 
 int setCallback(void *obj, const char *type, const char *format, const char *funcname) {
-    PyObject *pluginClass, *cdll, *func, *c_char_p, *method, *name, *argtypes = NULL;
+    PyObject *o, *pluginClass, *cdll, *func, *c_char_p, *method, *name, *argtypes = NULL;
     PyGILState_STATE state;
-    int err = 0;
+    int result = -1;
 
     state = PyGILState_Ensure();
     pluginClass = PyDict_GetItemString(saltoDict, "Plugin");  // borrowed
@@ -165,6 +213,7 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
         if (cdll) {
             func = PyObject_GetAttrString(cdll, funcname);  // new
             if (func) {
+                result = 0;
                 c_char_p = PyObject_GetAttrString(PyDict_GetItemString(mainDict, "c"), "c_char_p");  // new
                 if (strcmp(type, "Import") == 0 || strcmp(type, "Export") == 0) {
                     argtypes = PyTuple_Pack(2, c_char_p, c_char_p);  // new
@@ -172,31 +221,28 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
                     Py_XDECREF(argtypes);
                 } else {
                     PyErr_SetString(PyExc_TypeError, "Unknown callback type in setCallback()");
-                    err = -1;
+                    result = -1;
                 }
                 Py_XDECREF(c_char_p);
-                if (!err) {
+                if (result == 0) {
                     method = PyString_FromFormat("set%sFunc", type);  // new
                     name = PyUnicode_FromString(format);  // new
-                    PyObject_CallMethodObjArgs(obj, method, name, func, NULL);
+                    o = PyObject_CallMethodObjArgs(obj, method, name, func, NULL);  // new
+                    result = (o ? 0 : -1);
+                    Py_XDECREF(o);
                     Py_XDECREF(method);
                     Py_XDECREF(name);
                 }
                 Py_DECREF(func);
-            } else {
-                err = -1;
             }
             Py_DECREF(cdll);
-        } else {
-            err = -1;
         }
     } else {
         PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument");
-        err = -1;
     }
     PyGILState_Release(state);
 
-    return err;
+    return result;
 }
 
 
@@ -363,6 +409,12 @@ int main(int argc, const char * argv[]) {
         Py_XINCREF(saltoDict);
     } else {
         fprintf(stderr, "Python module salto not found\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Initialize NumPy.
+    if (_import_array() < 0) {
+        fprintf(stderr, "Module numpy.core.multiarray failed to import\n");
         exit(EXIT_FAILURE);
     }
 

@@ -27,7 +27,7 @@ typedef struct {
     char *unit;
     uint8_t nsubs;
     uint16_t subpktlen;
-    char **sub;
+    const char **sub;
     uint8_t **dset;
     uint64_t length;
 } Channel;
@@ -143,8 +143,8 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 2;
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
-                        channel[ch].sub[0] = "Button event";
-                        channel[ch].sub[1] = "Battery voltage";
+                        channel[ch].sub[0] = getUniqueName(chTable, "Button event");
+                        channel[ch].sub[1] = getUniqueName(chTable, "Battery voltage");
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
                         channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
                         channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
@@ -169,7 +169,7 @@ int readFile(const char *filename, const char *chTable) {
                         }
                         channel[ch].nsubs = 1;
                         channel[ch].sub = calloc(1, sizeof(char *));
-                        channel[ch].sub[0] = "ECG";
+                        channel[ch].sub[0] = getUniqueName(chTable, "ECG");
                         channel[ch].dset = calloc(1, sizeof(uint8_t *));
                         channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
                         // range: [-2.66 2.66] mV
@@ -192,8 +192,8 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 2;
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
-                        channel[ch].sub[0] = "X";
-                        channel[ch].sub[1] = "Y";
+                        channel[ch].sub[0] = getUniqueName(chTable, "X");
+                        channel[ch].sub[1] = getUniqueName(chTable, "Y");
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
                         channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
                         channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
@@ -213,9 +213,9 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 3;
                         channel[ch].sub = calloc(3, sizeof(char *));
                         channel[ch].length /= 3;
-                        channel[ch].sub[0] = "X";
-                        channel[ch].sub[1] = "Y";
-                        channel[ch].sub[2] = "Z";
+                        channel[ch].sub[0] = getUniqueName(chTable, "X");
+                        channel[ch].sub[1] = getUniqueName(chTable, "Y");
+                        channel[ch].sub[2] = getUniqueName(chTable, "Z");
                         channel[ch].dset = calloc(3, sizeof(uint8_t *));
                         channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
                         channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);

@@ -28,7 +28,8 @@ static void *newIntegerChannel(const char *chTable, const char *name, size_t len
         .length = length,
         .bytes_per_sample = size,
         .scale = 1.0,
-        .is_signed = is_signed
+        .is_signed = is_signed,
+        .is_integer = 1
     };
 
     ch.ptr = calloc(length, size);

@@ -8,7 +8,7 @@ moduleName = __name__
 __name__ = 'salto'
 
 class ChannelTable:
-    "OpenSALTO channel table"
+    """OpenSALTO channel table"""
     ordinal = re.compile(r"\d+$")
     def __init__(self):
         self.channels = {}
@@ -24,7 +24,7 @@ class ChannelTable:
         if name not in self.channels:
             unique = name
         else:
-            match = ChannelTable.ordinal.search(name)
+            match = salto.ChannelTable.ordinal.search(name)
             if match:
                 n = int(match.group())
                 n += 1
@@ -35,7 +35,7 @@ class ChannelTable:
         return unique
 
 class Plugin:
-    "OpenSALTO plugin"
+    """OpenSALTO plugin"""
     def __init__(self, manager, cdll = None):
         self.manager = manager
         self.cdll = cdll
@@ -72,7 +72,7 @@ class Plugin:
         return ch
 
 class PluginManager:
-    "OpenSALTO plugin manager"
+    """OpenSALTO plugin manager"""
     def __init__(self):
         self.plugins = []
         self.importFormats = {}

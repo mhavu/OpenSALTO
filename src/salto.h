@@ -14,6 +14,7 @@ typedef struct {
     size_t length;
     size_t bytes_per_sample;
     int is_signed;
+    int is_integer;
     double samplerate;
     double scale;
     double offset;
@@ -32,5 +33,6 @@ int addChannel(const char *chTable, const char *name, Channel *ch);
 void removeChannel(const char *chTable, const char *name);
 const char *getUniqueName(const char *chTable, const char *name);
 int setCallback(void *obj, const char *type, const char *format, const char *funcname);
+int numpyType(Channel *ch);
 
 #endif
