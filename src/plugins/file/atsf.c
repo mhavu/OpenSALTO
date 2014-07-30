@@ -312,7 +312,13 @@ const char *describeError(int err) {
 }
 
 int initPlugin(void *handle) {
+    const char *name = "Alive Heart and Activity Monitor";
     const char *exts[1] = {".ATS"};
-    
-    return registerImportFunc(handle, "Alive Heart and Activity Monitor", "readFile", exts, 1);
+    int err;
+
+    err = registerFileFormat(handle, name, exts, 1);
+    if (!err)
+        err = registerImportFunc(handle, name, "readFile");
+
+    return err;
 }

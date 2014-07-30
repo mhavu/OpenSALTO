@@ -324,7 +324,13 @@ const char *describeError(int err) {
 }
 
 int initPlugin(void *handle) {
+    const char *name = "Gulf Coast Data Concepts";
     const char *exts[1] = {".CSV"};
+    int err;
 
-    return registerImportFunc(handle, "Gulf Coast Data Concepts", "readFile", exts, 1);
+    err = registerFileFormat(handle, name, exts, 1);
+    if (!err)
+        err = registerImportFunc(handle, name, "readFile");
+
+    return err;
 }

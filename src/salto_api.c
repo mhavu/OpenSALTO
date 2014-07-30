@@ -13,16 +13,14 @@
 #include "salto.h"
 
 
-int registerImportFunc(void *handle, const char *format, const char *funcname, const char **exts, size_t n_exts)
+int registerImportFunc(void *handle, const char *format, const char *funcname)
 {
-    // TODO: hide implementation details
-    return setCallback(handle, "setImportFunc", format, funcname, exts, n_exts);
+    return setCallback(handle, "Import", format, funcname);
 }
 
-int registerExportFunc(void *handle, const char *format, const char *funcname, const char **exts, size_t n_exts)
+int registerExportFunc(void *handle, const char *format, const char *funcname)
 {
-    // TODO: hide implementation details
-    return setCallback(handle, "setExportFunc", format, funcname, exts, n_exts);
+    return setCallback(handle, "Export", format, funcname);
 }
 
 static void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed) {

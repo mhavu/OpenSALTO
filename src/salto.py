@@ -68,13 +68,15 @@ class Plugin:
             err = writefunc(filename, chTable)
         if err != 0:
             raise(IOError, self.cdll.describeError(err))
-    def filter(self, ch):
+    def filter(self, name, ch):
         return ch
 
 class PluginManager:
     "OpenSALTO plugin manager"
     def __init__(self):
         self.plugins = []
+        self.importFormats = {}
+        self.exportFormats = {}
     def discover(self, path):
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
@@ -88,8 +90,19 @@ class PluginManager:
     def register(self, plugin):
         if plugin not in self.plugins:
             self.plugins.append(plugin)
+        for format, attrs in plugin.formats.items():
+            if attrs['readfunc']:
+                self.importFormats.setdefault(format, plugin)
+            if attrs['writefunc']:
+                self.exportFormats.setdefault(format, plugin)
     def unregister(self, plugin):
         self.plugins.pop(plugin, None)
+        self.importFormats = {key: value
+            for key, value in self.importFormats.items()
+            if value is not plugin}
+        self.exportFormats = {key: value
+            for key, value in self.exportFormats.items()
+            if value is not plugin}
     def query(self, **kwargs):
         # TODO: implement
         "Query for plugins capable of doing x"

@@ -1,17 +1,10 @@
-from ctypes import *
-
-gcdc = CDLL("gcdc.dylib")
-gcdcRead = gcdc.readFile
-gcdcRead.restype = c_int
-gcdcRead.argtypes = [c_char_p, c_char_p]
-
-atsf = CDLL("atsf.dylib")
-atsfRead = atsf.readFile
-atsfRead.restype = c_int
-atsfRead.argtypes = [c_char_p, c_char_p]
-
 m = salto.channelTables["main"]
-atsfRead("TINY.ATS", "main")
-gcdcRead("GCDC.CSV", "main")
+p = salto.pluginManager.plugins
+rf = salto.pluginManager.importFormats
+wf = salto.pluginManager.exportFormats
+alive = "Alive Heart and Activity Monitor"
+gcdc = "Gulf Coast Data Concepts"
+rf[alive].read("TINY.ATS", alive, "main")
+rf[gcdc].read("GCDC.CSV", gcdc, "main")
 z = m.channels["Z"]
 salto.metadata(z)
