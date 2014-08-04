@@ -1,6 +1,7 @@
 import re, json, os
 from datetime import datetime
 import ctypes as c
+import numpy as np
 
 # Load the OpenSALTO C extension module and extend it with native Python classes.
 import salto
@@ -13,11 +14,10 @@ class ChannelTable:
     def __init__(self):
         self.channels = {}
     def add(self, name, ch):
+        assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
         self.channels.setdefault(name, ch)
     def remove(self, name):
         self.channels.pop(name, None)
-    def findKeyForPointer(self, ptr):
-        return next((key for key, ch in self.channels.iteritems() if getDataPtr(ch) == ptr), None)
     def getUnique(self, name):
         """Get a unique channel name by adding or
             incrementing an ordinal"""
@@ -60,7 +60,7 @@ class Plugin:
             err = readfunc(filename, chTable)
         if err != 0:
             raise(IOError, self.cdll.describeError(err))
-    def write(self, filename, chTable):
+    def write(self, filename, format, chTable):
         registered = self.formats.get(format)
         if registered:
             writefunc = registered.get('writefunc')
@@ -122,4 +122,4 @@ del moduleName
 if __name__ == '__main__':
     salto.channelTables = {'main': salto.ChannelTable()}
     salto.pluginManager = salto.PluginManager()
-    salto.pluginManager.discover('.')
+    salto.pluginManager.discover(".")

@@ -6,15 +6,19 @@
 //  Released under the terms of GNU General Public License version 3.
 //
 
+#ifdef __APPLE__
+#include <Python/Python.h>
+#else
+#include <Python.h>
+#endif
+
 #ifndef _salto_h
 #define _salto_h
 
 typedef struct {
-    void *ptr;
-    size_t length;
-    size_t bytes_per_sample;
-    int is_signed;
-    int is_integer;
+    PyObject_HEAD
+    PyObject *dict;
+    PyObject *data;
     double samplerate;
     double scale;
     double offset;
@@ -27,12 +31,12 @@ typedef struct {
     char *json;
 } Channel;
 
+void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed);
+void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size);
 Channel *getChannel(const char *chTable, const char *name);
-const char *getNameForData(const char *chTable, void *ptr);
+void *channelData(Channel *ch, size_t *length);
 int addChannel(const char *chTable, const char *name, Channel *ch);
-void removeChannel(const char *chTable, const char *name);
 const char *getUniqueName(const char *chTable, const char *name);
 int setCallback(void *obj, const char *type, const char *format, const char *funcname);
-int numpyType(Channel *ch);
 
 #endif

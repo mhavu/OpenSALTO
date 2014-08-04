@@ -6,9 +6,6 @@
 //  Released under the terms of GNU General Public License version 3.
 //
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
 #include "salto_api.h"
 #include "salto.h"
 
@@ -23,37 +20,6 @@ int registerExportFunc(void *handle, const char *format, const char *funcname)
     return setCallback(handle, "Export", format, funcname);
 }
 
-static void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed) {
-    Channel ch = {
-        .length = length,
-        .bytes_per_sample = size,
-        .scale = 1.0,
-        .is_signed = is_signed,
-        .is_integer = 1
-    };
-
-    ch.ptr = calloc(length, size);
-    if (ch.ptr)
-        addChannel(chTable, name, &ch);  // TODO: Check return value
-
-    return ch.ptr;
-}
-
-static void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size) {
-    Channel ch = {
-        .length = length,
-        .bytes_per_sample = size,
-        .scale = nan(NULL),
-        .offset = nan(NULL),
-        .is_signed = 1
-    };
-
-    ch.ptr = calloc(length, size);
-    if (ch.ptr)
-        addChannel(chTable, name, &ch);  // TODO: Check return value
-
-    return ch.ptr;
-}
 
 uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length) {
     return newIntegerChannel(chTable, name, length, sizeof(uint8_t), 0);
@@ -85,25 +51,6 @@ float *newFloatChannel(const char *chTable, const char *name, size_t length) {
 
 double *newDoubleChannel(const char *chTable, const char *name, size_t length) {
     return newRealChannel(chTable, name, length, sizeof(double));
-}
-
-void deleteChannel(const char *chTable, const char *name) {
-    Channel *ch = getChannel(chTable, name);
-    if (ch) {
-        removeChannel(chTable, name);
-        free(ch->ptr);
-    }
-}
-
-
-void *getChannelData(const char *chTable, const char *name, size_t *length) {
-    Channel *ch = getChannel(chTable, name);
-    *length = ch->length;
-    return ch->ptr;
-}
-
-const char *getChannelName(const char *chTable, void *ptr) {
-    return getNameForData(chTable, ptr);
 }
 
 
@@ -251,15 +198,22 @@ struct timespec endTime(const char *chTable, const char *name) {
     double duration;
     time_t s;
     long ns;
+    size_t length;
     Channel *ch;
 
     ch = getChannel(chTable, name);
     if (ch) {
-        duration = ch->length / ch->samplerate;
-        s = duration;
-        ns = (long)((duration - s) * 1.0e9);
-        t.tv_sec = ch->start_sec + s + (ch->start_nsec + ns) / 1000000000;
-        t.tv_nsec = (ch->start_nsec + ns) % 1000000000;
+        channelData(ch, &length);
+        if (length > 0) {
+            duration = (length - 1) / ch->samplerate;
+            s = duration;
+            ns = (long)((duration - s) * 1.0e9);
+            t.tv_sec = ch->start_sec + s + (ch->start_nsec + ns) / 1000000000;
+            t.tv_nsec = (ch->start_nsec + ns) % 1000000000;
+        } else {
+            t.tv_sec = -1;
+            t.tv_nsec = -1;
+        }
     } else {
         t.tv_sec = -1;
         t.tv_nsec = -1;
@@ -269,13 +223,9 @@ struct timespec endTime(const char *chTable, const char *name) {
 }
 
 size_t length(const char *chTable, const char *name) {
-    Channel *ch;
-    size_t len = 0;
+    size_t len;
 
-    ch = getChannel(chTable, name);
-    if (ch) {
-        len = ch->length;
-    }
+    getChannelData(chTable, name, &len);
 
     return len;
 }
@@ -283,12 +233,18 @@ size_t length(const char *chTable, const char *name) {
 double duration(const char *chTable, const char *name) {
     Channel *ch;
     double duration;
+    size_t length;
 
     ch = getChannel(chTable, name);
     if (ch) {
-        duration = (ch->length - 1) / ch->samplerate;
+        channelData(ch, &length);
+        if (length > 0) {
+            duration = (length - 1) / ch->samplerate;
+        } else {
+            duration = nan(NULL);
+        }
     } else {
-        duration = NAN;
+        duration = nan(NULL);
     }
     
     return duration;

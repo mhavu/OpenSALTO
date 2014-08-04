@@ -105,6 +105,7 @@ int readFile(const char *filename, const char *chTable) {
         time.tm_min = header[19];
         time.tm_sec = header[20];
         startTime.tv_sec = mktime(&time);
+        startTime.tv_nsec = 0;
         paddingLength = blockLength;
         maxPktLength = 0;
         channel = calloc(nChannels, sizeof(Channel));
