@@ -21,6 +21,49 @@ static PyObject *mainDict = NULL;   // global namespace
 static PyObject *saltoDict = NULL;  // salto namespace
 
 
+// Define salto module functions.
+
+static PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
+    // Convert timespec to a Python datetime object.
+    long long epoch, nsec = 0;
+    PyObject *dtClass, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
+        dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
+        utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
+        dt = PyObject_CallFunction(utcfromtimestamp, "(L)", epoch);  // new
+        replace = PyObject_GetAttrString(dt, "replace");  // new
+        empty = PyTuple_New(0);  // new
+        keywords = PyDict_New();  // new
+        micro = Py_BuildValue("l", nsec / 1000);  // new
+        if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
+            datetime = PyObject_Call(replace, empty, keywords);  // new
+        } else {
+            Py_INCREF(Py_None);
+            datetime = Py_None;
+        }
+        Py_XDECREF(utcfromtimestamp);
+        Py_XDECREF(dt);
+        Py_XDECREF(replace);
+        Py_XDECREF(empty);
+        Py_XDECREF(keywords);
+        Py_XDECREF(micro);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
+    }
+    PyGILState_Release(state);
+
+    return datetime;
+}
+
+static PyMethodDef SaltoMethods[] = {
+    {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
+    {NULL, NULL, 0, NULL}  // sentinel
+};
+
+
 // Define Channel class.
 
 static PyTypeObject ChannelType;
@@ -74,7 +117,43 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     return result;
 }
 
+static PyObject *Channel_start(Channel *self) {
+    PyObject *timespec = Py_BuildValue("(Ll)", self->start_sec, self->start_nsec);
+    return datetimeFromTimespec((PyObject *)self, timespec);
+}
+
+static PyObject *Channel_duration(Channel *self) {
+    npy_intp length;
+    double duration;
+
+    length = PyArray_DIM(self->data, 0);
+    if (length > 0) {
+        duration = (length - 1) / self->samplerate;
+    } else {
+        duration = nan(NULL);
+    }
+    
+    return PyFloat_FromDouble(duration);
+}
+
+static PyObject *Channel_end(Channel *self) {
+    double t;
+    PyObject *duration, *timespec, *datetime;
+
+    duration = Channel_duration(self);  // new
+    t = self->start_sec + self->start_nsec / 1.0e9 + PyFloat_AsDouble(duration);
+    timespec = Py_BuildValue("(Ll)", (long long)t, (long)(fmod(t, 1.0) * 1.0e9));  // new
+    datetime = datetimeFromTimespec((PyObject *)self, timespec);  // new
+    Py_XDECREF(duration);
+    Py_XDECREF(timespec);
+
+    return datetime;
+}
+
 static PyMethodDef Channel_methods[] = {
+    {"start", (PyCFunction)Channel_start, METH_NOARGS, "channel start time as a datetime object"},
+    {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
+    {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
     {NULL}  // sentinel
 };
 
@@ -138,7 +217,11 @@ static PyTypeObject ChannelType = {
 };
 
 
-// Define other functions.
+// Define API functions.
+
+double duration(const char *chTable, const char *name) {
+    return PyFloat_AsDouble(Channel_duration(getChannel(chTable, name)));
+}
 
 static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
     int typenum;
@@ -437,46 +520,6 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
 }
 
 
-static PyObject*
-datetimeFromTimespec(PyObject *self, PyObject *args) {
-    // Convert timespec to a Python datetime object.
-    long long epoch, nsec = 0;
-    PyObject *dtClass, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
-    PyGILState_STATE state;
-
-    state = PyGILState_Ensure();
-    if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
-        dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
-        utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
-        dt = PyObject_CallFunction(utcfromtimestamp, "(L)", epoch);  // new
-        replace = PyObject_GetAttrString(dt, "replace");  // new
-        empty = PyTuple_New(0);  // new
-        keywords = PyDict_New();  // new
-        micro = Py_BuildValue("l", nsec / 1000);  // new
-        if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
-            datetime = PyObject_Call(replace, empty, keywords);  // new
-        } else {
-            Py_INCREF(Py_None);
-            datetime = Py_None;
-        }
-        Py_XDECREF(utcfromtimestamp);
-        Py_XDECREF(dt);
-        Py_XDECREF(replace);
-        Py_XDECREF(empty);
-        Py_XDECREF(keywords);
-        Py_XDECREF(micro);
-    } else {
-        PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
-    }
-    PyGILState_Release(state);
-
-    return datetime;
-}
-
-static PyMethodDef SaltoMethods[] = {
-    {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
-    {NULL, NULL, 0, NULL}  // sentinel
-};
 
 
 int main(int argc, const char * argv[]) {

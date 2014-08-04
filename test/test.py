@@ -11,4 +11,6 @@ rf[alive].read("HUGE.ATS", alive, 'main')
 rf[gcdc].read("GCDC.CSV", gcdc, 'main')
 meta = [[getattr(m.channels[z], metadata) for metadata in ('device', 'serial_no', 'resolution', 'samplerate', 'scale', 'offset', 'unit', 'start_sec', 'start_nsec', 'json')] for z in ('Z', 'Z 2', 'Z 3')]
 z = m.channels['Z 2']
-salto.datetimeFromTimespec(z.start_sec, z.start_nsec)
+z.start()
+z.end()
+z.duration()

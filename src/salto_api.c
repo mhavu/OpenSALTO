@@ -230,26 +230,6 @@ size_t length(const char *chTable, const char *name) {
     return len;
 }
 
-double duration(const char *chTable, const char *name) {
-    Channel *ch;
-    double duration;
-    size_t length;
-
-    ch = getChannel(chTable, name);
-    if (ch) {
-        channelData(ch, &length);
-        if (length > 0) {
-            duration = (length - 1) / ch->samplerate;
-        } else {
-            duration = nan(NULL);
-        }
-    } else {
-        duration = nan(NULL);
-    }
-    
-    return duration;
-}
-
 const char *unit(const char *chTable, const char *name) {
     Channel *ch;
     char *unit = NULL;
