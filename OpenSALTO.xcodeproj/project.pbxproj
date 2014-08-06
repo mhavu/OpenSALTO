@@ -7,10 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
+		277CC0561991150B00E9F4EF /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 277CC0551991150B00E9F4EF /* libpython3.4m.dylib */; };
 		27F183D2196A922600FCD050 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		27F183D4196D683C00FCD050 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
 		27F183DF196EB3D500FCD050 /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
-		27F183E0196FDC0C00FCD050 /* Python.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 27C6E5171966F5A8004192BD /* Python.framework */; };
 		27F183E6197561A300FCD050 /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
 		27F18407198252BE00FCD050 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
@@ -44,12 +45,22 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		277CC05B1991178300E9F4EF /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27C6E4CC19669B8A004192BD /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 12;
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */,
 				27F1843A1989686400FCD050 /* HUGE.ATS in CopyFiles */,
 				27F183E6197561A300FCD050 /* GCDC.CSV in CopyFiles */,
 				27F183DF196EB3D500FCD050 /* TINY.ATS in CopyFiles */,
@@ -60,6 +71,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
+		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
+		277CC0551991150B00E9F4EF /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = /Users/mhavu/anaconda/lib/libpython3.4m.dylib; sourceTree = "<absolute>"; };
 		27C6E4CE19669B8D004192BD /* OpenSALTO */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenSALTO; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
 		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; };
@@ -87,7 +101,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				27F183E0196FDC0C00FCD050 /* Python.framework in Frameworks */,
+				277CC0561991150B00E9F4EF /* libpython3.4m.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -115,6 +129,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		277CC0491990D36000E9F4EF /* report */ = {
+			isa = PBXGroup;
+			children = (
+				277CC04B1990D3AB00E9F4EF /* analysis.py */,
+			);
+			name = report;
+			sourceTree = "<group>";
+		};
+		277CC04A1990D37C00E9F4EF /* filter */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = filter;
+			sourceTree = "<group>";
+		};
 		27C6E4C519669B8A004192BD = {
 			isa = PBXGroup;
 			children = (
@@ -164,6 +193,7 @@
 		27C6E4F01966A290004192BD /* Other Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				277CC0551991150B00E9F4EF /* libpython3.4m.dylib */,
 			);
 			name = "Other Frameworks";
 			sourceTree = "<group>";
@@ -184,6 +214,8 @@
 			isa = PBXGroup;
 			children = (
 				27F183E9198247BE00FCD050 /* file */,
+				277CC04A1990D37C00E9F4EF /* filter */,
+				277CC0491990D36000E9F4EF /* report */,
 			);
 			name = plugins;
 			sourceTree = "<group>";
@@ -192,6 +224,7 @@
 			isa = PBXGroup;
 			children = (
 				27C6E4DB19669CD5004192BD /* atsf.c */,
+				277CC0481990D29C00E9F4EF /* gviewer.py */,
 				27F1842A19891A8E00FCD050 /* hookie.c */,
 				27F183E31975550100FCD050 /* gcdc.c */,
 			);
@@ -232,6 +265,7 @@
 				27C6E4CA19669B8A004192BD /* Sources */,
 				27C6E4CB19669B8A004192BD /* Frameworks */,
 				27C6E4CC19669B8A004192BD /* CopyFiles */,
+				277CC05B1991178300E9F4EF /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -446,6 +480,15 @@
 					"$(inherited)",
 					"\"$(SYSTEM_APPS_DIR)/Xcode.app/Contents/Developer/Library/Frameworks\"",
 				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"/Users/mhavu/anaconda/include/python3.4m\"",
+					"\"/Users/mhavu/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/../../anaconda/lib\"",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx10.7;
 				TEST_AFTER_BUILD = YES;
@@ -458,6 +501,15 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SYSTEM_APPS_DIR)/Xcode.app/Contents/Developer/Library/Frameworks\"",
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"/Users/mhavu/anaconda/include/python3.4m\"",
+					"\"/Users/mhavu/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/../../anaconda/lib\"",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx10.7;
@@ -577,6 +629,7 @@
 				27F183FA19824CE500FCD050 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		27F184251982813A00FCD050 /* Build configuration list for PBXNativeTarget "gcdc" */ = {
 			isa = XCConfigurationList;
@@ -585,6 +638,7 @@
 				27F184271982813A00FCD050 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		27F1843219891AD700FCD050 /* Build configuration list for PBXNativeTarget "hookie" */ = {
 			isa = XCConfigurationList;
@@ -593,6 +647,7 @@
 				27F1843419891AD700FCD050 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

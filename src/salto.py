@@ -1,4 +1,4 @@
-import re, json, os
+import re, json, os, importlib.machinery
 from datetime import datetime
 import ctypes as c
 import numpy as np
@@ -58,7 +58,7 @@ class Plugin:
             readfunc = registered.get('readfunc')
         if readfunc:
             err = readfunc(filename, chTable)
-        if err != 0:
+        if err != 0 and self.cdll:
             raise(IOError, self.cdll.describeError(err))
     def write(self, filename, format, chTable):
         registered = self.formats.get(format)
@@ -66,7 +66,7 @@ class Plugin:
             writefunc = registered.get('writefunc')
         if readfunc:
             err = writefunc(filename, chTable)
-        if err != 0:
+        if err != 0 and self.cdll:
             raise(IOError, self.cdll.describeError(err))
     def filter(self, name, ch):
         return ch
@@ -81,9 +81,13 @@ class PluginManager:
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
             isLoadable = ext.lower() in (".dylib", ".so", ".dll")
+            isPy = ext.lower() in (".py", ".pyc", ".pyo")
             isNew = filename not in [p.cdll._name for p in self.plugins]
             if isLoadable and isNew:
                 self.load(filename)
+            elif isPy and isNew:
+                #importlib.machinery.SourceFileLoader(plugin, filename).load_module()
+                pass
     def load(self, filename):
         cdll = c.CDLL(filename, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
@@ -106,7 +110,7 @@ class PluginManager:
     def query(self, **kwargs):
         ext = kwargs.get('ext')
         if ext:
-            return [format for format, plugin in self.importFormats.iteritems()
+            return [format for format, plugin in self.importFormats.items()
                            if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
 
 setattr(salto, 'ChannelTable', ChannelTable)
@@ -122,4 +126,4 @@ del moduleName
 if __name__ == '__main__':
     salto.channelTables = {'main': salto.ChannelTable()}
     salto.pluginManager = salto.PluginManager()
-    salto.pluginManager.discover(".")
+    #salto.pluginManager.discover(".")

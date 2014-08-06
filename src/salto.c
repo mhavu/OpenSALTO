@@ -10,12 +10,7 @@
 #include <stdio.h>
 #include "salto_api.h"
 #include "salto.h"
-#ifdef __APPLE__
-#include <Python/structmember.h>
-#else
 #include <structmember.h>
-#endif
-#include "numpy/arrayobject.h"
 
 static PyObject *mainDict = NULL;   // global namespace
 static PyObject *saltoDict = NULL;  // salto namespace
@@ -58,7 +53,7 @@ static PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     return datetime;
 }
 
-static PyMethodDef SaltoMethods[] = {
+static PyMethodDef saltoMethods[] = {
     {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
     {NULL, NULL, 0, NULL}  // sentinel
 };
@@ -71,15 +66,15 @@ static PyTypeObject ChannelType;
 static void Channel_dealloc(Channel* self) {
     Py_XDECREF(self->data);
     Py_XDECREF(self->dict);
-    self->ob_type->tp_free((PyObject*)self);
+    Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
 static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     Channel *self;
-    PyObject *ndarray;
+    PyArrayObject *ndarray;
 
-    ndarray = PyTuple_GetItem(args, 0);
-    if (ndarray) {
+    ndarray = (PyArrayObject *)PyTuple_GetItem(args, 0);
+    if (ndarray && PyArray_Check(ndarray)) {
         self = (Channel *)type->tp_alloc(type, 0);
         if (self) {
             self->dict = NULL;
@@ -158,8 +153,8 @@ static PyMethodDef Channel_methods[] = {
 };
 
 static PyMemberDef Channel_members[] = {
-    {"__dict__", T_OBJECT, offsetof(Channel, dict), RO, "dictionary for instance variables"},
-    {"data", T_OBJECT_EX, offsetof(Channel, data), RO, "Channel data as NumPy array"},
+    {"__dict__", T_OBJECT, offsetof(Channel, dict), READONLY, "dictionary for instance variables"},
+    {"data", T_OBJECT_EX, offsetof(Channel, data), READONLY, "Channel data as NumPy array"},
     {"samplerate", T_DOUBLE, offsetof(Channel, samplerate), 0, "sample rate in Hz"},
     {"scale", T_DOUBLE, offsetof(Channel, scale), 0, "scale for integer channels"},
     {"offset", T_DOUBLE, offsetof(Channel, offset), 0, "offset for integer channels"},
@@ -174,8 +169,7 @@ static PyMemberDef Channel_members[] = {
 };
 
 static PyTypeObject ChannelType = {
-    PyObject_HEAD_INIT(NULL)
-    0,                           // ob_size
+    PyVarObject_HEAD_INIT(NULL, 0)
     "salto.Channel",             // tp_name
     sizeof(Channel),             // tp_basicsize
     0,                           // tp_itemsize
@@ -380,7 +374,7 @@ const char *getChannelName(const char *chTable, void *ptr) {
         while (PyDict_Next(channelTable, &pos, &name, &value)) {  // borrowed
             isChannelObj = PyObject_TypeCheck(value, &ChannelType);
             if (isChannelObj && PyArray_DATA(((Channel *)value)->data) == ptr) {
-                s = PyString_AsString(name);
+                s = PyUnicode_AsUTF8(name);
                 break;
             }
         }
@@ -434,9 +428,11 @@ const char *getUniqueName(const char *chTable, const char *name) {
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
         unique = PyObject_CallMethod(channelTable, "getUnique", "(s)", name);  // new
-        PyString_AsStringAndSize(unique, &buffer, (Py_ssize_t *)&length);
-        s = malloc(++length);
-        strlcpy(s, buffer, length);
+        buffer = PyUnicode_AsUTF8AndSize(unique, (Py_ssize_t *)&length);
+        if (buffer) {
+            s = malloc(++length);
+            strlcpy(s, buffer, length);
+        }
         Py_XDECREF(unique);
     }
     PyGILState_Release(state);
@@ -453,12 +449,12 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
     state = PyGILState_Ensure();
     pluginClass = PyDict_GetItemString(saltoDict, "Plugin");  // borrowed
     if (PyObject_IsInstance(obj, pluginClass)) {
-        registerFormat = PyString_FromString("registerFormat");  // new
+        registerFormat = PyUnicode_FromString("registerFormat");  // new
         name = PyUnicode_FromString(format);  // new
         extList = PyList_New(n_exts);  // new
         if (registerFormat && name && extList) {
             for (int i = 0; i < n_exts; i++) {
-                PyList_SET_ITEM(extList, i, PyString_FromString(exts[i]));  // stolen
+                PyList_SET_ITEM(extList, i, PyUnicode_FromString(exts[i]));  // stolen
             }
             o = PyObject_CallMethodObjArgs(obj, registerFormat, name, extList, NULL);  // new
             result = (o ? 0 : -1);
@@ -499,7 +495,7 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
                 }
                 Py_XDECREF(c_char_p);
                 if (result == 0) {
-                    method = PyString_FromFormat("set%sFunc", type);  // new
+                    method = PyUnicode_FromFormat("set%sFunc", type);  // new
                     name = PyUnicode_FromString(format);  // new
                     o = PyObject_CallMethodObjArgs(obj, method, name, func, NULL);  // new
                     result = (o ? 0 : -1);
@@ -519,13 +515,39 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
     return result;
 }
 
+static struct PyModuleDef saltoModuleDef = {
+    PyModuleDef_HEAD_INIT,
+    "salto",
+    "OpenSALTO C extension module",
+    -1,
+    saltoMethods,
+    NULL, NULL, NULL, NULL
+};
+
+static PyObject *PyInit_salto(void)
+{
+    PyObject *module = NULL;
+
+    if (PyType_Ready(&ChannelType) >= 0) {
+        module = PyModule_Create(&saltoModuleDef);
+        if (module) {
+            Py_INCREF(&ChannelType);
+            PyModule_AddObject(module, "Channel", (PyObject *)&ChannelType);
+            saltoDict = PyModule_GetDict(module);  // borrowed
+            Py_XINCREF(saltoDict);
+        }
+    }
+
+    return module;
+}
 
 
 
-int main(int argc, const char * argv[]) {
-    PyObject *saltoModule, *mainModule;
+int main(int argc, const char *argv[]) {
+    PyObject *mainModule;
 
-    Py_SetProgramName((char *)argv[0]);
+    Py_SetProgramName(L"OpenSALTO");
+    PyImport_AppendInittab("salto", &PyInit_salto);
     Py_Initialize();
 
     // Get a reference to the Python global dictionary.
@@ -538,20 +560,6 @@ int main(int argc, const char * argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    // Initialize Salto and get a reference to local dictionary.
-    if (PyType_Ready(&ChannelType) < 0)
-        exit(EXIT_FAILURE);
-    saltoModule = Py_InitModule("salto", SaltoMethods);
-    if (saltoModule) {
-        Py_INCREF(&ChannelType);
-        PyModule_AddObject(saltoModule, "Channel", (PyObject *)&ChannelType);
-        saltoDict = PyModule_GetDict(saltoModule);  // borrowed
-        Py_XINCREF(saltoDict);
-    } else {
-        fprintf(stderr, "Python module salto not found\n");
-        exit(EXIT_FAILURE);
-    }
-    
     // Initialize NumPy.
     if (_import_array() < 0) {
         fprintf(stderr, "Module numpy.core.multiarray failed to import\n");
@@ -566,7 +574,7 @@ int main(int argc, const char * argv[]) {
         perror("fopen()");
         exit(EXIT_FAILURE);
     }
-    Py_Main(argc, (char **)argv);
+    Py_Main(0, (wchar_t **)argv);
 
     // Release the Python objects.
     Py_XDECREF(mainDict);

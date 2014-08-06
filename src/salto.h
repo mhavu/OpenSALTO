@@ -6,19 +6,17 @@
 //  Released under the terms of GNU General Public License version 3.
 //
 
-#ifdef __APPLE__
-#include <Python/Python.h>
-#else
-#include <Python.h>
-#endif
-
 #ifndef _salto_h
 #define _salto_h
+
+#include <Python.h>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/arrayobject.h>
 
 typedef struct {
     PyObject_HEAD
     PyObject *dict;
-    PyObject *data;
+    PyArrayObject *data;
     double samplerate;
     double scale;
     double offset;
