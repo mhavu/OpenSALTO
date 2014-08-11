@@ -57,7 +57,7 @@ class Plugin:
         if registered:
             readfunc = registered.get('readfunc')
         if readfunc:
-            err = readfunc(filename, chTable)
+            err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
         if err != 0 and self.cdll:
             raise(IOError, self.cdll.describeError(err))
     def write(self, filename, format, chTable):
@@ -65,7 +65,7 @@ class Plugin:
         if registered:
             writefunc = registered.get('writefunc')
         if readfunc:
-            err = writefunc(filename, chTable)
+            err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
         if err != 0 and self.cdll:
             raise(IOError, self.cdll.describeError(err))
     def filter(self, name, ch):
@@ -81,15 +81,16 @@ class PluginManager:
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
             isLoadable = ext.lower() in (".dylib", ".so", ".dll")
-            isPy = ext.lower() in (".py", ".pyc", ".pyo")
-            isNew = filename not in [p.cdll._name for p in self.plugins]
-            if isLoadable and isNew:
-                self.load(filename)
-            elif isPy and isNew:
-                #importlib.machinery.SourceFileLoader(plugin, filename).load_module()
-                pass
-    def load(self, filename):
-        cdll = c.CDLL(filename, mode = c.RTLD_LOCAL)
+            isPy = ext.lower() in (".py", ".pyc", ".pyo") 
+            if isLoadable:
+                self.load(os.path.join(path, filename))
+            elif isPy:
+                filepath = os.path.join(path, filename)
+                loader = importlib.machinery.SourceFileLoader("salto." + plugin, filepath)
+                setattr(salto, plugin, loader.load_module())
+                self.register(getattr(salto, plugin).Plugin(self))
+    def load(self, filepath):
+        cdll = c.CDLL(filepath, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
     def register(self, plugin):
         if plugin not in self.plugins:
@@ -126,4 +127,4 @@ del moduleName
 if __name__ == '__main__':
     salto.channelTables = {'main': salto.ChannelTable()}
     salto.pluginManager = salto.PluginManager()
-    #salto.pluginManager.discover(".")
+    salto.pluginManager.discover("plugins")

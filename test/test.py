@@ -1,4 +1,4 @@
-npa = np.ndarray(shape=(10), dtype=float)
+npa = np.empty((10), dtype=float)
 ch = salto.Channel(npa, samplerate=40)
 m = salto.channelTables['main']
 p = salto.pluginManager.plugins
