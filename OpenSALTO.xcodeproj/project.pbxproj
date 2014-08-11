@@ -8,12 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
-		277CC0561991150B00E9F4EF /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 277CC0551991150B00E9F4EF /* libpython3.4m.dylib */; };
 		27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
 		27960C0A1998BC6500B016FC /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
 		27960C0B1998BC6500B016FC /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
 		27960C0C1998BC7600B016FC /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		27960C0F1998CC7A00B016FC /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		27960C101999049B00B016FC /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		27F183D4196D683C00FCD050 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
 		27F18407198252BE00FCD050 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
@@ -84,7 +84,6 @@
 /* Begin PBXFileReference section */
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
 		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
-		277CC0551991150B00E9F4EF /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = /Users/mhavu/anaconda/lib/libpython3.4m.dylib; sourceTree = "<absolute>"; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
 		27C6E4CE19669B8D004192BD /* OpenSALTO */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenSALTO; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
@@ -113,7 +112,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				277CC0561991150B00E9F4EF /* libpython3.4m.dylib in Frameworks */,
+				27960C101999049B00B016FC /* libpython3.4m.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -159,7 +158,6 @@
 		27C6E4C519669B8A004192BD = {
 			isa = PBXGroup;
 			children = (
-				27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */,
 				27C6E4DC19669CD5004192BD /* README.md */,
 				27C6E4DA19669CD5004192BD /* COPYING.md */,
 				27C6E4D019669B8D004192BD /* src */,
@@ -206,7 +204,7 @@
 		27C6E4F01966A290004192BD /* Other Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				277CC0551991150B00E9F4EF /* libpython3.4m.dylib */,
+				27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */,
 			);
 			name = "Other Frameworks";
 			sourceTree = "<group>";
@@ -496,8 +494,8 @@
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"/Users/mhavu/anaconda/include/python3.4m\"",
-					"\"/Users/mhavu/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+					"\"$(SRCROOT)/../../anaconda/include/python3.4m\"",
+					"\"$(SRCROOT)/../../anaconda/lib/python3.4/site-packages/numpy/core/include\"",
 				);
 				LD_RUNPATH_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = (
@@ -519,8 +517,8 @@
 				);
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"/Users/mhavu/anaconda/include/python3.4m\"",
-					"\"/Users/mhavu/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+					"\"$(SRCROOT)/../../anaconda/include/python3.4m\"",
+					"\"$(SRCROOT)/../../anaconda/lib/python3.4/site-packages/numpy/core/include\"",
 				);
 				LD_RUNPATH_SEARCH_PATHS = "";
 				LIBRARY_SEARCH_PATHS = (
