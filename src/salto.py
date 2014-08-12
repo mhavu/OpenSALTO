@@ -59,7 +59,7 @@ class Plugin:
         if readfunc:
             err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
         if err != 0 and self.cdll:
-            raise(IOError, self.cdll.describeError(err))
+            raise IOError(self.cdll.describeError(err))
     def write(self, filename, format, chTable):
         registered = self.formats.get(format)
         if registered:
@@ -67,7 +67,7 @@ class Plugin:
         if readfunc:
             err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
         if err != 0 and self.cdll:
-            raise(IOError, self.cdll.describeError(err))
+            raise IOError(self.cdll.describeError(err))
     def filter(self, name, ch):
         return ch
 
