@@ -312,6 +312,9 @@ const char *describeError(int err) {
         case INVALID_FORMAT:
             str = "Invalid file format";
             break;
+        case INVALID_HEADER:
+            str = "Invalid file header";
+            break;
         case INVALID_FILE:
             str = "Corrupt file";
             break;
