@@ -14,40 +14,30 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <math.h>
 #include "salto_api.h"
 
 typedef struct {
-    uint8_t type;
-    uint8_t format;
-    uint16_t pktlen;
-    double samplerate;
-    double scale;
-    double offset;
-    char *unit;
-    uint8_t nsubs;
-    uint16_t subpktlen;
-    char **sub;
-    uint8_t **dset;
-    uint64_t length;
+    const char *name;
+    int16_t *data;
 } Channel;
 
 typedef enum {
     SUCCESS = 0,
     FOPEN_FAILED,
     INVALID_FORMAT,
+    INVALID_HEADER,
     INVALID_FILE,
-    INVALID_BLOCK_COUNT
+    UNSUPPORTED_COMPRESSION
 } Error;
 
-static uint16_t betoh16(uint8_t *buf)
-{
-    return (uint16_t)buf[1] | (uint16_t)buf[0] << 8;
-}
+static const char headerTop[] = "\
+*******************************\x0A\
+*  Hookie Technologies Ltd    *\x0A\
+*  Activity Sensor            *\x0A";
 
-static uint32_t betoh32(uint8_t *buf)
-{
-    return ((uint32_t)buf[0] << 24 | (uint32_t)buf[1] << 16 |
-            (uint32_t)buf[2] << 8 | (uint32_t)buf[3]);
+static uint16_t letoh16(uint8_t *buffer) {
+    return (uint16_t)buffer[0] | (uint16_t)buffer[1] << 8;
 }
 
 static off_t fsize(const char *filename) {
@@ -61,17 +51,33 @@ static off_t fsize(const char *filename) {
     return st.st_size;
 }
 
+static time_t bcdToTime(uint8_t *buffer) {
+    struct tm time;
+
+    time.tm_mday = 10 * (buffer[0] >> 4) + (buffer[0] & 0x0F);
+    time.tm_mon = 10 * (buffer[1] >> 4) + (buffer[1] & 0x0F);
+    time.tm_year = 100 + 10 * (buffer[2] >> 4) + (buffer[2] & 0x0F);
+    time.tm_hour = 10 * (buffer[3] >> 4) + (buffer[3] & 0x0F);
+    time.tm_min = 10 * (buffer[4] >> 4) + (buffer[4] & 0x0F);
+    time.tm_sec = 10 * (buffer[5] >> 4) + (buffer[5] & 0x0F);
+
+    return mktime(&time);
+}
+
 int readFile(const char *filename, const char *chTable) {
-    uint8_t header[8];
-    uint8_t *buffer;
-    long long blk, nBlocks;
-    uint16_t i, headerLength, blockLength, paddingLength, maxPktLength;
-    uint8_t ch, nChannels, sub;
-    int headerIsValid;
-    Channel *channel;
+    uint8_t buffer[512];
+    long long blk, nBlocks, fileLength, latestStartBlock;
+    size_t length, i, position;
+    int headerIsValid, isDynamic = 0;
+    int16_t *ptr, fill[3];
+    int ch, nChannels = 3;
+    Channel channel[3];
+    const char *names[3] = {"X", "Y", "Z"};
+    char serialno[28], tag[28], value[28], json[512] = "{ ";
+    double samplerate;
     Error err = SUCCESS;
     struct timespec startTime;
-    struct tm time;
+    time_t t, blockTime, latestStartTime, lastBlockTime;
 
 
     FILE *fp = fopen(filename, "rb");
@@ -81,10 +87,41 @@ int readFile(const char *filename, const char *chTable) {
     }
 
     if (!err) {
-        // Read the file header (? bytes).
-        headerIsValid = (fread(header, 1, 8, fp) == 8 &&
-                         header[0] == header[1] == 0xAA);
-        if (!headerIsValid) {
+        // Read the file header (512 bytes).
+        fileLength = fsize(filename);
+        headerIsValid = (fread(buffer, 1, 512, fp) == 512 &&
+                         memcmp((const char *)buffer, headerTop, strlen(headerTop)) == 0);
+        if (headerIsValid && fileLength % 512 == 0) {
+            for (i = strlen(headerTop); i < 480; i += 32) {
+                if (sscanf((const char *)&buffer[i], "* %28[^\x0A:*]: %28s *\x0A", tag, value) > 0) {
+                    if (strcmp(tag, "S/N") == 0) {
+                        strlcpy(serialno, value, sizeof(serialno));
+                    } else if (strcmp(tag, "Data rate") == 0) {
+                        if (sscanf(value, "%lfHz", &samplerate) <= 0) {
+                            fclose(fp);
+                            fprintf(stderr, "readFile(): Invalid sample rate %s\n", value);
+                            err = INVALID_HEADER;
+                            break;
+                        }
+                    } else if (strcmp(tag, "Data compression") == 0 ||
+                               strcmp(tag, "Activity threshold") == 0 ||
+                               strcmp(tag, "Inactivity threshold") == 0 ||
+                               strcmp(tag, "Inactivity time") == 0 ||
+                               strcmp(tag, "Acceleration coupling") == 0) {
+                        snprintf(strchr(json, 0), sizeof(json) - strlen(json), "\"%s\": %s,", tag, value);
+                        if (strcmp(tag, "Data compression") == 0 && atoi(value) != 0) {
+                            fclose(fp);
+                            fprintf(stderr, "readFile(): Data compression %s not supported\n", value);
+                            err = UNSUPPORTED_COMPRESSION;
+                            break;
+                        }
+                        if (strcmp(tag, "Acceleration coupling") == 0 && strcmp(value, "AC") == 0) {
+                            isDynamic = 1;
+                        }
+                   }
+                }
+            }
+        } else {
             fclose(fp);
             fprintf(stderr, "readFile(): Unknown file format (not Hookie .DAT)\n");
             err = INVALID_FORMAT;
@@ -92,116 +129,95 @@ int readFile(const char *filename, const char *chTable) {
     }
 
     if (!err) {
-        "date"; // 10 chars
-        "time"; // 8 chars
-        "data rate"; // 6 chars
-        "data compression"; // 3 chars
-        
-        time.tm_mday = header[2];
-        time.tm_mon = header[3];
-        time.tm_year = header[4] + 100;
-        time.tm_hour = header[5];
-        time.tm_min = header[6];
-        time.tm_sec = header[7];
-        startTime.tv_sec = mktime(&time);
-
-        paddingLength = blockLength;
-        maxPktLength = 0;
-        channel = calloc(nChannels, sizeof(Channel));
-        // The nBlocks stored in the file is often 0, in which case the
-        // number of blocks has to be calculated from the file size.
-        if (nBlocks == 0)
-            nBlocks = ((fsize(filename) - headerLength) / blockLength);
-        if (nBlocks < 1) {
-            fclose(fp);
-            fprintf(stderr, "readFile(): No data blocks or block count could not be determined\n");
-            err = INVALID_BLOCK_COUNT;
-        }
-
-        // Read channel descriptions (32 bytes each).
-        for (ch = 0; ch < nChannels; ch++) {
-            if (!err && fread(header, 1, 32, fp) != 32) {
-                fclose(fp);
-                fprintf(stderr, "readFile(): Corrupt channel header\n");
-                err = INVALID_FILE;
-            }
-            if (!err) {
-                channel[ch].type = header[0];
-                channel[ch].format = header[1];
-                channel[ch].pktlen = betoh16(&header[2]);
-                channel[ch].length = nBlocks * channel[ch].pktlen;
-
-                // 3-axis accelerometer channel
-                if (channel[ch].format != 0) {
-                    // unknown data format
-                    // TODO: handle nicely
-                }
-                // range: [-2.7 2.7] * 9.81 m/s^2
-                channel[ch].scale = 2 * 2.7 / 256 * 9.81;
-                channel[ch].offset = -2.7 * 9.81;
-                channel[ch].unit = "m/s^2";
-                channel[ch].samplerate = 75.0;
-                channel[ch].nsubs = 3;
-                channel[ch].sub = calloc(3, sizeof(char *));
-                channel[ch].length /= 3;
-                channel[ch].sub[0] = "X";
-                channel[ch].sub[1] = "Y";
-                channel[ch].sub[2] = "Z";
-                channel[ch].dset = calloc(3, sizeof(uint8_t *));
-                channel[ch].dset[0] = newInt16Channel(chTable, channel[ch].sub[0], channel[ch].length);
-                channel[ch].dset[1] = newInt16Channel(chTable, channel[ch].sub[1], channel[ch].length);
-                channel[ch].dset[2] = newInt16Channel(chTable, channel[ch].sub[2], channel[ch].length);
-                break;
-
-                channel[ch].subpktlen = channel[ch].pktlen / channel[ch].nsubs;
-                paddingLength -= channel[ch].pktlen;
-                if (channel[ch].pktlen > maxPktLength)
-                    maxPktLength = channel[ch].pktlen;
-            }
-        }
-
-        // Read data blocks.
-        if (!err && fseek(fp, headerLength, SEEK_SET) != 0) {
-            fclose(fp);
-            fprintf(stderr, "readFile(): Premature end of file\n");
+        // Determine data length.
+        // Get time stamp for the first data block.
+        if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
+            startTime.tv_sec = bcdToTime(&buffer[2]);
+            startTime.tv_nsec = 0;
+        } else {
             err = INVALID_FILE;
         }
-        if (!err) {
-            buffer = malloc(maxPktLength);
-            for (blk = 0; blk < nBlocks; blk++) {
-                for (ch = 0; ch < nChannels; ch++) {
-                    if (fread(buffer, 1, channel[ch].pktlen, fp) == channel[ch].pktlen)
-
-                        for (i = 0; i < channel[ch].subpktlen; i++) {
-                            for (sub = 0; sub < channel[ch].nsubs; sub++) {
-                                // The samples are interleaved.
-                                channel[ch].dset[sub][i] = buffer[channel[ch].nsubs * i + sub];
-                            }
-                        }
-                }
-
-                if (paddingLength > 0 && fseek(fp, paddingLength, SEEK_CUR) != 0) {
-                    fclose(fp);
-                    fprintf(stderr, "readFile(): Premature end of file\n");
-                    err = INVALID_FILE;
-                }
-            }
-            free(buffer);
+        // Get time stamp for the last data block.
+        if (!err && fseek(fp, -512, SEEK_END) == 0 &&
+            fread(buffer, 1, 512, fp) == 512 &&
+            buffer[0] == 0xAA && buffer[1] == 0xAA)
+        {
+            lastBlockTime = bcdToTime(&buffer[2]);
+            length = ceil((lastBlockTime - startTime.tv_sec + 0.5) * samplerate + 84);
+        } else {
+            err = INVALID_FILE;
         }
-
-        // Clean up.
+        if (!err && fseek(fp, 512, SEEK_SET) != 0)
+            err = INVALID_FILE;
+        if (err) {
+            fclose(fp);
+            fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
+        }
+    }
+    
+    if (!err) {
         for (ch = 0; ch < nChannels; ch++) {
-            for (sub = 0; sub < channel[ch].nsubs; sub++) {
-                setScaleAndOffset(chTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
-                setUnit(chTable, channel[ch].sub[sub], "m/s^2");
-                setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
-                setDevice(chTable, channel[ch].sub[sub], "Hookie AM20", "unknown");
-                setStartTime(chTable, channel[ch].sub[sub], startTime);
-                setResolution(chTable, channel[ch].sub[sub], 13);
+            channel[ch].name = names[ch];
+            channel[ch].data = calloc(length, sizeof(uint16_t));
+        }
+        latestStartTime = startTime.tv_sec;
+        latestStartBlock = 0;
+        position = 0;
+        nBlocks = fileLength / 512 - 1;
+        for (blk = 0; blk < nBlocks; blk++) {
+            if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
+                blockTime = bcdToTime(&buffer[2]);
+                // Fill in blanks if the device has entered sleep mode.
+                t = latestStartTime + round(84 * (blk - latestStartBlock) / samplerate);
+                if (blockTime > t) {
+                    for (ch = 0; ch < nChannels; ch++) {
+                        fill[ch] = isDynamic ? channel[ch].data[position - 1] : 0;
+                    }
+                    for (i = 0; i / samplerate < blockTime - t; i++) {
+                        for (ch = 0; ch < nChannels; ch++) {
+                            channel[ch].data[position] = fill[ch];
+                        }
+                        position++;
+                    }
+                    latestStartBlock = blk;
+                    latestStartTime = blockTime;
+                }
+                // Read the data.
+                for (i = 0; i < 84; i++) {
+                    for (ch = 0; ch < nChannels; ch++) {
+                        channel[ch].data[position] = letoh16(&buffer[8 + 2 * (nChannels * i + ch)]);
+                    }
+                    position++;
+                }
+            } else {
+                for (ch = 0; ch < nChannels; ch++) {
+                    free(channel[ch].data);
+                }
+                fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
+                err = INVALID_FILE;
+                break;
             }
         }
-        free(channel);
         fclose(fp);
+    }
+
+    if (!err) {
+        // Create the channels.
+        length = position;
+        json[strlen(json) - 1] = '}';
+        for (ch = 0; ch < nChannels; ch++) {
+            ptr = newInt16Channel(chTable, channel[ch].name, length);
+            memcpy(ptr, channel[ch].data, length);
+            free(channel[ch].data);
+            // range: [-16 16] * 9.81 m/s^2
+            setScaleAndOffset(chTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
+            setResolution(chTable, channel[ch].name, 13);
+            setUnit(chTable, channel[ch].name, "m/s^2");
+            setSampleRate(chTable, channel[ch].name, samplerate);
+            setDevice(chTable, channel[ch].name, "Hookie AM20", serialno);
+            setStartTime(chTable, channel[ch].name, startTime);
+            // TODO: set json
+        }
     }
 
     return err;
@@ -220,11 +236,14 @@ const char *describeError(int err) {
         case INVALID_FORMAT:
             str = "Invalid file format";
             break;
+        case INVALID_HEADER:
+            str = "Invalid file header";
+            break;
         case INVALID_FILE:
             str = "Corrupt file";
             break;
-        case INVALID_BLOCK_COUNT:
-            str = "No data blocks or block count could not be determined";
+        case UNSUPPORTED_COMPRESSION:
+            str = "Unsupported data compression";
             break;
         default:
             str = "Unknown error";

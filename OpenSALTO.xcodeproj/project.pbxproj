@@ -14,14 +14,21 @@
 		27960C0C1998BC7600B016FC /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		27960C0F1998CC7A00B016FC /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		27960C101999049B00B016FC /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		27960C1C199A0B8F00B016FC /* hookie.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F1842A19891A8E00FCD050 /* hookie.c */; };
 		27F183D4196D683C00FCD050 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
 		27F18407198252BE00FCD050 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
 		27F184291982816600FCD050 /* gcdc.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183E31975550100FCD050 /* gcdc.c */; };
-		27F1842F19891AD700FCD050 /* gcdc.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183E31975550100FCD050 /* gcdc.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		27960C13199A009B00B016FC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
+			remoteInfo = OpenSALTO;
+		};
 		27F1840A198252D500FCD050 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
@@ -30,13 +37,6 @@
 			remoteInfo = OpenSALTO;
 		};
 		27F184201982813A00FCD050 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
-			remoteInfo = OpenSALTO;
-		};
-		27F1842D19891AD700FCD050 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
 			proxyType = 1;
@@ -85,6 +85,7 @@
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
 		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
+		27960C1B199A009B00B016FC /* hookie.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = hookie.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4CE19669B8D004192BD /* OpenSALTO */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenSALTO; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
 		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; };
@@ -103,11 +104,17 @@
 		27F1841119827DF100FCD050 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		27F184281982813A00FCD050 /* gcdc.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = gcdc.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		27F1842A19891A8E00FCD050 /* hookie.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = hookie.c; path = plugins/file/hookie.c; sourceTree = "<group>"; };
-		27F1843519891AD700FCD050 /* hookie.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = hookie.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		27F18436198967D700FCD050 /* HUGE.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = HUGE.ATS; path = test/HUGE.ATS; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		27960C16199A009B00B016FC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27C6E4CB19669B8A004192BD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,13 +131,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		27F184231982813A00FCD050 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		27F1843019891AD700FCD050 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -173,7 +173,7 @@
 				27C6E4CE19669B8D004192BD /* OpenSALTO */,
 				27F183F719824CE500FCD050 /* atsf.dylib */,
 				27F184281982813A00FCD050 /* gcdc.dylib */,
-				27F1843519891AD700FCD050 /* hookie.dylib */,
+				27960C1B199A009B00B016FC /* hookie.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -245,6 +245,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		27960C17199A009B00B016FC /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27F183F519824CE500FCD050 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -259,16 +266,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		27F1843119891AD700FCD050 /* Headers */ = {
-			isa = PBXHeadersBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		27960C11199A009B00B016FC /* hookie */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 27960C18199A009B00B016FC /* Build configuration list for PBXNativeTarget "hookie" */;
+			buildPhases = (
+				27960C14199A009B00B016FC /* Sources */,
+				27960C16199A009B00B016FC /* Frameworks */,
+				27960C17199A009B00B016FC /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				27960C12199A009B00B016FC /* PBXTargetDependency */,
+			);
+			name = hookie;
+			productName = atsf;
+			productReference = 27960C1B199A009B00B016FC /* hookie.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
 		27C6E4CD19669B8A004192BD /* OpenSALTO */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 27C6E4D719669B8E004192BD /* Build configuration list for PBXNativeTarget "OpenSALTO" */;
@@ -324,24 +342,6 @@
 			productReference = 27F184281982813A00FCD050 /* gcdc.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
-		27F1842B19891AD700FCD050 /* hookie */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 27F1843219891AD700FCD050 /* Build configuration list for PBXNativeTarget "hookie" */;
-			buildPhases = (
-				27F1842E19891AD700FCD050 /* Sources */,
-				27F1843019891AD700FCD050 /* Frameworks */,
-				27F1843119891AD700FCD050 /* Headers */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				27F1842C19891AD700FCD050 /* PBXTargetDependency */,
-			);
-			name = hookie;
-			productName = atsf;
-			productReference = 27F1843519891AD700FCD050 /* hookie.dylib */;
-			productType = "com.apple.product-type.library.dynamic";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -366,12 +366,20 @@
 				27C6E4CD19669B8A004192BD /* OpenSALTO */,
 				27F183F619824CE500FCD050 /* atsf */,
 				27F1841E1982813A00FCD050 /* gcdc */,
-				27F1842B19891AD700FCD050 /* hookie */,
+				27960C11199A009B00B016FC /* hookie */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		27960C14199A009B00B016FC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				27960C1C199A0B8F00B016FC /* hookie.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27C6E4CA19669B8A004192BD /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -397,17 +405,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		27F1842E19891AD700FCD050 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				27F1842F19891AD700FCD050 /* gcdc.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		27960C12199A009B00B016FC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
+			targetProxy = 27960C13199A009B00B016FC /* PBXContainerItemProxy */;
+		};
 		27F1840B198252D500FCD050 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
@@ -418,14 +423,39 @@
 			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
 			targetProxy = 27F184201982813A00FCD050 /* PBXContainerItemProxy */;
 		};
-		27F1842C19891AD700FCD050 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
-			targetProxy = 27F1842D19891AD700FCD050 /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		27960C19199A009B00B016FC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_PREFIX = "";
+				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_NAME = hookie;
+				SDKROOT = macosx10.7;
+			};
+			name = Debug;
+		};
+		27960C1A199A009B00B016FC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_PREFIX = "";
+				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_NAME = hookie;
+				SDKROOT = macosx10.7;
+			};
+			name = Release;
+		};
 		27C6E4D519669B8E004192BD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -591,37 +621,18 @@
 			};
 			name = Release;
 		};
-		27F1843319891AD700FCD050 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/OpenSALTO";
-				DYLIB_COMPATIBILITY_VERSION = "";
-				DYLIB_CURRENT_VERSION = "";
-				EXECUTABLE_PREFIX = "";
-				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
-				MACH_O_TYPE = mh_bundle;
-				PRODUCT_NAME = hookie;
-				SDKROOT = macosx10.7;
-			};
-			name = Debug;
-		};
-		27F1843419891AD700FCD050 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/OpenSALTO";
-				DYLIB_COMPATIBILITY_VERSION = "";
-				DYLIB_CURRENT_VERSION = "";
-				EXECUTABLE_PREFIX = "";
-				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
-				MACH_O_TYPE = mh_bundle;
-				PRODUCT_NAME = hookie;
-				SDKROOT = macosx10.7;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		27960C18199A009B00B016FC /* Build configuration list for PBXNativeTarget "hookie" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				27960C19199A009B00B016FC /* Debug */,
+				27960C1A199A009B00B016FC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		27C6E4C919669B8A004192BD /* Build configuration list for PBXProject "OpenSALTO" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -654,15 +665,6 @@
 			buildConfigurations = (
 				27F184261982813A00FCD050 /* Debug */,
 				27F184271982813A00FCD050 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		27F1843219891AD700FCD050 /* Build configuration list for PBXNativeTarget "hookie" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				27F1843319891AD700FCD050 /* Debug */,
-				27F1843419891AD700FCD050 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
