@@ -19,6 +19,7 @@
 
 typedef struct {
     const char *name;
+    int16_t *buffer;
     int16_t *data;
 } Channel;
 
@@ -65,19 +66,21 @@ static time_t bcdToTime(uint8_t *buffer) {
 }
 
 int readFile(const char *filename, const char *chTable) {
-    uint8_t buffer[512];
-    long long blk, nBlocks, fileLength, latestStartBlock;
+    uint8_t buffer[512], *sample;
+    long long blk, nBlocks, fileLength;
     size_t length, i, position;
     int headerIsValid, isDynamic = 0;
-    int16_t *ptr, fill[3];
-    int ch, nChannels = 3;
+    int16_t fill;
+    int ch;
+    const int samplesPerBlock = 84;
+    const int nChannels = 3;
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
     char serialno[28], tag[28], value[28], json[512] = "{ ";
-    double samplerate;
+    double samplerate, t;
     Error err = SUCCESS;
     struct timespec startTime;
-    time_t t, blockTime, latestStartTime, lastBlockTime;
+    time_t *latestStart, *timecodes;
 
 
     FILE *fp = fopen(filename, "rb");
@@ -129,70 +132,38 @@ int readFile(const char *filename, const char *chTable) {
     }
 
     if (!err) {
-        // Determine data length.
-        // Get time stamp for the first data block.
-        if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
-            startTime.tv_sec = bcdToTime(&buffer[2]);
-            startTime.tv_nsec = 0;
-        } else {
-            err = INVALID_FILE;
-        }
-        // Get time stamp for the last data block.
-        if (!err && fseek(fp, -512, SEEK_END) == 0 &&
-            fread(buffer, 1, 512, fp) == 512 &&
-            buffer[0] == 0xAA && buffer[1] == 0xAA)
-        {
-            lastBlockTime = bcdToTime(&buffer[2]);
-            length = ceil((lastBlockTime - startTime.tv_sec + 0.5) * samplerate + 84);
-        } else {
-            err = INVALID_FILE;
-        }
-        if (!err && fseek(fp, 512, SEEK_SET) != 0)
-            err = INVALID_FILE;
-        if (err) {
-            fclose(fp);
-            fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
-        }
-    }
-    
-    if (!err) {
-        for (ch = 0; ch < nChannels; ch++) {
-            channel[ch].name = names[ch];
-            channel[ch].data = calloc(length, sizeof(uint16_t));
-        }
-        latestStartTime = startTime.tv_sec;
-        latestStartBlock = 0;
-        position = 0;
         nBlocks = fileLength / 512 - 1;
+        length = samplesPerBlock * nBlocks;
+        for (ch = 0; ch < nChannels; ch++) {
+            channel[ch].name = getUniqueName(chTable, names[ch]);
+            channel[ch].buffer = calloc(length, sizeof(uint16_t));
+        }
+        timecodes = calloc(nBlocks, sizeof(time_t));
+        latestStart = timecodes;
+        t = 0;
         for (blk = 0; blk < nBlocks; blk++) {
             if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
-                blockTime = bcdToTime(&buffer[2]);
-                // Fill in blanks if the device has entered sleep mode.
-                t = latestStartTime + round(84 * (blk - latestStartBlock) / samplerate);
-                if (blockTime > t) {
-                    for (ch = 0; ch < nChannels; ch++) {
-                        fill[ch] = isDynamic ? channel[ch].data[position - 1] : 0;
-                    }
-                    for (i = 0; i / samplerate < blockTime - t; i++) {
-                        for (ch = 0; ch < nChannels; ch++) {
-                            channel[ch].data[position] = fill[ch];
-                        }
-                        position++;
-                    }
-                    latestStartBlock = blk;
-                    latestStartTime = blockTime;
-                }
                 // Read the data.
-                for (i = 0; i < 84; i++) {
+                timecodes[blk] = bcdToTime(&buffer[2]);
+                for (i = 0; i < samplesPerBlock; i++) {
                     for (ch = 0; ch < nChannels; ch++) {
-                        channel[ch].data[position] = letoh16(&buffer[8 + 2 * (nChannels * i + ch)]);
+                        sample = &buffer[8 + 2 * (nChannels * i + ch)];
+                        channel[ch].buffer[samplesPerBlock * blk + i] = letoh16(sample);
                     }
-                    position++;
+                }
+                // Reserve space for missing samples if the device has entered sleep mode.
+                // TODO: Use sparse channels. Adding the missing samples may take terabytes of storage.
+                t += samplesPerBlock / samplerate;
+                if (timecodes[blk] - *latestStart > round(t)) {
+                    length += (timecodes[blk] - *latestStart - t) * samplerate;
+                    t = 0;
+                    latestStart = &timecodes[blk];
                 }
             } else {
                 for (ch = 0; ch < nChannels; ch++) {
-                    free(channel[ch].data);
+                    free(channel[ch].buffer);
                 }
+                free(timecodes);
                 fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
                 err = INVALID_FILE;
                 break;
@@ -203,12 +174,11 @@ int readFile(const char *filename, const char *chTable) {
 
     if (!err) {
         // Create the channels.
-        length = position;
+        startTime.tv_sec = timecodes[0];
+        startTime.tv_nsec = 0;
         json[strlen(json) - 1] = '}';
         for (ch = 0; ch < nChannels; ch++) {
-            ptr = newInt16Channel(chTable, channel[ch].name, length);
-            memcpy(ptr, channel[ch].data, length);
-            free(channel[ch].data);
+            channel[ch].data = newInt16Channel(chTable, channel[ch].name, length);
             // range: [-16 16] * 9.81 m/s^2
             setScaleAndOffset(chTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
             setResolution(chTable, channel[ch].name, 13);
@@ -217,7 +187,27 @@ int readFile(const char *filename, const char *chTable) {
             setDevice(chTable, channel[ch].name, "Hookie AM20", serialno);
             setStartTime(chTable, channel[ch].name, startTime);
             // TODO: set json
+            // Copy data filling in blanks if the device has entered sleep mode.
+            latestStart = timecodes;
+            t = 0;
+            position = 0;
+            for (blk = 0; blk < nBlocks; blk++) {
+                t += samplesPerBlock / samplerate;
+                if (timecodes[blk] - *latestStart > round(t)) {
+                    fill = isDynamic ? channel[ch].buffer[samplesPerBlock * blk - 1] : 0;
+                    for (i = 0; i < (timecodes[blk] - *latestStart - t) * samplerate; i++) {
+                        channel[ch].data[position++] = fill;
+                    }
+                    t = 0;
+                    latestStart = &timecodes[blk];
+                }
+                for (i = 0; i < samplesPerBlock; i++) {
+                    channel[ch].data[position++] = channel[ch].buffer[samplesPerBlock * blk + i];
+                }
+            }
+            free(channel[ch].buffer);
         }
+        free(timecodes);
     }
 
     return err;
