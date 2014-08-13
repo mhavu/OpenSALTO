@@ -8,9 +8,25 @@ import salto
 moduleName = __name__
 __name__ = 'salto'
 
+def makeUniqueKey(dict, key):
+    """Make a dictionary key unique by adding or incrementing an ordinal"""
+    if "ordinal" not in salto.makeUniqueKey.__dict__:
+        salto.makeUniqueKey.ordinal = re.compile(r"\d+$")
+    if key not in dict:
+        unique = key
+    else:
+        match = salto.makeUniqueKey.ordinal.search(key)
+        if match:
+            n = int(match.group())
+            n += 1
+            unique = key[0:match.start()] + str(n)
+        else:
+            unique = "%s %d" % (key, 2)
+        unique = salto.makeUniqueKey(dict, unique)
+    return unique
+
 class ChannelTable:
     """OpenSALTO channel table"""
-    ordinal = re.compile(r"\d+$")
     def __init__(self):
         self.channels = {}
     def add(self, name, ch):
@@ -19,20 +35,7 @@ class ChannelTable:
     def remove(self, name):
         self.channels.pop(name, None)
     def getUnique(self, name):
-        """Get a unique channel name by adding or
-            incrementing an ordinal"""
-        if name not in self.channels:
-            unique = name
-        else:
-            match = salto.ChannelTable.ordinal.search(name)
-            if match:
-                n = int(match.group())
-                n += 1
-                unique = name[0:match.start()] + str(n)
-            else:
-                unique = "%s %d" % (name, 2)
-            unique = self.getUnique(unique)
-        return unique
+        return salto.makeUniqueKey(self.channels, name)
 
 class Plugin:
     """OpenSALTO plugin"""
@@ -114,9 +117,11 @@ class PluginManager:
             return [format for format, plugin in self.importFormats.items()
                            if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
 
+setattr(salto, 'makeUniqueKey', makeUniqueKey)
 setattr(salto, 'ChannelTable', ChannelTable)
 setattr(salto, 'Plugin', Plugin)
 setattr(salto, 'PluginManager', PluginManager)
+del makeUniqueKey
 del ChannelTable
 del Plugin
 del PluginManager

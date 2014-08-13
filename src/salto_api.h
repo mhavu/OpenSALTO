@@ -12,6 +12,13 @@
 #include <stdint.h>
 #include <time.h>
 
+typedef enum {
+    STANDARD_FIELDS = 1 << 0,
+    CUSTOM_FIELDS = 1 << 1
+} MetadataFields;
+
+#define ALL_METADATA (STANDARD_FIELDS | CUSTOM_FIELDS)
+
 // Application hooks to which plugins attach
 typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
 typedef int (*WriteFileFunc)(const char *filename, const char *chTable);
@@ -60,9 +67,17 @@ int setDevice(const char *chTable, const char *ch, const char *device, const cha
 const char *device(const char *chTable, const char *ch);
 const char *serial(const char *chTable, const char *ch);
 
+int setMetadata(const char *chTable, const char *ch, const char *json);
+const char *metadata(const char *chTable, const char *ch, MetadataFields fields);
+
+const char *newChannelTable(const char *name);
+void deleteChannelTable(const char *chTable);
+
+void newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable);
+
 // TODO: Add these
-// int setMetadata(const char *chTable, const char *ch, const char *json, int custom);
-// const char *metadata(const char *chTable, const char *ch, int custom);
+// expose plugin settings to application
+
 
 // int setType(const char *chTable, const char *ch, const char *type);  // electrical, mechanical, biosignal, audio, etc.
 // const char *type(const char *chTable, const char *ch);

@@ -186,7 +186,7 @@ int readFile(const char *filename, const char *chTable) {
             setSampleRate(chTable, channel[ch].name, samplerate);
             setDevice(chTable, channel[ch].name, "Hookie AM20", serialno);
             setStartTime(chTable, channel[ch].name, startTime);
-            // TODO: set json
+            setMetadata(chTable, channel[ch].name, json);
             // Copy data filling in blanks if the device has entered sleep mode.
             latestStart = timecodes;
             t = 0;

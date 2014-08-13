@@ -97,10 +97,16 @@ int setStartTime(const char *chTable, const char *name, struct timespec start) {
 
 int setUnit(const char *chTable, const char *name, const char *unit) {
     Channel *ch;
+    char *ptr;
+    size_t length;
 
     ch = getChannel(chTable, name);
     if (ch) {
-        ch->unit = (char *)unit;
+        ptr = ch->unit;
+        length = strlen(unit) + 1;
+        ch->unit = malloc(length);
+        strlcpy(ch->unit, unit, length);
+        free(ptr);
     } else {
         return -1;
     }
@@ -123,11 +129,21 @@ int setResolution(const char *chTable, const char *name, int resolution) {
 
 int setDevice(const char *chTable, const char *name, const char *device, const char *serial) {
     Channel *ch;
+    char *ptr;
+    size_t length;
 
     ch = getChannel(chTable, name);
     if (ch) {
-        ch->device = (char *)device;
-        ch->serial_no = (char *)serial;
+        ptr = ch->device;
+        length = strlen(device) + 1;
+        ch->device = malloc(length);
+        strlcpy(ch->device, device, length);
+        free(ptr);
+        ptr = ch->serial_no;
+        length = strlen(serial) + 1;
+        ch->serial_no = malloc(length);
+        strlcpy(ch->serial_no, serial, length);
+        free(ptr);
     } else {
         return -1;
     }
@@ -232,7 +248,7 @@ size_t length(const char *chTable, const char *name) {
 
 const char *unit(const char *chTable, const char *name) {
     Channel *ch;
-    char *unit = NULL;
+    const char *unit = NULL;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -256,7 +272,7 @@ int resolution(const char *chTable, const char *name) {
 
 const char *device(const char *chTable, const char *name) {
     Channel *ch;
-    char *device = NULL;
+    const char *device = NULL;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -268,7 +284,7 @@ const char *device(const char *chTable, const char *name) {
 
 const char *serial(const char *chTable, const char *name) {
     Channel *ch;
-    char *serial = NULL;
+    const char *serial = NULL;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -278,3 +294,37 @@ const char *serial(const char *chTable, const char *name) {
     return serial;
 }
 
+int setMetadata(const char *chTable, const char *name, const char *json) {
+    Channel *ch;
+    char *ptr;
+    size_t length;
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        ptr = ch->json;
+        length = strlen(json) + 1;
+        ch->json = malloc(length);
+        strlcpy(ch->json, json, length);
+        free(ptr);
+        // TODO: handle standard fields
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
+const char *metadata(const char *chTable, const char *name, MetadataFields fields) {
+    Channel *ch;
+    const char *json = "{}";
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        if (fields & CUSTOM_FIELDS) {
+            json = ch->json;
+        }
+        // TODO: handle standard fields
+    }
+
+    return json;
+}

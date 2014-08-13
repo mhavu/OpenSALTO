@@ -23,7 +23,6 @@ wf = salto.pluginManager.exportFormats
 alive = salto.pluginManager.query(ext=".ats")[0]
 gcdc = salto.pluginManager.query(ext=".csv")[0]
 hookie = salto.pluginManager.query(ext=".dat")[0]
+rf[alive].read("TINY.ATS", alive, 'main')
 rf[hookie].read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0001.DAT", hookie, 'main')
-rf[hookie].read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0002.DAT", hookie, 'main')
-rf[hookie].read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0003.DAT", hookie, 'main')
-rf[hookie].read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0004.DAT", hookie, 'main')
+[ch.json for ch in m.channels.values()]

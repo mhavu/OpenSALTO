@@ -16,7 +16,7 @@
 typedef struct {
     PyObject_HEAD
     PyObject *dict;
-    PyArrayObject *data;
+    PyObject *data;
     double samplerate;
     double scale;
     double offset;
@@ -26,6 +26,7 @@ typedef struct {
     char *device;
     char *serial_no;
     int resolution;
+    int collection;
     char *json;
 } Channel;
 
