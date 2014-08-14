@@ -183,6 +183,7 @@ int readFile(const char *filename, const char *chTable) {
             setScaleAndOffset(chTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
             setResolution(chTable, channel[ch].name, 13);
             setUnit(chTable, channel[ch].name, "m/s^2");
+            setSignalType(chTable, channel[ch].name, "acceleration");
             setSampleRate(chTable, channel[ch].name, samplerate);
             setDevice(chTable, channel[ch].name, "Hookie AM20", serialno);
             setStartTime(chTable, channel[ch].name, startTime);

@@ -25,6 +25,7 @@ typedef struct {
     double scale;
     double offset;
     char *unit;
+    char *typestr;
     uint8_t nsubs;
     uint16_t subpktlen;
     const char **sub;
@@ -150,6 +151,7 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].scale = 0.5;
                         channel[ch].offset = 0.0;
                         channel[ch].unit = "%";
+                        channel[ch].typestr = "voltage";
                         channel[ch].samplerate = 0.0; // TODO: set to NAN?
                         break;
                     case 0xAA:
@@ -175,6 +177,7 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].scale = 2 * 2.66 / 256;
                         channel[ch].offset = -2.66;
                         channel[ch].unit = "mV";
+                        channel[ch].typestr = "ECG";
                         break;
                     case 0x55:
                         // 2-axis accelerometer channel
@@ -186,6 +189,7 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].scale = 2 * 2.0 / 256 * 9.81;
                         channel[ch].offset = -2.0 * 9.81;
                         channel[ch].unit = "m/s^2";
+                        channel[ch].typestr = "acceleration";
                         channel[ch].samplerate = 75.0;
                         device = "Alive HM120";
                         channel[ch].nsubs = 2;
@@ -207,6 +211,7 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].scale = 2 * 2.7 / 256 * 9.81;
                         channel[ch].offset = -2.7 * 9.81;
                         channel[ch].unit = "m/s^2";
+                        channel[ch].typestr = "acceleration";
                         channel[ch].samplerate = 75.0;
                         device = "Alive HM131";
                         channel[ch].nsubs = 3;
@@ -270,7 +275,8 @@ int readFile(const char *filename, const char *chTable) {
                     deleteChannel(chTable, channel[ch].sub[sub]);
                 } else {
                     setScaleAndOffset(chTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
-                    setUnit(chTable, channel[ch].sub[sub], "m/s^2");
+                    setUnit(chTable, channel[ch].sub[sub], channel[ch].unit);
+                    setSignalType(chTable, channel[ch].sub[sub], channel[ch].typestr);
                     setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
                     setDevice(chTable, channel[ch].sub[sub], device, "unknown");
                     setStartTime(chTable, channel[ch].sub[sub], startTime);

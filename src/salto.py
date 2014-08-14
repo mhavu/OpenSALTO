@@ -60,17 +60,23 @@ class Plugin:
         if registered:
             readfunc = registered.get('readfunc')
         if readfunc:
-            err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
-        if err != 0 and self.cdll:
-            raise IOError(self.cdll.describeError(err))
+            if self.cdll:
+                err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
+                if err != 0:
+                    raise IOError(self.cdll.describeError(err))
+            else:
+                readfunc(filename, salto.channelTables[chTable])
     def write(self, filename, format, chTable):
         registered = self.formats.get(format)
         if registered:
             writefunc = registered.get('writefunc')
-        if readfunc:
-            err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
-        if err != 0 and self.cdll:
-            raise IOError(self.cdll.describeError(err))
+        if writefunc:
+            if self.cdll:
+                err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
+                if err != 0:
+                    raise IOError(self.cdll.describeError(err))
+            else:
+                writefunc(filename, salto.channelTables[chTable])
     def filter(self, name, ch):
         return ch
 

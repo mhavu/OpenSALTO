@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
 		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
 		27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
 		27960C0A1998BC6500B016FC /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
@@ -22,6 +23,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		276F1F78199BE9D40026537C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
+			remoteInfo = OpenSALTO;
+		};
 		27960C13199A009B00B016FC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
@@ -82,6 +90,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
+		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
 		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
@@ -108,6 +118,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		276F1F7B199BE9D40026537C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27960C16199A009B00B016FC /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -174,6 +191,7 @@
 				27F183F719824CE500FCD050 /* atsf.dylib */,
 				27F184281982813A00FCD050 /* gcdc.dylib */,
 				27960C1B199A009B00B016FC /* hookie.dylib */,
+				276F1F80199BE9D40026537C /* testplugin.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -213,6 +231,7 @@
 			isa = PBXGroup;
 			children = (
 				27F183E21975429F00FCD050 /* test.py */,
+				276F1F75199BE9BD0026537C /* testplugin.c */,
 				27F183DC196EAC9D00FCD050 /* TINY.ATS */,
 				27F18436198967D700FCD050 /* HUGE.ATS */,
 				27F183E51975619000FCD050 /* GCDC.CSV */,
@@ -245,6 +264,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		276F1F7C199BE9D40026537C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27960C17199A009B00B016FC /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -269,6 +295,24 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		276F1F76199BE9D40026537C /* test plugin */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */;
+			buildPhases = (
+				276F1F79199BE9D40026537C /* Sources */,
+				276F1F7B199BE9D40026537C /* Frameworks */,
+				276F1F7C199BE9D40026537C /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				276F1F77199BE9D40026537C /* PBXTargetDependency */,
+			);
+			name = "test plugin";
+			productName = atsf;
+			productReference = 276F1F80199BE9D40026537C /* testplugin.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
 		27960C11199A009B00B016FC /* hookie */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 27960C18199A009B00B016FC /* Build configuration list for PBXNativeTarget "hookie" */;
@@ -367,11 +411,20 @@
 				27F183F619824CE500FCD050 /* atsf */,
 				27F1841E1982813A00FCD050 /* gcdc */,
 				27960C11199A009B00B016FC /* hookie */,
+				276F1F76199BE9D40026537C /* test plugin */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		276F1F79199BE9D40026537C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276F1F81199BEA0F0026537C /* testplugin.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		27960C14199A009B00B016FC /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -408,6 +461,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		276F1F77199BE9D40026537C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
+			targetProxy = 276F1F78199BE9D40026537C /* PBXContainerItemProxy */;
+		};
 		27960C12199A009B00B016FC /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
@@ -426,6 +484,36 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		276F1F7E199BE9D40026537C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_PREFIX = "";
+				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_NAME = testplugin;
+				SDKROOT = macosx10.7;
+			};
+			name = Debug;
+		};
+		276F1F7F199BE9D40026537C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
+				DYLIB_COMPATIBILITY_VERSION = "";
+				DYLIB_CURRENT_VERSION = "";
+				EXECUTABLE_PREFIX = "";
+				LD_DYLIB_INSTALL_NAME = "$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)";
+				MACH_O_TYPE = mh_bundle;
+				PRODUCT_NAME = testplugin;
+				SDKROOT = macosx10.7;
+			};
+			name = Release;
+		};
 		27960C19199A009B00B016FC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -624,6 +712,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				276F1F7E199BE9D40026537C /* Debug */,
+				276F1F7F199BE9D40026537C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		27960C18199A009B00B016FC /* Build configuration list for PBXNativeTarget "hookie" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

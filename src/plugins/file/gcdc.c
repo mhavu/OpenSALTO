@@ -276,6 +276,7 @@ int readFile(const char *filename, const char *chTable) {
                 channel[i][j] = data[0].a[i];
                 setScaleAndOffset(chTable, name[i], scale, 0.0);
                 setUnit(chTable, name[i], "m/s^2");
+                setSignalType(chTable, name[i], "acceleration");
                 setSampleRate(chTable, name[i], samplerate);
                 setDevice(chTable, name[i], device, serial);
                 setStartTime(chTable, name[i], start);

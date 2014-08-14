@@ -17,10 +17,12 @@ typedef struct {
     PyObject_HEAD
     PyObject *dict;
     PyObject *data;
+    PyArrayObject *fill_values;
     double samplerate;
     double scale;
     double offset;
     char *unit;
+    char *type;
     long long start_sec;
     long start_nsec;
     char *device;

@@ -21,14 +21,14 @@ static PyObject *saltoDict = NULL;  // salto namespace
 static PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     // Convert timespec to a Python datetime object.
     long long epoch, nsec = 0;
-    PyObject *dtClass, *utcfromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
+    PyObject *dtClass, *fromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
     if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
         dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
-        utcfromtimestamp = PyObject_GetAttrString(dtClass, "utcfromtimestamp");  // new
-        dt = PyObject_CallFunction(utcfromtimestamp, "L", epoch);  // new
+        fromtimestamp = PyObject_GetAttrString(dtClass, "fromtimestamp");  // new
+        dt = PyObject_CallFunction(fromtimestamp, "L", epoch);  // new
         replace = PyObject_GetAttrString(dt, "replace");  // new
         empty = PyTuple_New(0);  // new
         keywords = PyDict_New();  // new
@@ -39,7 +39,7 @@ static PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
             Py_INCREF(Py_None);
             datetime = Py_None;
         }
-        Py_XDECREF(utcfromtimestamp);
+        Py_XDECREF(fromtimestamp);
         Py_XDECREF(dt);
         Py_XDECREF(replace);
         Py_XDECREF(empty);
@@ -67,9 +67,11 @@ static void Channel_dealloc(Channel* self) {
     free(self->device);
     free(self->serial_no);
     free(self->unit);
+    free(self->type);
     free(self->json);
     Py_XDECREF(self->data);
     Py_XDECREF(self->dict);
+    Py_XDECREF(self->fill_values);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -116,23 +118,38 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *ndarray = NULL;
+    PyObject *data = NULL;
     int result;
-    static char *kwlist[] = {"data","samplerate", "scale", "offset", "unit",
+    static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
         "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", NULL};
 
-    self->device = malloc(8);
-    strlcpy(self->device, "unknown", 8);
-    self->serial_no = malloc(8);
-    strlcpy(self->serial_no, "unknown", 8);
+    self->device = NULL;
+    self->serial_no = NULL;
     self->unit = NULL;
+    self->type = NULL;
     self->scale = 1.0;
-    self->json = malloc(3);
-    strlcpy(self->json, "{}", 3);
-    result = !PyArg_ParseTupleAndKeywords(args, kwds, "O|dddsLlssis", kwlist, &ndarray,
-                                          &(self->samplerate), &(self->scale), &(self->offset), &(self->unit),
-                                          &(self->start_sec), &(self->start_nsec),
+    self->json = NULL;
+    self->fill_values = NULL;
+    result = !PyArg_ParseTupleAndKeywords(args, kwds, "O|OdddssLlssis", kwlist, &data, &(self->fill_values),
+                                          &(self->samplerate), &(self->scale), &(self->offset),
+                                          &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
                                           &(self->device), &(self->serial_no), &(self->resolution), &(self->json));
+    if (!self->device) {
+        self->device = malloc(8);
+        strlcpy(self->device, "unknown", 8);
+    }
+    if (!self->serial_no) {
+        self->serial_no = malloc(8);
+        strlcpy(self->serial_no, "unknown", 8);
+    }
+    if (!self->type) {
+        self->type = malloc(8);
+        strlcpy(self->type, "unknown", 8);
+    }
+    if (!self->json) {
+        self->json = malloc(3);
+        strlcpy(self->json, "{}", 3);
+    }
 
     return result;
 }
@@ -523,10 +540,11 @@ void deleteChannelTable(const char *chTable) {
     PyGILState_Release(state);
 }
 
-void newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable) {
+int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
     PyObject *chTableDict, *channelClass, *sourceTable, *sourceChannels;
     Channel *ch;
     PyGILState_STATE state;
+    int result = 0;
 
     state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
@@ -536,6 +554,8 @@ void newCombinationChannel(const char *chTable, const char *name, const char *fr
         sourceChannels = PyObject_GetAttrString(sourceTable, "channels");  // new
         if (sourceChannels) {
             // TODO: Order by time and check that the channels don't overlap
+            // TODO: Check that all channels have same dtype
+            // TODO: Create ndarray from fillValues
             ch = (Channel *)PyObject_CallFunctionObjArgs(channelClass, sourceChannels, NULL);  // new
             if (ch) {
                 addChannel(chTable, name, ch);
@@ -545,6 +565,8 @@ void newCombinationChannel(const char *chTable, const char *name, const char *fr
         }
     }
     PyGILState_Release(state);
+
+    return result;
 }
 
 int registerFileFormat(void *obj, const char *format, const char **exts, size_t n_exts)

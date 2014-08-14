@@ -56,49 +56,53 @@ double *newDoubleChannel(const char *chTable, const char *name, size_t length) {
 
 int setSampleRate(const char *chTable, const char *name, double samplerate) {
     Channel *ch;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
         ch->samplerate = samplerate;
     } else {
-         return -1;
+         result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 int setScaleAndOffset(const char *chTable, const char *name, double scale, double offset) {
     Channel *ch;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
         ch->scale = scale;
         ch->offset = offset;
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 int setStartTime(const char *chTable, const char *name, struct timespec start) {
     Channel *ch;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
         ch->start_sec = start.tv_sec;
         ch->start_nsec = start.tv_nsec;
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 int setUnit(const char *chTable, const char *name, const char *unit) {
     Channel *ch;
     char *ptr;
     size_t length;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -108,29 +112,31 @@ int setUnit(const char *chTable, const char *name, const char *unit) {
         strlcpy(ch->unit, unit, length);
         free(ptr);
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 int setResolution(const char *chTable, const char *name, int resolution) {
     Channel *ch;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
         ch->resolution = resolution;
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 int setDevice(const char *chTable, const char *name, const char *device, const char *serial) {
     Channel *ch;
     char *ptr;
     size_t length;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -145,10 +151,10 @@ int setDevice(const char *chTable, const char *name, const char *device, const c
         strlcpy(ch->serial_no, serial, length);
         free(ptr);
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 double sampleRate(const char *chTable, const char *name) {
@@ -298,6 +304,7 @@ int setMetadata(const char *chTable, const char *name, const char *json) {
     Channel *ch;
     char *ptr;
     size_t length;
+    int result = 0;
 
     ch = getChannel(chTable, name);
     if (ch) {
@@ -308,10 +315,10 @@ int setMetadata(const char *chTable, const char *name, const char *json) {
         free(ptr);
         // TODO: handle standard fields
     } else {
-        return -1;
+        result = -1;
     }
 
-    return 0;
+    return result;
 }
 
 const char *metadata(const char *chTable, const char *name, MetadataFields fields) {
@@ -328,3 +335,51 @@ const char *metadata(const char *chTable, const char *name, MetadataFields field
 
     return json;
 }
+
+int setSignalType(const char *chTable, const char *name, const char *type) {
+    Channel *ch;
+    char *ptr;
+    size_t length;
+    int result = 0;
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        ptr = ch->type;
+        length = strlen(type) + 1;
+        ch->type = malloc(length);
+        strlcpy(ch->type, type, length);
+        free(ptr);
+    } else {
+        result = -1;
+    }
+
+    return result;
+}
+
+const char *signalType(const char *chTable, const char *name) {
+    Channel *ch;
+    const char *type = NULL;
+
+    ch = getChannel(chTable, name);
+    if (ch) {
+        type = ch->type;
+    }
+
+    return type;
+}
+
+int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable) {
+    Channel *ch;
+    int result = 0;
+    
+    ch = getChannel(fromChannelTable, name);
+    if (ch) {
+        result = addChannel(toChannelTable, name, ch);
+        if (result == 0)
+            deleteChannel(fromChannelTable, name);
+    }
+
+    return result;
+}
+
+

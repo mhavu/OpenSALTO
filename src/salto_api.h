@@ -31,7 +31,10 @@ int registerImportFunc(void *handle, const char *format, const char *funcname);
 int registerExportFunc(void *handle, const char *format, const char *funcname);
 
 // Exposing application capabilities back to plugins
+const char *newChannelTable(const char *name);
+void deleteChannelTable(const char *chTable);
 const char *getUniqueName(const char *chTable, const char *name);
+
 uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length);
 uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length);
 uint32_t *newUInt32Channel(const char *chTable, const char *name, size_t length);
@@ -40,8 +43,9 @@ int16_t *newInt16Channel(const char *chTable, const char *name, size_t length);
 int32_t *newInt32Channel(const char *chTable, const char *name, size_t length);
 float *newFloatChannel(const char *chTable, const char *name, size_t length);
 double *newDoubleChannel(const char *chTable, const char *name, size_t length);
-
+int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
 void deleteChannel(const char *chTable, const char *name);
+int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
 
 void *getChannelData(const char *chTable, const char *name, size_t *length);
 const char *getChannelName(const char *chTable, void *ptr);
@@ -51,10 +55,10 @@ double scale(const char *chTable, const char *ch);
 double offset(const char *chTable, const char *ch);
 int setUnit(const char *chTable, const char *ch, const char *unit);
 const char *unit(const char *chTable, const char *ch);
-
+int setSignalType(const char *chTable, const char *ch, const char *type);
+const char *signalType(const char *chTable, const char *ch);
 int setResolution(const char *chTable, const char *ch, int resolution);
 int resolution(const char *chTable, const char *ch);
-
 int setSampleRate(const char *chTable, const char *ch, double samplerate);
 double sampleRate(const char *chTable, const char *ch);
 int setStartTime(const char *chTable, const char *ch, struct timespec start);
@@ -62,25 +66,15 @@ struct timespec startTime(const char *chTable, const char *ch);
 struct timespec endTime(const char *chTable, const char *ch);
 size_t length(const char *chTable, const char *ch);
 double duration(const char *chTable, const char *ch);
-
 int setDevice(const char *chTable, const char *ch, const char *device, const char *serial);
 const char *device(const char *chTable, const char *ch);
 const char *serial(const char *chTable, const char *ch);
-
 int setMetadata(const char *chTable, const char *ch, const char *json);
 const char *metadata(const char *chTable, const char *ch, MetadataFields fields);
 
-const char *newChannelTable(const char *name);
-void deleteChannelTable(const char *chTable);
-
-void newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable);
-
 // TODO: Add these
+
 // expose plugin settings to application
-
-
-// int setType(const char *chTable, const char *ch, const char *type);  // electrical, mechanical, biosignal, audio, etc.
-// const char *type(const char *chTable, const char *ch);
 
 // int addEvent(const char *name, const char *type, struct timespec start, struct timespec end, const char *description);
 // Event *eventsByName(const char *name, size_t *size);
