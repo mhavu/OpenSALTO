@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		276C5D03199DFF4A005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
 		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
 		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
 		27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
@@ -90,6 +91,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		276C5D02199DFF4A005B3024 /* Channel.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Channel.c; sourceTree = "<group>"; };
+		276C5D04199DFF5A005B3024 /* Channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Channel.h; sourceTree = "<group>"; };
 		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
 		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
@@ -202,6 +205,8 @@
 				27F183E8198247AE00FCD050 /* plugins */,
 				27C6E4DD19669CD5004192BD /* salto_api.c */,
 				27C6E4DE19669CD5004192BD /* salto_api.h */,
+				276C5D02199DFF4A005B3024 /* Channel.c */,
+				276C5D04199DFF5A005B3024 /* Channel.h */,
 				27F183D3196D683C00FCD050 /* salto.c */,
 				27F183D5196D6AB900FCD050 /* salto.h */,
 				27F183D1196A8BFF00FCD050 /* salto.py */,
@@ -439,6 +444,7 @@
 			files = (
 				27F183D4196D683C00FCD050 /* salto.c in Sources */,
 				27F18407198252BE00FCD050 /* salto_api.c in Sources */,
+				276C5D03199DFF4A005B3024 /* Channel.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
