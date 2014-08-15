@@ -16,53 +16,17 @@ static PyObject *mainDict = NULL;   // global namespace
 static PyObject *saltoDict = NULL;  // salto namespace
 
 
-// Define salto module functions.
-
-PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
-    // Convert timespec to a Python datetime object.
-    long long epoch, nsec = 0;
-    PyObject *dtClass, *fromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
-    PyGILState_STATE state;
-
-    state = PyGILState_Ensure();
-    if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
-        dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
-        fromtimestamp = PyObject_GetAttrString(dtClass, "fromtimestamp");  // new
-        dt = PyObject_CallFunction(fromtimestamp, "L", epoch);  // new
-        replace = PyObject_GetAttrString(dt, "replace");  // new
-        empty = PyTuple_New(0);  // new
-        keywords = PyDict_New();  // new
-        micro = Py_BuildValue("l", nsec / 1000);  // new
-        if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
-            datetime = PyObject_Call(replace, empty, keywords);  // new
-        } else {
-            Py_INCREF(Py_None);
-            datetime = Py_None;
-        }
-        Py_XDECREF(fromtimestamp);
-        Py_XDECREF(dt);
-        Py_XDECREF(replace);
-        Py_XDECREF(empty);
-        Py_XDECREF(keywords);
-        Py_XDECREF(micro);
-    } else {
-        PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
-    }
-    PyGILState_Release(state);
-
-    return datetime;
-}
-
-static PyMethodDef saltoMethods[] = {
-    {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
-    {NULL, NULL, 0, NULL}  // sentinel
-};
-
-
 // Define API functions.
 
 double duration(const char *chTable, const char *name) {
-    return PyFloat_AsDouble(Channel_duration(getChannel(chTable, name)));
+    double duration;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    duration = PyFloat_AsDouble(Channel_duration(getChannel(chTable, name)));
+    PyGILState_Release(state);
+
+    return duration;
 }
 
 static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
@@ -443,6 +407,46 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
 
     return result;
 }
+
+
+// Define salto module functions.
+
+PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
+    // Convert timespec to a Python datetime object.
+    long long epoch, nsec = 0;
+    PyObject *dtClass, *fromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
+
+    if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
+        dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
+        fromtimestamp = PyObject_GetAttrString(dtClass, "fromtimestamp");  // new
+        dt = PyObject_CallFunction(fromtimestamp, "L", epoch);  // new
+        replace = PyObject_GetAttrString(dt, "replace");  // new
+        empty = PyTuple_New(0);  // new
+        keywords = PyDict_New();  // new
+        micro = Py_BuildValue("l", nsec / 1000);  // new
+        if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
+            datetime = PyObject_Call(replace, empty, keywords);  // new
+        } else {
+            Py_INCREF(Py_None);
+            datetime = Py_None;
+        }
+        Py_XDECREF(fromtimestamp);
+        Py_XDECREF(dt);
+        Py_XDECREF(replace);
+        Py_XDECREF(empty);
+        Py_XDECREF(keywords);
+        Py_XDECREF(micro);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
+    }
+
+    return datetime;
+}
+
+static PyMethodDef saltoMethods[] = {
+    {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
+    {NULL, NULL, 0, NULL}  // sentinel
+};
 
 static struct PyModuleDef saltoModuleDef = {
     PyModuleDef_HEAD_INIT,
