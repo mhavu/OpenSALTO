@@ -248,12 +248,24 @@ PyObject *Channel_start(Channel *self) {
 }
 
 PyObject *Channel_duration(Channel *self) {
+    PyObject *start, *end, *timedelta, *s;
+    Channel *last;
+    Py_ssize_t nParts;
     npy_intp length;
     double duration;
 
     if (self->collection) {
-        // TODO: Return total duration for collection channels
-        duration = nan(NULL);
+        start = Channel_start(self);  // new
+        nParts = PyList_Size(self->data);
+        last = (Channel *)PyList_GET_ITEM(self->data, nParts - 1);  // borrowed
+        end = Channel_end(last);  // new
+        timedelta = PyObject_CallMethod(start, "__sub__", "(O)", end);  // new
+        s = PyObject_CallMethod(timedelta, "total_seconds", NULL);  // new
+        duration = PyFloat_AsDouble(s);
+        Py_XDECREF(start);
+        Py_XDECREF(end);
+        Py_XDECREF(timedelta);
+        Py_XDECREF(s);
     } else {
         length = PyArray_DIM((PyArrayObject *)self->data, 0);
         if (length > 0) {
