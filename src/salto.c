@@ -142,19 +142,26 @@ Channel *getChannel(const char *chTable, const char *name) {
 }
 
 void *channelData(Channel *ch, size_t *length) {
+    Py_ssize_t nParts, i;
+    Channel *part;
     void *ptr;
     PyGILState_STATE state;
 
     if (ch) {
-        if (ch->collection) {
-            state = PyGILState_Ensure();
+        state = PyGILState_Ensure();
+        if (!ch->collection) {
             ptr = PyArray_DATA((PyArrayObject *)ch->data);
             *length = (size_t)PyArray_DIM((PyArrayObject *)ch->data, 0);
-            PyGILState_Release(state);
         } else {
             ptr = NULL;
-            *length = 0; // TODO: Return total number of samples
+            *length = 0;
+            nParts = PyList_GET_SIZE(ch->data);
+            for (i = 0; i < nParts; i++) {
+                part = (Channel *)PyList_GET_ITEM(ch->data, i);  // borrowed
+                *length += (size_t)PyArray_DIM((PyArrayObject *)part->data, 0);
+            }
         }
+        PyGILState_Release(state);
     } else {
         ptr = NULL;
         *length = 0;
@@ -331,22 +338,67 @@ const char **getChannelNames(const char *chTable, size_t *size) {
 }
 
 int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
-    PyObject *chTableDict, *channelClass, *sourceTable, *sourceChannels;
-    Channel *ch;
+    PyObject *chTableDict, *channelClass, *sourceTable, *sourceDict, *sourceChannels = NULL;
+    PyObject *start, *prevEnd, *fill;
+    Channel *ch, *part;
+    Py_ssize_t i, nParts;
+    npy_intp nFillValues;
     PyGILState_STATE state;
-    int result = 0;
+    int hasOverlap, isSameType, typenum, err = 0;
 
     state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelClass = PyDict_GetItemString(saltoDict, "Channel");  // borrowed
     if (chTableDict && channelClass) {
         sourceTable = PyDict_GetItemString(chTableDict, fromChannelTable);  // borrowed
-        sourceChannels = PyObject_GetAttrString(sourceTable, "channels");  // new
-        if (sourceChannels) {
-            // TODO: Order by time and check that the channels don't overlap
-            // TODO: Check that all channels have same dtype
-            // TODO: Create ndarray from fillValues
-            ch = (Channel *)PyObject_CallFunctionObjArgs(channelClass, sourceChannels, NULL);  // new
+        sourceDict = PyObject_GetAttrString(sourceTable, "channels");  // new
+        if (sourceDict) {
+            sourceChannels = PyDict_Values(sourceDict);  // new
+            Py_DECREF(sourceDict);
+        }
+        if (sourceChannels && PyList_Sort(sourceChannels) == 0) {
+            nParts = PyList_GET_SIZE(sourceChannels);
+            switch (nParts) {
+                case 0:
+                    ch = NULL;
+                    break;
+                case 1:
+                    // In case there is only a single channel in the source table,
+                    // return that channel.
+                    ch = (Channel *)PyList_GET_ITEM(sourceChannels, 0);  // borrowed
+                    Py_INCREF(ch);
+                    break;
+                default:
+                    part = (Channel *)PyList_GET_ITEM(sourceChannels, 0);  // borrowed
+                    typenum = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
+                    prevEnd = Channel_end(part);  // new
+                    for (i = 1; i < nParts; i++) {
+                        part = (Channel *)PyList_GET_ITEM(sourceChannels, i);  // borrowed
+                        start = Channel_start(part);  // new
+                        hasOverlap = (start < prevEnd);
+                        Py_XDECREF(start);
+                        Py_XDECREF(prevEnd);
+                        isSameType = (PyArray_DTYPE((PyArrayObject *)part->data)->type_num == typenum);
+                        if (hasOverlap || !isSameType) {
+                            ch = NULL;
+                            err = -1;
+                            if (hasOverlap) {
+                                PyErr_SetString(PyExc_ValueError, "Channels overlap");
+                            } else {
+                                PyErr_SetString(PyExc_ValueError, "Channel types do not match");
+                            }
+                            break;
+                        }
+                        prevEnd = Channel_end(part);  // new
+                    }
+                    Py_XDECREF(prevEnd);
+                    if (!err) {
+                        nFillValues = nParts - 1;
+                        fill = PyArray_SimpleNewFromData(1, &nFillValues, typenum, fillValues);
+                        ch = (Channel *)PyObject_CallFunctionObjArgs(channelClass, sourceChannels,
+                                                                     fill, NULL);  // new
+                    }
+            }
             if (ch) {
                 addChannel(chTable, name, ch);
                 Py_DECREF(ch);
@@ -356,11 +408,10 @@ int newCombinationChannel(const char *chTable, const char *name, const char *fro
     }
     PyGILState_Release(state);
 
-    return result;
+    return err;
 }
 
-int registerFileFormat(void *obj, const char *format, const char **exts, size_t n_exts)
-{
+int registerFileFormat(void *obj, const char *format, const char **exts, size_t n_exts) {
     PyObject *pluginClass, *extList, *name, *registerFormat, *o;
     PyGILState_STATE state;
     int result = -1;
@@ -589,8 +640,7 @@ static struct PyModuleDef saltoModuleDef = {
     NULL, NULL, NULL, NULL
 };
 
-static PyObject *PyInit_salto(void)
-{
+static PyObject *PyInit_salto(void) {
     PyObject *module = NULL;
 
     if (PyType_Ready(&ChannelType) >= 0) {

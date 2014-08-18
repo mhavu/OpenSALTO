@@ -63,7 +63,7 @@ PyTypeObject ChannelType = {
     "OpenSALTO channel",         // tp_doc
     0,		                     // tp_traverse
     0,		                     // tp_clear
-    0,		                     // tp_richcompare
+    (richcmpfunc)Channel_richcmp,// tp_richcompare
     0,		                     // tp_weaklistoffset
     0,		                     // tp_iter
     0,		                     // tp_iternext
@@ -177,6 +177,68 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         self->events = (PyListObject *)PyList_New(0);  // new
     }
     
+    return result;
+}
+
+PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
+    PyObject *result;
+    long long o_sec;
+    long o_nsec;
+
+    if (PyObject_TypeCheck(other, &ChannelType)) {
+        o_sec = ((Channel *)other)->start_sec;
+        o_nsec = ((Channel *)other)->start_nsec;
+        switch (op) {
+            case Py_LT:
+                if (self->start_sec > o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec >= o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_LE:
+                if (self->start_sec > o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec > o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_EQ:
+                result = (self->start_sec == o_sec && self->start_nsec == o_nsec) ? Py_True : Py_False;
+                break;
+            case Py_NE:
+                result = (self->start_sec == o_sec && self->start_nsec == o_nsec) ? Py_False : Py_True;
+                break;
+            case Py_GT:
+                if (self->start_sec < o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec <= o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_GE:
+                if (self->start_sec < o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec < o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            default:
+                result = Py_NotImplemented;
+        }
+    } else {
+        result = Py_NotImplemented;
+    }
+    Py_INCREF(result);
+
     return result;
 }
 

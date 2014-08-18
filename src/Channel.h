@@ -39,6 +39,7 @@ typedef struct {
 void Channel_dealloc(Channel* self);
 PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 int Channel_init(Channel *self, PyObject *args, PyObject *kwds);
+PyObject *Channel_richcmp(Channel *self, PyObject *other, int op);
 PyObject *Channel_start(Channel *self);
 PyObject *Channel_duration(Channel *self);
 PyObject *Channel_end(Channel *self);
