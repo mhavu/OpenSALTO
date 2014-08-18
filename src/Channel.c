@@ -21,16 +21,20 @@ static PyMethodDef Channel_methods[] = {
 static PyMemberDef Channel_members[] = {
     {"__dict__", T_OBJECT, offsetof(Channel, dict), READONLY, "dictionary for instance variables"},
     {"data", T_OBJECT_EX, offsetof(Channel, data), READONLY, "Channel data as NumPy array or collection of Channel objects"},
+    {"fill_values", T_OBJECT_EX, offsetof(Channel, fill_values), 0, "fill values for collection channels as NumPy array"},
     {"samplerate", T_DOUBLE, offsetof(Channel, samplerate), 0, "sample rate in Hz"},
     {"scale", T_DOUBLE, offsetof(Channel, scale), 0, "scale for integer channels"},
     {"offset", T_DOUBLE, offsetof(Channel, offset), 0, "offset for integer channels"},
     {"unit", T_STRING, offsetof(Channel, unit), 0, "channel units"},
+    {"type", T_STRING, offsetof(Channel, type), 0, "channel type"},
     {"start_sec", T_LONGLONG, offsetof(Channel, start_sec), 0, "start time (POSIX time)"},
     {"start_nsec", T_LONG, offsetof(Channel, start_nsec), 0, "nanoseconds to add to the start time"},
     {"device", T_STRING, offsetof(Channel, device), 0, "device make and model"},
     {"serial_no", T_STRING, offsetof(Channel, serial_no), 0, "device serial number"},
     {"resolution", T_INT, offsetof(Channel, resolution), 0, "sampling resolution in bits"},
+    {"collection", T_INT, offsetof(Channel, collection), 0, "indicates a collection channel"},
     {"json", T_STRING, offsetof(Channel, json), 0, "additional metadata in JSON format"},
+    {"events", T_OBJECT_EX, offsetof(Channel, events), 0, "list of Event objects"},
     {NULL}  // sentinel
 };
 
@@ -85,6 +89,7 @@ void Channel_dealloc(Channel* self) {
     Py_XDECREF(self->data);
     Py_XDECREF(self->dict);
     Py_XDECREF(self->fill_values);
+    Py_XDECREF(self->events);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -92,6 +97,7 @@ PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     Channel *self;
     PyObject *data;
     Py_ssize_t length, i;
+    
     data = PyTuple_GetItem(args, 0);
     if (data && (PyArray_Check(data) || PyList_Check(data))) {
         self = (Channel *)type->tp_alloc(type, 0);
@@ -113,9 +119,11 @@ PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         }
         if (self) {
             self->dict = NULL;
+            self->events = NULL;
             Py_INCREF(data);
             self->data = data;
             if (self->data == NULL) {
+                Py_XDECREF(self->events);
                 Py_DECREF(data);
                 Py_DECREF(self);
                 self = NULL;
@@ -133,7 +141,7 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *data = NULL;
     int result;
     static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
-        "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", NULL};
+        "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", "events", NULL};
 
     self->device = NULL;
     self->serial_no = NULL;
@@ -142,10 +150,11 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     self->scale = 1.0;
     self->json = NULL;
     self->fill_values = NULL;
-    result = !PyArg_ParseTupleAndKeywords(args, kwds, "O|OdddssLlssis", kwlist, &data, &(self->fill_values),
+    result = !PyArg_ParseTupleAndKeywords(args, kwds, "O|OdddssLlssisO", kwlist, &data, &(self->fill_values),
                                           &(self->samplerate), &(self->scale), &(self->offset),
                                           &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
-                                          &(self->device), &(self->serial_no), &(self->resolution), &(self->json));
+                                          &(self->device), &(self->serial_no), &(self->resolution), &(self->json),
+                                          &(self->events));
     if (!self->device) {
         self->device = malloc(8);
         strlcpy(self->device, "unknown", 8);
@@ -162,7 +171,12 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         self->json = malloc(3);
         strlcpy(self->json, "{}", 3);
     }
-
+    if (self->events) {
+        Py_INCREF(self->events);
+    } else {
+        self->events = (PyListObject *)PyList_New(0);  // new
+    }
+    
     return result;
 }
 

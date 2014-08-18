@@ -33,6 +33,7 @@ typedef struct {
     int resolution;
     int collection;
     char *json;
+    PyListObject *events;
 } Channel;
 
 void Channel_dealloc(Channel* self);

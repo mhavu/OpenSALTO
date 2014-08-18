@@ -292,16 +292,42 @@ const char *newChannelTable(const char *name) {
     return s;
 }
 
-void deleteChannelTable(const char *chTable) {
+void deleteChannelTable(const char *name) {
     PyObject *chTableDict;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     if (chTableDict) {
-        PyDict_DelItemString(chTableDict, chTable);
+        PyDict_DelItemString(chTableDict, name);
     }
     PyGILState_Release(state);
+}
+
+const char **getChannelNames(const char *chTable, size_t *size) {
+    PyObject *chTableDict, *channelTable, *key, *value;
+    const char **names = NULL;
+    Py_ssize_t pos;
+    PyGILState_STATE state;
+    size_t i;
+
+    state = PyGILState_Ensure();
+    chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
+    channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
+    if (channelTable) {
+        *size = PyDict_Size(channelTable);
+        names = calloc(*size, sizeof(char *));
+        if (names) {
+            pos = 0;
+            i = 0;
+            while (PyDict_Next(channelTable, &pos, &key, &value)) {  // borrowed
+                names[i++] = PyUnicode_AsUTF8(key);
+            }
+        }
+    }
+    PyGILState_Release(state);
+
+    return names;
 }
 
 int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
@@ -406,6 +432,112 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
     PyGILState_Release(state);
 
     return result;
+}
+
+int addEvent(const char *chTable, const char *name, Event *event) {
+    PyObject *events;
+    Channel *ch;
+    int result = -1;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    ch = getChannel(chTable, name);
+    if (ch) {
+        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
+        if (events) {
+            if (!PySequence_Contains(events, (PyObject *)event))
+                result = PyList_Append(events, (PyObject *)event);
+            Py_DECREF(events);
+        }
+    }
+    PyGILState_Release(state);
+
+    return result;
+}
+
+void removeEvent(const char *chTable, const char *name, Event *event) {
+    PyObject *events;
+    Channel *ch;
+    Py_ssize_t i;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    ch = getChannel(chTable, name);
+    if (ch) {
+        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
+        if (events) {
+            i = PySequence_Index(events, (PyObject *)event);
+            if (i >= 0)
+                PySequence_DelItem(events, i);
+            Py_DECREF(events);
+        }
+    }
+    PyGILState_Release(state);
+}
+
+Event **getEvents(const char *chTable, const char *name, size_t *size) {
+    PyObject *events;
+    Channel *ch;
+    Py_ssize_t length, i;
+    Event **e = NULL;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    ch = getChannel(chTable, name);
+    if (ch) {
+        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
+        if (events) {
+            length = PyList_GET_SIZE(events);
+            if (length > 0) {
+                e = calloc(length, sizeof(Event *));
+                for (i = 0; i < length; i++) {
+                    e[i] = (Event *)PyList_GET_ITEM(events, i);  // borrowed
+                    Py_INCREF(e[i]);
+                }
+            }
+            Py_DECREF(events);
+        }
+    }
+    PyGILState_Release(state);
+
+    return e;
+}
+
+void clearEvents(const char *chTable, const char *name) {
+    PyObject *events;
+    Channel *ch;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    ch = getChannel(chTable, name);
+    if (ch) {
+        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
+        if (events) {
+            PyList_SetSlice(events, 0, PyList_GET_SIZE(events), NULL);
+            Py_DECREF(events);
+        }
+    }
+    PyGILState_Release(state);
+}
+
+
+Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
+                struct timespec end, const char *description)
+{
+    PyObject *eventClass;
+    Event *event = NULL;
+    PyGILState_STATE state;
+
+    state = PyGILState_Ensure();
+    eventClass = PyDict_GetItemString(saltoDict, "Event");  // borrowed
+    if (eventClass) {
+        event = (Event *)PyObject_CallFunction(eventClass, "siLlLls", type, subtype,
+                                               start.tv_sec, start.tv_nsec, end.tv_sec, end.tv_nsec,
+                                               description);  // new
+    }
+    PyGILState_Release(state);
+
+    return event;
 }
 
 

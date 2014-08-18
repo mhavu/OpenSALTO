@@ -369,17 +369,46 @@ const char *signalType(const char *chTable, const char *name) {
 }
 
 int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable) {
+    int result;
+
+    result = copyChannel(fromChannelTable, name, toChannelTable);
+    if (result == 0)
+        deleteChannel(fromChannelTable, name);
+
+    return result;
+}
+
+int copyChannel(const char *fromChannelTable, const char *name, const char *toChannelTable) {
     Channel *ch;
     int result = 0;
-    
+
     ch = getChannel(fromChannelTable, name);
     if (ch) {
         result = addChannel(toChannelTable, name, ch);
-        if (result == 0)
-            deleteChannel(fromChannelTable, name);
     }
 
     return result;
 }
 
+const char *channelsWithEventType(const char *chTable, EventVariety type, const char *subtype) {
+    const char *resultChTable;
+    const char **chNames;
+    size_t size, i;
 
+    resultChTable = newChannelTable("Channels with events");
+    if (resultChTable) {
+        chNames = getChannelNames(chTable, &size);
+        if (chNames) {
+            for (i = 0; i < size; i++) {
+                if (copyChannel(chTable, chNames[i], resultChTable) != 0) {
+                    deleteChannelTable(resultChTable);
+                    resultChTable = NULL;
+                    break;
+                }
+            }
+            free(chNames);
+        }
+    }
+
+    return resultChTable;
+}

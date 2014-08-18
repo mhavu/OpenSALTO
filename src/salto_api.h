@@ -12,12 +12,22 @@
 #include <stdint.h>
 #include <time.h>
 
+struct Event;
+typedef struct Event Event;
+
 typedef enum {
     STANDARD_FIELDS = 1 << 0,
     CUSTOM_FIELDS = 1 << 1
 } MetadataFields;
 
 #define ALL_METADATA (STANDARD_FIELDS | CUSTOM_FIELDS)
+
+typedef enum {
+    CUSTOM_EVENT,
+    ACTION_EVENT,
+    ARTIFACT_EVENT,
+    MARKER_EVENT
+} EventVariety;
 
 // Application hooks to which plugins attach
 typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
@@ -32,8 +42,9 @@ int registerExportFunc(void *handle, const char *format, const char *funcname);
 
 // Exposing application capabilities back to plugins
 const char *newChannelTable(const char *name);
-void deleteChannelTable(const char *chTable);
+void deleteChannelTable(const char *name);
 const char *getUniqueName(const char *chTable, const char *name);
+const char **getChannelNames(const char *chTable, size_t *size);
 
 uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length);
 uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length);
@@ -46,9 +57,10 @@ double *newDoubleChannel(const char *chTable, const char *name, size_t length);
 int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
 void deleteChannel(const char *chTable, const char *name);
 int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
+int copyChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
 
 void *getChannelData(const char *chTable, const char *name, size_t *length);
-const char *getChannelName(const char *chTable, void *ptr);
+const char *getChannelName(const char *chTable, void *dataPtr);
 
 int setScaleAndOffset(const char *chTable, const char *ch, double scale, double offset);
 double scale(const char *chTable, const char *ch);
@@ -72,12 +84,19 @@ const char *serial(const char *chTable, const char *ch);
 int setMetadata(const char *chTable, const char *ch, const char *json);
 const char *metadata(const char *chTable, const char *ch, MetadataFields fields);
 
-// TODO: Add these
+int addEvent(const char *chTable, const char *ch, Event *event);
+void removeEvent(const char *chTable, const char *ch, Event *event);
+Event **getEvents(const char *chTable, const char *ch, size_t *size);
+void clearEvents(const char *chTable, const char *ch);
 
-// expose plugin settings to application
+Event *newEvent(EventVariety type, const char *subtype, struct timespec start, struct timespec end, const char *description);
+void discardEvent(Event *event);
+const char *channelsWithEventType(const char *chTable, EventVariety type, const char *subtype);
+int setEventType(Event *event, EventVariety type, const char *subtype);
+int moveEvent(Event *event, struct timespec start, struct timespec end);
+int setEventDescription(Event *event, const char *description);
 
-// int addEvent(const char *name, const char *type, struct timespec start, struct timespec end, const char *description);
-// Event *eventsByName(const char *name, size_t *size);
-// Event *eventsByType(const cahr *type, size_t *size);
+// TODO: Expose plugin settings to application
+
 
 #endif
