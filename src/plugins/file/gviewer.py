@@ -9,15 +9,15 @@
 #  Released under the terms of GNU General Public License version 3.
 #
 
-import salto, h5py, json, math, datetime
-from numpy import empty
+import salto, h5py, json, math, datetime, time
+import numpy as np
 
 def datetimeFromMatlabDatenum(datenum):
     """Converts MATLAB datenum to a datetime object"""
     dt = datetime.datetime.fromordinal(int(datenum))
     dt = dt - datetime.timedelta(days = 366)
     dt = dt + datetime.timedelta(days = math.fmod(datenum, 1.0))
-    epsilon = round(date.microsecond / 1000.0) * 1000 - date.microsecond
+    epsilon = round(dt.microsecond / 1000.0) * 1000 - dt.microsecond
     dt = dt + datetime.timedelta(microseconds = epsilon)
     return dt
     
@@ -41,8 +41,8 @@ class Plugin(salto.Plugin):
                                                for l in f['measurement'].attrs['notes'].tolist()]),
                             measurement = int(f['measurement'].value.item()))
             samplerate = float(f.attrs['samplerate'].item())
-            device = f['source'].attrs['device'].item().decode('utf-8')
-            serial = f['source'].attrs.get('serialno', empty((1), dtype='S')).item().decode('utf-8')
+            device = f['source'].attrs.get('device', np.array(b"unknown", dtype='S')).item().decode('utf-8')
+            serial = f['source'].attrs.get('serialno', np.array(b"unknown", dtype='S')).item().decode('utf-8')
             resolution = f['source'].attrs['resolution'].item()
             datasets = [f[d] for d in f.keys() if d.startswith('dataset')]
             # Multi-channel variables 
@@ -63,15 +63,17 @@ class Plugin(salto.Plugin):
                                    resolution = resolution,
                                    json = json.dumps(metadata))
                 for e in elist:
-                    start = time.mktime(datetimeFromMatlabDatenum(e['startTime']).timetuple())
-                    end = time.mktime(datetimeFromMatlabDatenum(e['endTime']).timetuple())
+                    start = datetimeFromMatlabDatenum(e['startTime'])
+                    start_sec = round(time.mktime(start.timetuple()))
+                    start_nsec = 1000 * start.microsecond
+                    end = datetimeFromMatlabDatenum(e['endTime'])
+                    end_sec = round(time.mktime(end.timetuple()))
+                    end_nsec = 1000 * end.microsecond
                     event = salto.Event(type = salto.ACTION_EVENT,
                                         subtype = e['description'].decode('utf-8'),
-                                        start_sec = math.ceil(start),
-                                        start_nsec = 1e9 * math.fmod(start, 1.0),
-                                        end_sec = math.ceil(end),
-                                        end_nsec = 1e9 * math.fmod(end, 1.0))
-                    ch.addEvent(event)
+                                        start_sec = start_sec, start_nsec = start_nsec,
+                                        end_sec = end_sec, end_nsec = end_nsec)
+                    ch.events.add(event)
                 chTable.add(chTable.getUnique(n), ch)
     def write_(self, filename, chTable):
         with h5py.File(file, 'w') as f:
