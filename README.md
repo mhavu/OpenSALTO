@@ -40,7 +40,7 @@ start times.
 
 The plugins are expected to implement the following functions:
 ```C
-int initPlugin(void *handle)
+int initPlugin(void *handle);
 const char *describeError(int err);
 ```
 
