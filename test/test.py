@@ -13,6 +13,7 @@ rf[alive].read("HUGE.ATS", alive, 'main')
 rf[gcdc].read("GCDC.CSV", gcdc, 'main')
 rf[hookie].read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0001.DAT", hookie, 'main')
 rf[gvhdf].read("/Volumes/homes3/mhavu/My Documents/Testidata/koeM1.h5", gvhdf, 'main')
+wf[gvhdf].write("/Volumes/homes3/mhavu/My Documents/Testidata/writetest.h5", gvhdf, 'main')
 meta = [[getattr(m.channels[z], metadata) for metadata in ('device', 'serial_no', 'resolution', 'samplerate', 'scale', 'offset', 'unit', 'start_sec', 'start_nsec', 'json')] for z in ('Z', 'Z 2', 'Z 3')]
 z = m.channels['Z 2']
 z.start()
