@@ -655,6 +655,7 @@ static PyObject *PyInit_salto(void) {
             // Add Channel class and get the module dictionary.
             Py_INCREF(&ChannelType);
             PyModule_AddObject(module, "Channel", (PyObject *)&ChannelType);
+            PyModule_AddObject(module, "Event", (PyObject *)&EventType);
             saltoDict = PyModule_GetDict(module);  // borrowed
             Py_XINCREF(saltoDict);
         }
