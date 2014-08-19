@@ -136,6 +136,7 @@ del moduleName
 
 
 if __name__ == '__main__':
+    salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
     salto.channelTables = {'main': salto.ChannelTable()}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover("plugins")

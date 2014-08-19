@@ -11,6 +11,7 @@
 
 #include <Python.h>
 #include "Channel.h"
+#include "Event.h"
 
 PyObject *datetimeFromTimespec(PyObject *self, PyObject *args);
 void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed);

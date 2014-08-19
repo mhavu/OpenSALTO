@@ -51,12 +51,7 @@ class Plugin(salto.Plugin):
                          for d in datasets]
             data = [9.81 * d[()] for d in datasets]
             events = [d.attrs.get('events') for d in datasets]
-            #'type': round(e['type'])
-            #'description': e['description'].decode('utf-8')
-            #'color': tuple(e['color'].tolist())
-            #'starttime': datetimeFromMatlabDatenum(e['startTime']),
-            #'endtime': datetimeFromMatlabDatenum(e['endTime']),
-            for n, d, t, e in zip(name, data, starttime, events):
+            for n, d, t, elist in zip(name, data, starttime, events):
                 ch = salto.Channel(d,
                                    samplerate = samplerate,
                                    unit = "m/s^2",
@@ -67,6 +62,16 @@ class Plugin(salto.Plugin):
                                    serial_no = serial,
                                    resolution = resolution,
                                    json = json.dumps(metadata))
+                for e in elist:
+                    start = time.mktime(datetimeFromMatlabDatenum(e['startTime']).timetuple())
+                    end = time.mktime(datetimeFromMatlabDatenum(e['endTime']).timetuple())
+                    event = salto.Event(type = salto.ACTION_EVENT,
+                                        subtype = e['description'].decode('utf-8'),
+                                        start_sec = math.ceil(start),
+                                        start_nsec = 1e9 * math.fmod(start, 1.0),
+                                        end_sec = math.ceil(end),
+                                        end_nsec = 1e9 * math.fmod(end, 1.0))
+                    ch.addEvent(event)
                 chTable.add(chTable.getUnique(n), ch)
     def write_(self, filename, chTable):
         with h5py.File(file, 'w') as f:

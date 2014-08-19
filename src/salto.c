@@ -11,6 +11,7 @@
 #include "salto_api.h"
 #define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_OpenSALTO
 #include "salto.h"
+#include <datetime.h>
 
 static PyObject *mainDict = NULL;   // global namespace
 static PyObject *saltoDict = NULL;  // salto namespace
@@ -496,8 +497,7 @@ int addEvent(const char *chTable, const char *name, Event *event) {
     if (ch) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
-            if (!PySequence_Contains(events, (PyObject *)event))
-                result = PyList_Append(events, (PyObject *)event);
+            result = PySet_Add(events, (PyObject *)event);
             Py_DECREF(events);
         }
     }
@@ -506,10 +506,10 @@ int addEvent(const char *chTable, const char *name, Event *event) {
     return result;
 }
 
-void removeEvent(const char *chTable, const char *name, Event *event) {
+int removeEvent(const char *chTable, const char *name, Event *event) {
     PyObject *events;
     Channel *ch;
-    Py_ssize_t i;
+    int result = -1;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
@@ -517,20 +517,20 @@ void removeEvent(const char *chTable, const char *name, Event *event) {
     if (ch) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
-            i = PySequence_Index(events, (PyObject *)event);
-            if (i >= 0)
-                PySequence_DelItem(events, i);
+            result = PySet_Discard(events, (PyObject *)event);
             Py_DECREF(events);
         }
     }
     PyGILState_Release(state);
+
+    return result;
 }
 
 Event **getEvents(const char *chTable, const char *name, size_t *size) {
-    PyObject *events;
+    PyObject *events, *iterator, *e;
     Channel *ch;
-    Py_ssize_t length, i;
-    Event **e = NULL;
+    Py_ssize_t length, i = 0;
+    Event **array = NULL;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
@@ -538,20 +538,21 @@ Event **getEvents(const char *chTable, const char *name, size_t *size) {
     if (ch) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
-            length = PyList_GET_SIZE(events);
+            length = PySet_GET_SIZE(events);
             if (length > 0) {
-                e = calloc(length, sizeof(Event *));
-                for (i = 0; i < length; i++) {
-                    e[i] = (Event *)PyList_GET_ITEM(events, i);  // borrowed
-                    Py_INCREF(e[i]);
+                array = calloc(length, sizeof(Event *));
+                iterator = PyObject_GetIter(events);  // new
+                while ((e = PyIter_Next(iterator))) {  // new
+                    array[i++] = (Event *)e;
                 }
+                Py_DECREF(iterator);
             }
             Py_DECREF(events);
         }
     }
     PyGILState_Release(state);
 
-    return e;
+    return array;
 }
 
 void clearEvents(const char *chTable, const char *name) {
@@ -564,7 +565,7 @@ void clearEvents(const char *chTable, const char *name) {
     if (ch) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
-            PyList_SetSlice(events, 0, PyList_GET_SIZE(events), NULL);
+            PySet_Clear(events);
             Py_DECREF(events);
         }
     }
@@ -600,6 +601,7 @@ PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     PyObject *dtClass, *fromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
 
     if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
+        // TODO: Refactor to use PyDateTime C API
         dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
         fromtimestamp = PyObject_GetAttrString(dtClass, "fromtimestamp");  // new
         dt = PyObject_CallFunction(fromtimestamp, "L", epoch);  // new
@@ -643,11 +645,13 @@ static struct PyModuleDef saltoModuleDef = {
 static PyObject *PyInit_salto(void) {
     PyObject *module = NULL;
 
-    if (PyType_Ready(&ChannelType) >= 0) {
+    if (PyType_Ready(&ChannelType) >= 0 && PyType_Ready(&EventType) >= 0) {
         module = PyModule_Create(&saltoModuleDef);
         if (module) {
             // Initialize NumPy.
             import_array();
+            // Initialize DateTime object API.
+            PyDateTime_IMPORT;
             // Add Channel class and get the module dictionary.
             Py_INCREF(&ChannelType);
             PyModule_AddObject(module, "Channel", (PyObject *)&ChannelType);

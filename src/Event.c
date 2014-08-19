@@ -86,9 +86,10 @@ int Event_init(Event *self, PyObject *args, PyObject *kwds) {
 
     self->subtype = NULL;
     self->description = NULL;
-    result = !PyArg_ParseTupleAndKeywords(args, kwds, "|siLlLls", kwlist, &(self->type), &(self->subtype),
+    result = !PyArg_ParseTupleAndKeywords(args, kwds, "|isLlLls", kwlist, &(self->type), &(self->subtype),
                                           &(self->start_sec), &(self->start_nsec),
-                                          &(self->end_sec), &(self->end_nsec), &(self->description));
+                                          &(self->end_sec), &(self->end_nsec),
+                                          &(self->description));
     if (!self->subtype) {
         self->subtype = malloc(8);
         strlcpy(self->subtype, "unknown", 8);

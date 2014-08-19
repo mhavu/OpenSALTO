@@ -34,7 +34,7 @@ static PyMemberDef Channel_members[] = {
     {"resolution", T_INT, offsetof(Channel, resolution), 0, "sampling resolution in bits"},
     {"collection", T_INT, offsetof(Channel, collection), 0, "indicates a collection channel"},
     {"json", T_STRING, offsetof(Channel, json), 0, "additional metadata in JSON format"},
-    {"events", T_OBJECT_EX, offsetof(Channel, events), 0, "list of Event objects"},
+    {"events", T_OBJECT_EX, offsetof(Channel, events), 0, "set of Event objects"},
     {NULL}  // sentinel
 };
 
@@ -138,7 +138,7 @@ PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 }
 
 int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *data = NULL;
+    PyObject *data = NULL, *events = NULL;
     int result;
     static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
         "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", "events", NULL};
@@ -154,29 +154,34 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                                           &(self->samplerate), &(self->scale), &(self->offset),
                                           &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
                                           &(self->device), &(self->serial_no), &(self->resolution), &(self->json),
-                                          &(self->events));
-    if (!self->device) {
-        self->device = malloc(8);
-        strlcpy(self->device, "unknown", 8);
-    }
-    if (!self->serial_no) {
-        self->serial_no = malloc(8);
-        strlcpy(self->serial_no, "unknown", 8);
-    }
-    if (!self->type) {
-        self->type = malloc(8);
-        strlcpy(self->type, "unknown", 8);
-    }
-    if (!self->json) {
-        self->json = malloc(3);
-        strlcpy(self->json, "{}", 3);
-    }
-    if (self->events) {
-        Py_INCREF(self->events);
+                                          &events);
+    if (PyArray_Check(self->fill_values)) {
+        self->events = (PySetObject *)PySet_New(events);  // new
+        if (!self->events)
+            result = -1;
     } else {
-        self->events = (PyListObject *)PyList_New(0);  // new
+        result = -1;
+        PyErr_SetString(PyExc_TypeError, "fill_values argument must be a NumPy array");
     }
-    
+    if (result == 0) {
+        if (!self->device) {
+            self->device = malloc(8);
+            strlcpy(self->device, "unknown", 8);
+        }
+        if (!self->serial_no) {
+            self->serial_no = malloc(8);
+            strlcpy(self->serial_no, "unknown", 8);
+        }
+        if (!self->type) {
+            self->type = malloc(8);
+            strlcpy(self->type, "unknown", 8);
+        }
+        if (!self->json) {
+            self->json = malloc(3);
+            strlcpy(self->json, "{}", 3);
+        }
+    }
+
     return result;
 }
 

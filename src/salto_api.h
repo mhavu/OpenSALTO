@@ -23,10 +23,12 @@ typedef enum {
 #define ALL_METADATA (STANDARD_FIELDS | CUSTOM_FIELDS)
 
 typedef enum {
-    CUSTOM_EVENT,
-    ACTION_EVENT,
-    ARTIFACT_EVENT,
-    MARKER_EVENT
+    CUSTOM_EVENT = 0,
+    ACTION_EVENT = 1,
+    ARTIFACT_EVENT = 2,
+    CALCULATED_EVENT = 3,
+    MARKER_EVENT = 4,
+    TIMER_EVENT = 5
 } EventVariety;
 
 // Application hooks to which plugins attach
@@ -85,7 +87,7 @@ int setMetadata(const char *chTable, const char *ch, const char *json);
 const char *metadata(const char *chTable, const char *ch, MetadataFields fields);
 
 int addEvent(const char *chTable, const char *ch, Event *event);
-void removeEvent(const char *chTable, const char *ch, Event *event);
+int removeEvent(const char *chTable, const char *ch, Event *event);
 Event **getEvents(const char *chTable, const char *ch, size_t *size);
 void clearEvents(const char *chTable, const char *ch);
 
