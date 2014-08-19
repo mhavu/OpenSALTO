@@ -140,6 +140,8 @@ PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *data = NULL, *events = NULL;
     int result;
+    size_t size;
+    char *tmp;
     static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
         "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", "events", NULL};
 
@@ -155,7 +157,7 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                                           &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
                                           &(self->device), &(self->serial_no), &(self->resolution), &(self->json),
                                           &events);
-    if (PyArray_Check(self->fill_values)) {
+    if (!self->fill_values || PyArray_Check(self->fill_values)) {
         self->events = (PySetObject *)PySet_New(events);  // new
         if (!self->events)
             result = -1;
@@ -164,19 +166,45 @@ int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         PyErr_SetString(PyExc_TypeError, "fill_values argument must be a NumPy array");
     }
     if (result == 0) {
-        if (!self->device) {
+        if (self->device) {
+            size = strlen(self->device) + 1;
+            tmp = self->device;
+            self->device = malloc(size);
+            strlcpy(self->device, tmp, size);
+        } else {
             self->device = malloc(8);
             strlcpy(self->device, "unknown", 8);
         }
-        if (!self->serial_no) {
+        if (self->serial_no) {
+            size = strlen(self->serial_no) + 1;
+            tmp = self->serial_no;
+            self->serial_no = malloc(size);
+            strlcpy(self->serial_no, tmp, size);
+        } else {
             self->serial_no = malloc(8);
             strlcpy(self->serial_no, "unknown", 8);
         }
-        if (!self->type) {
+        if (self->unit) {
+            size = strlen(self->unit) + 1;
+            tmp = self->unit;
+            self->unit = malloc(size);
+            strlcpy(self->unit, tmp, size);
+        }
+        if (self->type) {
+            size = strlen(self->type) + 1;
+            tmp = self->type;
+            self->type = malloc(size);
+            strlcpy(self->type, tmp, size);
+        } else {
             self->type = malloc(8);
             strlcpy(self->type, "unknown", 8);
         }
-        if (!self->json) {
+        if (self->json) {
+            size = strlen(self->json) + 1;
+            tmp = self->json;
+            self->json = malloc(size);
+            strlcpy(self->json, tmp, size);
+        } else {
             self->json = malloc(3);
             strlcpy(self->json, "{}", 3);
         }

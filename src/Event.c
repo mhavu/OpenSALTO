@@ -81,6 +81,8 @@ PyObject *Event_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 int Event_init(Event *self, PyObject *args, PyObject *kwds) {
     int result;
+    size_t size;
+    char *tmp;
     static char *kwlist[] = {"type", "subtype", "start_sec", "start_nsec",
         "end_sec", "end_nsec", "description", NULL};
 
@@ -90,11 +92,21 @@ int Event_init(Event *self, PyObject *args, PyObject *kwds) {
                                           &(self->start_sec), &(self->start_nsec),
                                           &(self->end_sec), &(self->end_nsec),
                                           &(self->description));
-    if (!self->subtype) {
+    if (self->subtype) {
+        size = strlen(self->subtype) + 1;
+        tmp = self->subtype;
+        self->subtype = malloc(size);
+        strlcpy(self->subtype, tmp, size);
+    } else {
         self->subtype = malloc(8);
         strlcpy(self->subtype, "unknown", 8);
     }
-    if (!self->description) {
+    if (self->description) {
+        size = strlen(self->description) + 1;
+        tmp = self->description;
+        self->description = malloc(size);
+        strlcpy(self->description, tmp, size);
+    } else {
         self->description = malloc(1);
         strlcpy(self->description, "", 1);
     }
