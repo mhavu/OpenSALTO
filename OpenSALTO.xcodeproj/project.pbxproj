@@ -96,6 +96,7 @@
 		276C5D04199DFF5A005B3024 /* Channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Channel.h; sourceTree = "<group>"; };
 		276C5D05199E15A2005B3024 /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
 		276C5D06199E15AE005B3024 /* Event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Event.c; sourceTree = "<group>"; };
+		276C5D0819A478C5005B3024 /* inclination.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = inclination.py; path = plugins/filter/inclination.py; sourceTree = "<group>"; };
 		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
 		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
@@ -174,6 +175,7 @@
 		277CC04A1990D37C00E9F4EF /* filter */ = {
 			isa = PBXGroup;
 			children = (
+				276C5D0819A478C5005B3024 /* inclination.py */,
 			);
 			name = filter;
 			sourceTree = "<group>";

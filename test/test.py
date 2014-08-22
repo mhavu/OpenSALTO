@@ -1,13 +1,14 @@
-npa = np.empty((10), dtype=float)
-ch = salto.Channel(npa, samplerate=40)
-m = salto.channelTables['main']
+chTables = salto.channelTables
+m = chTables['main']
 p = salto.pluginManager.plugins
 rf = salto.pluginManager.importFormats
 wf = salto.pluginManager.exportFormats
+comp = salto.pluginManager.computations
 alive = salto.pluginManager.query(ext=".ats")[0]
 gcdc = salto.pluginManager.query(ext=".csv")[0]
 hookie = salto.pluginManager.query(ext=".dat")[0]
 gvhdf = salto.pluginManager.query(ext=".h5")[0]
+test = 'Plugin test'
 rf[alive].read("TINY.ATS", alive, 'main')
 rf[alive].read("HUGE.ATS", alive, 'main')
 rf[gcdc].read("GCDC.CSV", gcdc, 'main')
@@ -20,3 +21,4 @@ z.start()
 z.end()
 z.duration()
 [ch.json for ch in m.channels.values()]
+comp[test].compute(test, {'channelTable': 'main', 'iarg1': 100, 'iarg2': "testi", 'iarg3': -3.8})

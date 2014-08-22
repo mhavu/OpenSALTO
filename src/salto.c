@@ -313,7 +313,7 @@ void deleteChannelTable(const char *name) {
 }
 
 const char **getChannelNames(const char *chTable, size_t *size) {
-    PyObject *chTableDict, *channelTable, *key, *value;
+    PyObject *chTableDict, *channelTable, *key, *value, *channels = NULL;
     const char **names = NULL;
     Py_ssize_t pos;
     PyGILState_STATE state;
@@ -322,16 +322,20 @@ const char **getChannelNames(const char *chTable, size_t *size) {
     state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
-    if (channelTable) {
-        *size = PyDict_Size(channelTable);
-        names = calloc(*size, sizeof(char *));
+    if (channelTable)
+        channels = PyObject_GetAttrString(channelTable, "channels");  // new
+    if (channels) {
+        *size = PyDict_Size(channels);
+        if (*size)
+            names = calloc(*size, sizeof(char *));
         if (names) {
             pos = 0;
             i = 0;
-            while (PyDict_Next(channelTable, &pos, &key, &value)) {  // borrowed
+            while (PyDict_Next(channels, &pos, &key, &value)) {  // borrowed
                 names[i++] = PyUnicode_AsUTF8(key);
             }
         }
+        Py_DECREF(channels);
     }
     PyGILState_Release(state);
 
@@ -435,11 +439,65 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
         Py_XDECREF(name);
         Py_XDECREF(extList);
     } else {
-        PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument");
+        PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument that needs to be passed to registerFileFormat()");
     }
     PyGILState_Release(state);
     
     return result;
+}
+
+int registerComputation(void *obj, const char *name, const char *funcname,
+                        ComputationArgs *inputs, ComputationArgs *outputs)
+{
+    PyObject *pluginClass, *cdll, *func, *o, *defaultValue, *iList, *oList;
+    PyGILState_STATE state;
+    size_t i;
+    int err = 0;
+
+    state = PyGILState_Ensure();
+    pluginClass = PyDict_GetItemString(saltoDict, "Plugin");  // borrowed
+    if (PyObject_IsInstance(obj, pluginClass)) {
+        cdll = PyObject_GetAttrString(obj, "cdll");  // new
+        if (cdll) {
+            func = PyObject_GetAttrString(cdll, funcname);  // new
+            iList = PyList_New(inputs->n_args + 1);  // new
+            oList = PyList_New(outputs->n_args + 1);  // new
+            if (func && iList && oList) {
+                o = Py_BuildValue("ssII", "channelTable", "S",
+                                  inputs->min_channels, inputs->max_channels);  // new
+                PyList_SET_ITEM(iList, 0, o);  // stolen
+                o = Py_BuildValue("ssII", "channelTable", "S",
+                                  outputs->min_channels, outputs->max_channels);  // new
+                PyList_SET_ITEM(oList, 0, o);  // stolen
+                for (i = 0; i < inputs->n_args; i++) {
+                    // TODO: Set default values
+                    defaultValue = Py_None;
+                    o = Py_BuildValue("sssO", inputs->name[i], inputs->format[i],
+                                      inputs->description[i], defaultValue);  // new
+                    PyList_SET_ITEM(iList, i + 1, o);  // stolen
+                }
+                for (i = 0; i < outputs->n_args; i++) {
+                    o = Py_BuildValue("sss", outputs->name[i], outputs->format[i],
+                                      outputs->description[i]);  // new
+                    PyList_SET_ITEM(oList, i + 1, o);  // stolen
+                }
+                o = PyObject_CallMethod(obj, "registerComputation", "(sOOO)",
+                                        name, func, iList, oList);  // new
+                err = (o ? 0 : -1);
+                Py_XDECREF(o);
+            } else {
+                err = -1;
+            }
+            Py_XDECREF(func);
+            Py_XDECREF(iList);
+            Py_XDECREF(oList);
+        }
+    } else {
+        PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument that needs to be passed to registerComputation()");
+    }
+    PyGILState_Release(state);
+
+    return err;
 }
 
 int setCallback(void *obj, const char *type, const char *format, const char *funcname) {
@@ -455,17 +513,12 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
             func = PyObject_GetAttrString(cdll, funcname);  // new
             if (func) {
                 result = 0;
-                c_char_p = PyObject_GetAttrString(PyDict_GetItemString(mainDict, "c"), "c_char_p");  // new
                 if (strcmp(type, "Import") == 0 || strcmp(type, "Export") == 0) {
+                    c_char_p = PyObject_GetAttrString(PyDict_GetItemString(mainDict, "c"), "c_char_p");  // new
                     argtypes = PyTuple_Pack(2, c_char_p, c_char_p);  // new
+                    Py_XDECREF(c_char_p);
                     PyObject_SetAttrString(func, "argtypes", argtypes);
                     Py_XDECREF(argtypes);
-                } else {
-                    PyErr_SetString(PyExc_TypeError, "Unknown callback type in setCallback()");
-                    result = -1;
-                }
-                Py_XDECREF(c_char_p);
-                if (result == 0) {
                     method = PyUnicode_FromFormat("set%sFunc", type);  // new
                     name = PyUnicode_FromString(format);  // new
                     o = PyObject_CallMethodObjArgs(obj, method, name, func, NULL);  // new
@@ -473,13 +526,16 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
                     Py_XDECREF(o);
                     Py_XDECREF(method);
                     Py_XDECREF(name);
+                } else {
+                    PyErr_SetString(PyExc_TypeError, "Unknown callback type in setCallback()");
+                    result = -1;
                 }
                 Py_DECREF(func);
             }
             Py_DECREF(cdll);
         }
     } else {
-        PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument");
+        PyErr_SetString(PyExc_TypeError, "initPlugin() takes a Plugin object argument that needs to be passed to setCallback()");
     }
     PyGILState_Release(state);
 

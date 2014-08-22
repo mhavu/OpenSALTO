@@ -31,16 +31,30 @@ typedef enum {
     TIMER_EVENT = 5
 } EventVariety;
 
+typedef struct {
+    size_t n_args;
+    size_t min_channels;
+    size_t max_channels;
+    const char **name;
+    const char **format;
+    const char **description;
+    void **default_value;
+} ComputationArgs;
+
 // Application hooks to which plugins attach
 typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
 typedef int (*WriteFileFunc)(const char *filename, const char *chTable);
 typedef const char (*DescribeErrorFunc)(int err);
 typedef int (*InitPluginFunc)(void *handle);
+typedef int (*ComputeFunc)(void *inputs, void *outputs);
+typedef size_t (*NumberOfOutputChannelsFunc)(const char* computation, size_t nInputChannels);
 
 // Registration
 int registerFileFormat(void *handle, const char *format, const char **exts, size_t n_exts);
 int registerImportFunc(void *handle, const char *format, const char *funcname);
 int registerExportFunc(void *handle, const char *format, const char *funcname);
+int registerComputation(void *handle, const char *name, const char *funcname,
+                        ComputationArgs *inputs, ComputationArgs *outputs);
 
 // Exposing application capabilities back to plugins
 const char *newChannelTable(const char *name);
@@ -97,8 +111,5 @@ const char *channelsWithEventType(const char *chTable, EventVariety type, const 
 int setEventType(Event *event, EventVariety type, const char *subtype);
 int moveEvent(Event *event, struct timespec start, struct timespec end);
 int setEventDescription(Event *event, const char *description);
-
-// TODO: Expose plugin settings to application
-
 
 #endif

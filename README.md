@@ -9,13 +9,13 @@ exporting them in a different file format, performing computations on
 them, and reporting the results of the analysis. A GUI frontend is
 also being developed.
 
-#APIs
+#Plugin API
 
 OpenSALTO has plugin APIs for adding support for new file formats,
 filtering and performing calculations, and reporting the results of
 the analysis.
 
-##Import and Export API
+##Import and Export Plugins
 
 Support for new file formats can be added via plugins. Support can be
 added for any kind of signal. Current and planned plugins add support
@@ -38,10 +38,20 @@ A list of events with event types, start times and end times may also
 be included. Channels may have different sample rates, durations and
 start times.
 
+##Computation Plugins
+
+Filters and calculation and report plugins are modules that perform
+computations on one or more channels. Filters return one or more new
+channels as a result, whereas calculation and report plugins return
+descriptive values, graphs and so on.
+
+##API
+
 The plugins are expected to implement the following functions:
 ```C
 int initPlugin(void *handle);
 const char *describeError(int err);
+size_t nOutputChannels(const char* computation, size_t nInputChannels); // Computation plugins only
 ```
 
 The plugins register themselves using the following functions:
@@ -49,8 +59,11 @@ The plugins register themselves using the following functions:
 int registerFileFormat(void *handle, const char *format, const char **exts, size_t n_exts);
 int registerImportFunc(void *handle, const char *format, const char *funcname); // funcname is of type ReadFileFunc
 int registerExportFunc(void *handle, const char *format, const char *funcname); // funcname is of type WriteFileFunc
+int registerComputation(void *handle, const char *name, const char *funcname,
+                        ComputationArgs *inputs, ComputationArgs *outputs); // funcname is of type ComputeFunc
 typedef int (*ReadFileFunc)(const char *filename, const char *chTable);
 typedef int (*WriteFileFunc)(const char *filename, const char *chTable);
+typedef int (*ComputeFunc)(void *inputs, void *outputs);
 ```
 
 The following functions are available for the plugins:
@@ -110,10 +123,3 @@ int setEventType(Event *event, EventVariety type, const char *subtype);
 int moveEvent(Event *event, struct timespec start, struct timespec end);
 int setEventDescription(Event *event, const char *description);
 ```
-
-##Computation API
-
-Filters and calculation and report plugins are modules that perform
-computations on one or more channels. Filters return one or more new
-channels as a result, whereas calculation and report plugins return
-descriptive values, graphs and so on.
