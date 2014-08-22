@@ -1,12 +1,11 @@
 #
 #  gviewer.py
-#
 #  OpenSALTO
 #
-#  Reads GViewer HDF5 files.
+#  Reads and writes GViewer HDF5 files.
 #
-#  Created by Marko Havu on 2014-08-05.
-#  Released under the terms of GNU General Public License version 3.
+#  Copyright 2014 Marko Havu. Released under the terms of
+#  GNU General Public License version 3 or later.
 #
 
 import salto, h5py, json, math, getpass

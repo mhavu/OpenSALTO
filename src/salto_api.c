@@ -10,13 +10,11 @@
 #include "salto.h"
 
 
-int registerImportFunc(void *handle, const char *format, const char *funcname)
-{
+int registerImportFunc(void *handle, const char *format, const char *funcname) {
     return setCallback(handle, "Import", format, funcname);
 }
 
-int registerExportFunc(void *handle, const char *format, const char *funcname)
-{
+int registerExportFunc(void *handle, const char *format, const char *funcname) {
     return setCallback(handle, "Export", format, funcname);
 }
 
