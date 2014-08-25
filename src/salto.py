@@ -100,10 +100,7 @@ class Plugin:
     @staticmethod
     def convertInputPtr(value, format):
         if format == 'S':
-            if value:
-                value = c.cast(value, c.c_void_p).value
-            else:
-                value = 0
+            value = c.cast(value, c.c_void_p).value if value else 0
         return value
     @staticmethod
     def convertPtrFormat(format):
@@ -128,6 +125,12 @@ class Plugin:
         self.computations.pop(name, None)
     def compute(self, name, inputs):
         func, inputSpec, outputSpec, dtypes = self.computations.get(name)
+        minChannels, maxChannels = inputSpec[0][2:4]
+        chTable = inputs.get('channelTable')
+        nChannels = len(salto.channelTables[chTable].channels) if chTable else 0
+        if nChannels < minChannels or nChannels > maxChannels:
+            raise TypeError("Number of input channels must be between " +
+                            str(minChannels) + " and " + str(maxChannels))
         if self.cdll:
             inputs = {k: v.encode('utf-8') if isinstance(v, str) else v for k, v in inputs.items()}
             values = tuple([salto.Plugin.convertInputPtr(inputs.get(i[0], i[3]), i[1]) for i in inputSpec])
@@ -190,6 +193,19 @@ class PluginManager:
         if ext:
             return [format for format, plugin in self.importFormats.items()
                            if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
+    # convenience functions for calling plugins
+    def compute(self, compname, inputs):
+        plugin = self.computations.get(compname)
+        if plugin:
+            return plugin.compute(compname, inputs)
+    def read(self, filename, format, chTable):
+        plugin = self.importFormats.get(format)
+        if plugin:
+            return plugin.read(filename, format, chTable)
+    def write(self, filename, format, chTable):
+        plugin = self.exportFormats.get(format)
+        if plugin:
+            return plugin.write(filename, format, chTable)
 
 setattr(salto, 'makeUniqueKey', makeUniqueKey)
 setattr(salto, 'ChannelTable', ChannelTable)
