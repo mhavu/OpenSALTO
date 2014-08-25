@@ -94,10 +94,14 @@ class Plugin(salto.Plugin):
             f.attrs['lastmodifier'] = np.array([username], dtype = 'S')
             f.attrs['lastmodified'] = np.array([timestr], dtype = 'S')
             f.attrs['filtering'] = np.array(["unknown"], dtype = 'S')
-            for i, (name, ch) in enumerate(chTable.channels.items(), 1):
+            f.attrs['samplerate'] = np.array([samplerate])
+            dset = None
+            chNum = 0
+            for name, ch in chTable.channels.items():
+                chNum += 1
                 if ch.type == "acceleration" and not ch.collection:
                     if ch.samplerate > samplerate: samplerate = ch.samplerate
-                    dsname = "dataset" + str(i)
+                    dsname = "dataset" + str(chNum)
                     dset = f.create_dataset(dsname, (len(ch.data),), dtype = 'f4')
                     dset[...] = (ch.scale * ch.data + ch.offset) / 9.81
                     dset.attrs['name'] = np.array([name], dtype = 'S')
@@ -109,7 +113,7 @@ class Plugin(salto.Plugin):
                                datenumFromTimespec(e.start_sec, e.start_nsec),
                                datenumFromTimespec(e.end_sec, e.end_nsec))
                               for type, e in enumerate(ch.events, 1000)]
-                    maxdescrlen = max([len(e.subtype) for e in ch.events])
+                    maxdescrlen = max([len(e.subtype) for e in ch.events]) if ch.events else 8
                     descrtype = 'S' + str(8 * math.ceil(maxdescrlen / 8.0))
                     eventtype = [('type', '<f8'),
                                  ('description', descrtype),
@@ -117,17 +121,19 @@ class Plugin(salto.Plugin):
                                  ('startTime', '<f8'),
                                  ('endTime', '<f8')]
                     dset.attrs['events'] = np.array(events, dtype = eventtype)
-            f.attrs['samplerate'] = np.array([samplerate])
-            measurement = f.create_dataset("measurement", data = np.array([0]))
-            measurement.attrs['subject'] = np.array(["unknown"], dtype = 'S')
-            measurement.attrs['notes'] = np.array([""], dtype = 'S')
+            measurementNum = salto.sessionData.get('measurement', 0)
+            measurement = f.create_dataset("measurement", data = np.array([measurementNum]))
+            subject = salto.sessionData.get('subject', "unknown")
+            measurement.attrs['subject'] = np.array([subject], dtype = 'S')
+            notes = salto.sessionData.get('notes', "")
+            measurement.attrs['notes'] = np.array([notes], dtype = 'S')
             start_str = min([d.attrs['starttime'].item().decode('utf-8')
-                             for d in f.values() if 'starttime' in d.attrs])
+                             for d in f.values() if 'starttime' in d.attrs]) if dset else timestr
             src = np.array([("unknown", start_str)], dtype=[('filename', 'S8'), ('starttime', 'S24')])
             source = f.create_dataset("source", data = src)
             source.attrs['device'] = np.array([""], dtype = 'S')
             source.attrs['serialno'] = np.array([""], dtype = 'S')
             source.attrs['samplerate'] = np.array([samplerate])
             source.attrs['resolution'] = np.array([32], dtype = 'u2')
-            source.attrs['channels'] = np.array([len(chTable.channels)], dtype = 'u2')
+            source.attrs['channels'] = np.array([chNum], dtype = 'u2')
 
