@@ -15,6 +15,7 @@ static PyMethodDef Channel_methods[] = {
     {"start", (PyCFunction)Channel_start, METH_NOARGS, "channel start time as a datetime object"},
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
+    {"matches", (PyCFunction)Channel_matches, METH_VARARGS, "check whether channel type and time match those of another channel"},
     {NULL}  // sentinel
 };
 
@@ -123,7 +124,6 @@ PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
             Py_INCREF(data);
             self->data = data;
             if (self->data == NULL) {
-                Py_XDECREF(self->events);
                 Py_DECREF(data);
                 Py_DECREF(self);
                 self = NULL;
@@ -323,4 +323,40 @@ PyObject *Channel_end(Channel *self) {
     Py_XDECREF(timespec);
 
     return datetime;
+}
+
+PyObject *Channel_matches(Channel *self, PyObject *args) {
+    PyObject *result = Py_False;
+    Channel *other;
+    Py_ssize_t length, i;
+
+    if (PyArg_ParseTuple(args, "O!", &ChannelType, &other)) {
+        if (strcmp(self->type, other->type) == 0 &&
+            self->samplerate == other->samplerate &&
+            self->collection == other->collection &&
+            self->start_sec == other->start_sec &&
+            self->start_nsec == other->start_nsec)
+        {
+            if (self->collection) {
+                length = PyList_GET_SIZE(self->data);
+                if (PyList_GET_SIZE(other->data) == length) {
+                    result = Py_True;
+                    for (i = 0; i < length; i++) {
+                        result = Channel_matches((Channel *)PyList_GET_ITEM(self->data, i),
+                                                 PyList_GET_ITEM(other->data, i));
+                        if (result != Py_True)
+                            break;
+                    }
+                }
+            } else if (PyArray_DIM((PyArrayObject *)self->data, 0) ==
+                       PyArray_DIM((PyArrayObject *)other->data, 0)) {
+                result = Py_True;
+            }
+        }
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Channel.matches() takes a Channel argument");
+    }
+    Py_INCREF(result);
+
+    return result;
 }

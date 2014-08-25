@@ -22,6 +22,5 @@ z.duration()
 [ch.json for ch in m.channels.values()]
 pm.compute(test, {'channelTable': 'main', 'iarg1': 100, 'iarg2': "testi", 'iarg3': -3.8})
 chTables['a'] = salto.ChannelTable()
-for name, ch in m.channels.items():
-    if name in ('X', 'Y', 'Z'): salto.channelTables['a'].add(name, ch)
+len([chTables['a'].add(name, ch) for name, ch in m.channels.items() if ch.type == 'acceleration'])
 pm.compute('inclination', {'channelTable': 'a'})

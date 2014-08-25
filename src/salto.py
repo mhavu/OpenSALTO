@@ -8,7 +8,8 @@
 #  GNU General Public License version 3 or later.
 #
 
-import re, json, os, importlib.machinery
+import re, json, os, pint
+import importlib.machinery
 from datetime import datetime
 import ctypes as c
 import numpy as np
@@ -221,6 +222,9 @@ del moduleName
 
 if __name__ == '__main__':
     salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
+    salto.units = pint.UnitRegistry()
+    salto.Q = salto.units.Quantity
     salto.channelTables = {'main': salto.ChannelTable()}
+    salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover("plugins")

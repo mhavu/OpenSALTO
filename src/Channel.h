@@ -43,5 +43,6 @@ PyObject *Channel_richcmp(Channel *self, PyObject *other, int op);
 PyObject *Channel_start(Channel *self);
 PyObject *Channel_duration(Channel *self);
 PyObject *Channel_end(Channel *self);
+PyObject *Channel_matches(Channel *self, PyObject *other);
 
 #endif
