@@ -5,8 +5,8 @@
 //  Imports .CSV files from Gulf Coast Data Concepts accelerometers.
 //  Check http://www.gcdataconcepts.com for further specifications.
 //
-//  Created by Marko Havu on 2014-07-15.
-//  Released under the terms of GNU General Public License version 3.
+//  Copyright 2014 Marko Havu. Released under the terms of
+//  GNU General Public License version 3 or later.
 //
 
 #include <stdio.h>

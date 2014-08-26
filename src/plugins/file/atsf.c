@@ -6,8 +6,8 @@
 //  Technologies. Supports the 8-bit 2-axis HM120 and 3-axis HM131 models.
 //  Check http://www.alivetec.com/products.htm for further specifications.
 //
-//  Created by Marko Havu on 2014-07-09.
-//  Released under the terms of GNU General Public License version 3.
+//  Copyright 2014 Marko Havu. Released under the terms of
+//  GNU General Public License version 3 or later.
 //
 
 #include <stdio.h>

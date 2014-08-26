@@ -5,8 +5,8 @@
 //  Imports Hookie AM20 Activity Meter data files.
 //  Check http://www.hookiemeter.com/support for further specifications.
 //
-//  Created by Marko Havu on 2014-07-30.
-//  Released under the terms of GNU General Public License version 3.
+//  Copyright 2014 Marko Havu. Released under the terms of
+//  GNU General Public License version 3 or later.
 //
 
 #include <stdio.h>

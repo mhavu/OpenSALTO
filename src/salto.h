@@ -2,8 +2,8 @@
 //  salto.h
 //  OpenSALTO
 //
-//  Created by Marko Havu on 2014-07-09.
-//  Released under the terms of GNU General Public License version 3.
+//  Copyright 2014 Marko Havu. Released under the terms of
+//  GNU General Public License version 3 or later.
 //
 
 #ifndef _salto_h

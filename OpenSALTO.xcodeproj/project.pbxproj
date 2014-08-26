@@ -142,7 +142,7 @@
 		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
 		27960C1B199A009B00B016FC /* hookie.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = hookie.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
-		27C6E4CE19669B8D004192BD /* OpenSALTO */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenSALTO; sourceTree = BUILT_PRODUCTS_DIR; };
+		27C6E4CE19669B8D004192BD /* salto */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = salto; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
 		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; };
 		27C6E4DC19669CD5004192BD /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
@@ -294,7 +294,7 @@
 		27C6E4CF19669B8D004192BD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				27C6E4CE19669B8D004192BD /* OpenSALTO */,
+				27C6E4CE19669B8D004192BD /* salto */,
 				27F183F719824CE500FCD050 /* atsf.dylib */,
 				27F184281982813A00FCD050 /* gcdc.dylib */,
 				27960C1B199A009B00B016FC /* hookie.dylib */,
@@ -502,7 +502,7 @@
 			);
 			name = OpenSALTO;
 			productName = OpenSALTO;
-			productReference = 27C6E4CE19669B8D004192BD /* OpenSALTO */;
+			productReference = 27C6E4CE19669B8D004192BD /* salto */;
 			productType = "com.apple.product-type.tool";
 		};
 		27F183F619824CE500FCD050 /* atsf */ = {
@@ -804,7 +804,7 @@
 		276F1F7E199BE9D40026537C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -819,7 +819,7 @@
 		276F1F7F199BE9D40026537C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -834,7 +834,7 @@
 		27960C19199A009B00B016FC /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -849,7 +849,7 @@
 		27960C1A199A009B00B016FC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -937,7 +937,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../anaconda/lib\"",
 				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = salto;
 				SDKROOT = macosx10.7;
 				TEST_AFTER_BUILD = YES;
 			};
@@ -960,7 +960,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/../../anaconda/lib\"",
 				);
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = salto;
 				SDKROOT = macosx10.7;
 				TEST_AFTER_BUILD = YES;
 			};
@@ -969,7 +969,7 @@
 		27F183F919824CE500FCD050 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -984,7 +984,7 @@
 		27F183FA19824CE500FCD050 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -999,7 +999,7 @@
 		27F184261982813A00FCD050 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
@@ -1014,7 +1014,7 @@
 		27F184271982813A00FCD050 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../OpenSALTO";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/../salto";
 				CONFIGURATION_BUILD_DIR = "$(BUILD_DIR)/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/plugins";
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
