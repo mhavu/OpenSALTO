@@ -39,57 +39,69 @@ def makeUniqueKey(dict, key):
 class ChannelTable:
     """OpenSALTO channel table"""
     def __init__(self):
-        self.channels = {}
+        self._channels = {}
+    @property
+    def channels(self):
+        return self._channels
     def add(self, name, ch):
         assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
-        self.channels.setdefault(name, ch)
+        self._channels.setdefault(name, ch)
     def remove(self, name):
-        self.channels.pop(name, None)
+        self._channels.pop(name, None)
     def getUnique(self, name):
-        return salto.makeUniqueKey(self.channels, name)
+        return salto.makeUniqueKey(self._channels, name)
 
 class Plugin:
     """OpenSALTO plugin"""
     def __init__(self, manager, cdll = None):
         self.manager = manager
-        self.cdll = cdll
-        self.formats = {}
-        self.computations = {}
-        if self.cdll:
-            self.cdll.describeError.restype = c.c_char_p
-            self.cdll.initPlugin.argtypes = [c.py_object]
-            err = self.cdll.initPlugin(self)
+        self._cdll = cdll
+        self._formats = {}
+        self._computations = {}
+        if self._cdll:
+            self._cdll.describeError.restype = c.c_char_p
+            self._cdll.initPlugin.argtypes = [c.py_object]
+            err = self._cdll.initPlugin(self)
             if err != 0:
-                raise RuntimeError(self.cdll.describeError(err).decode('utf-8'))
+                raise RuntimeError(self._cdll.describeError(err).decode('utf-8'))
+    @property
+    def cdll(self):
+        return self._cdll
+    @property
+    def formats(self):
+        return self._formats
+    @property
+    def computations(self):
+        return self._computations
     # reading and writing files
     def registerFormat(self, name, exts):
-        self.formats.setdefault(name, {'exts':exts, 'readfunc':None, 'writefunc':None})
+        self._formats.setdefault(name, {'exts':exts, 'readfunc':None, 'writefunc':None})
     def unregisterFormat(self, name):
-        self.formats.pop(name, None)
+        self._formats.pop(name, None)
     def setImportFunc(self, format, func):
-        self.formats.get(format)['readfunc'] = func
+        self._formats.get(format)['readfunc'] = func
     def setExportFunc(self, format, func):
-        self.formats.get(format)['writefunc'] = func
+        self._formats.get(format)['writefunc'] = func
     def read(self, filename, format, chTable):
-        registered = self.formats.get(format)
+        registered = self._formats.get(format)
         if registered:
             readfunc = registered.get('readfunc')
         if readfunc:
-            if self.cdll:
+            if self._cdll:
                 err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
                 if err != 0:
-                    raise IOError(self.cdll.describeError(err).decode('utf-8'))
+                    raise IOError(self._cdll.describeError(err).decode('utf-8'))
             else:
                 readfunc(filename, salto.channelTables[chTable])
     def write(self, filename, format, chTable):
-        registered = self.formats.get(format)
+        registered = self._formats.get(format)
         if registered:
             writefunc = registered.get('writefunc')
         if writefunc:
-            if self.cdll:
+            if self._cdll:
                 err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
                 if err != 0:
-                    raise IOError(self.cdll.describeError(err).decode('utf-8'))
+                    raise IOError(self._cdll.describeError(err).decode('utf-8'))
             else:
                 writefunc(filename, salto.channelTables[chTable])
     # computations
@@ -111,35 +123,35 @@ class Plugin:
     def nOutputChannels(self, name, nInputChannels):
         pass
     def registerComputation(self, name, func, inputs, outputs):
-        if self.cdll:
+        if self._cdll:
             dtypes = (np.dtype([(i[0], salto.Plugin.convertPtrFormat(i[1])) for i in inputs], align = True),
                       np.dtype([(o[0], salto.Plugin.convertPtrFormat(o[1])) for o in outputs], align = True))
             func.argtypes = [np.ctypeslib.ndpointer(dtype = dtypes[0], flags = ('C', 'A')),
                              np.ctypeslib.ndpointer(dtype = dtypes[1], flags = ('C', 'A'))]
-            self.nOutputChannels = self.cdll.nOutputChannels
-            self.cdll.nOutputChannels.restype = c.c_size_t
-            self.cdll.nOutputChannels.argtypes = [c.c_char_p, c.c_size_t]
+            self.nOutputChannels = self._cdll.nOutputChannels
+            self._cdll.nOutputChannels.restype = c.c_size_t
+            self._cdll.nOutputChannels.argtypes = [c.c_char_p, c.c_size_t]
         else:
             dtypes = None
-        self.computations.setdefault(name, (func, inputs, outputs, dtypes))
+        self._computations.setdefault(name, (func, inputs, outputs, dtypes))
     def unregisterComputation(self, name):
-        self.computations.pop(name, None)
+        self._computations.pop(name, None)
     def compute(self, name, inputs):
-        func, inputSpec, outputSpec, dtypes = self.computations.get(name)
+        func, inputSpec, outputSpec, dtypes = self._computations.get(name)
         minChannels, maxChannels = inputSpec[0][2:4]
         chTable = inputs.get('channelTable')
         nChannels = len(salto.channelTables[chTable].channels) if chTable else 0
         if nChannels < minChannels or nChannels > maxChannels:
             raise TypeError("Number of input channels must be between " +
                             str(minChannels) + " and " + str(maxChannels))
-        if self.cdll:
+        if self._cdll:
             inputs = {k: v.encode('utf-8') if isinstance(v, str) else v for k, v in inputs.items()}
             values = tuple([salto.Plugin.convertInputPtr(inputs.get(i[0], i[3]), i[1]) for i in inputSpec])
             inputArgs = np.array(values, dtypes[0])
             outputs = np.empty((), dtypes[1])
             err = func(inputArgs, outputs)
             if err != 0:
-                raise RuntimeError(self.cdll.describeError(err).decode('utf-8'))
+                raise RuntimeError(self._cdll.describeError(err).decode('utf-8'))
             outputs = {o[0]: salto.Plugin.convertOutputPtr(outputs[o[0]].item(), o[1]) for o in outputSpec}
             outputs = {k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in outputs.items()}
         else:
@@ -149,10 +161,22 @@ class Plugin:
 class PluginManager:
     """OpenSALTO plugin manager"""
     def __init__(self):
-        self.plugins = []
-        self.importFormats = {}
-        self.exportFormats = {}
-        self.computations = {}
+        self._plugins = []
+        self._importFormats = {}
+        self._exportFormats = {}
+        self._computations = {}
+    @property
+    def plugins(self):
+        return self._plugins
+    @property
+    def importFormats(self):
+        return self._importFormats
+    @property
+    def exportFormats(self):
+        return self._exportFormats
+    @property
+    def computations(self):
+        return self._computations
     def discover(self, path):
         for filename in os.listdir(path):
             plugin, ext = os.path.splitext(filename)
@@ -169,42 +193,42 @@ class PluginManager:
         cdll = c.CDLL(filepath, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
     def register(self, plugin):
-        if plugin not in self.plugins:
-            self.plugins.append(plugin)
+        if plugin not in self._plugins:
+            self._plugins.append(plugin)
         for format, attrs in plugin.formats.items():
             if attrs['readfunc']:
-                self.importFormats.setdefault(format, plugin)
+                self._importFormats.setdefault(format, plugin)
             if attrs['writefunc']:
-                self.exportFormats.setdefault(format, plugin)
+                self._exportFormats.setdefault(format, plugin)
         for computation in plugin.computations:
-            self.computations.setdefault(computation, plugin)
+            self._computations.setdefault(computation, plugin)
     def unregister(self, plugin):
-        self.plugins.pop(plugin, None)
-        self.importFormats = {key: value
-            for key, value in self.importFormats.items()
+        self._plugins.pop(plugin, None)
+        self._importFormats = {key: value
+            for key, value in self._importFormats.items()
             if value is not plugin}
-        self.exportFormats = {key: value
-            for key, value in self.exportFormats.items()
+        self._exportFormats = {key: value
+            for key, value in self._exportFormats.items()
             if value is not plugin}
-        self.computations = {key: value
-            for key, value in self.computations.items()
+        self._computations = {key: value
+            for key, value in self._computations.items()
             if value is not plugin}
     def query(self, **kwargs):
         ext = kwargs.get('ext')
         if ext:
-            return [format for format, plugin in self.importFormats.items()
+            return [format for format, plugin in self._importFormats.items()
                            if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
     # convenience functions for calling plugins
     def compute(self, compname, inputs):
-        plugin = self.computations.get(compname)
+        plugin = self._computations.get(compname)
         if plugin:
             return plugin.compute(compname, inputs)
     def read(self, filename, format, chTable):
-        plugin = self.importFormats.get(format)
+        plugin = self._importFormats.get(format)
         if plugin:
             return plugin.read(filename, format, chTable)
     def write(self, filename, format, chTable):
-        plugin = self.exportFormats.get(format)
+        plugin = self._exportFormats.get(format)
         if plugin:
             return plugin.write(filename, format, chTable)
 
