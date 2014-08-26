@@ -10,6 +10,16 @@
 		276C5D03199DFF4A005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
 		276C5D07199E15AE005B3024 /* Event.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D06199E15AE005B3024 /* Event.c */; };
 		276C5D0919A78EAE005B3024 /* inclination.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 276C5D0819A478C5005B3024 /* inclination.py */; };
+		276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
+		276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1719AC83A8005B3024 /* InfoPlist.strings */; };
+		276C5D1B19AC83A8005B3024 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D1A19AC83A8005B3024 /* main.m */; };
+		276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1D19AC83A8005B3024 /* Credits.rtf */; };
+		276C5D2219AC83A8005B3024 /* SaltoGuiAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */; };
+		276C5D2519AC83A9005B3024 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D2319AC83A9005B3024 /* MainMenu.xib */; };
+		276C5D2E19AC83A9005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
+		276C5D3919AC83AA005B3024 /* guiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D3819AC83AA005B3024 /* guiTests.m */; };
+		276C5D4119AC9014005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D3419AC83A9005B3024 /* InfoPlist.strings */; };
+		276C5D4319AC92AA005B3024 /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D4219AC92AA005B3024 /* SenTestingKit.framework */; };
 		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
 		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
 		27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
@@ -26,6 +36,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		276C5D2F19AC83A9005B3024 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 276C5D0D19AC83A7005B3024;
+			remoteInfo = gui;
+		};
 		276F1F78199BE9D40026537C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
@@ -99,6 +116,26 @@
 		276C5D05199E15A2005B3024 /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
 		276C5D06199E15AE005B3024 /* Event.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Event.c; sourceTree = "<group>"; };
 		276C5D0819A478C5005B3024 /* inclination.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = inclination.py; path = plugins/computation/inclination.py; sourceTree = "<group>"; };
+		276C5D0E19AC83A8005B3024 /* OpenSALTO.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenSALTO.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		276C5D0F19AC83A8005B3024 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		276C5D1119AC83A8005B3024 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		276C5D1219AC83A8005B3024 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		276C5D1319AC83A8005B3024 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		276C5D1619AC83A8005B3024 /* gui-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "gui-Info.plist"; sourceTree = "<group>"; };
+		276C5D1819AC83A8005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		276C5D1A19AC83A8005B3024 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		276C5D1C19AC83A8005B3024 /* gui-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "gui-Prefix.pch"; sourceTree = "<group>"; };
+		276C5D1E19AC83A8005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
+		276C5D2019AC83A8005B3024 /* SaltoGuiAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SaltoGuiAppDelegate.h; sourceTree = "<group>"; };
+		276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SaltoGuiAppDelegate.m; sourceTree = "<group>"; };
+		276C5D2419AC83A9005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		276C5D2B19AC83A9005B3024 /* guiTests.octest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = guiTests.octest; sourceTree = BUILT_PRODUCTS_DIR; };
+		276C5D2C19AC83A9005B3024 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
+		276C5D3319AC83A9005B3024 /* guiTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "guiTests-Info.plist"; sourceTree = "<group>"; };
+		276C5D3519AC83AA005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		276C5D3719AC83AA005B3024 /* guiTests.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = guiTests.h; sourceTree = "<group>"; };
+		276C5D3819AC83AA005B3024 /* guiTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = guiTests.m; sourceTree = "<group>"; };
+		276C5D4219AC92AA005B3024 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
 		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
 		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
@@ -127,6 +164,23 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		276C5D0B19AC83A7005B3024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D2719AC83A9005B3024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D4319AC92AA005B3024 /* SenTestingKit.framework in Frameworks */,
+				276C5D2E19AC83A9005B3024 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		276F1F7B199BE9D40026537C /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -166,6 +220,48 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		276C5D1419AC83A8005B3024 /* gui */ = {
+			isa = PBXGroup;
+			children = (
+				276C5D2019AC83A8005B3024 /* SaltoGuiAppDelegate.h */,
+				276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */,
+				276C5D2319AC83A9005B3024 /* MainMenu.xib */,
+				276C5D1519AC83A8005B3024 /* Supporting Files */,
+			);
+			path = gui;
+			sourceTree = "<group>";
+		};
+		276C5D1519AC83A8005B3024 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				276C5D1619AC83A8005B3024 /* gui-Info.plist */,
+				276C5D1719AC83A8005B3024 /* InfoPlist.strings */,
+				276C5D1A19AC83A8005B3024 /* main.m */,
+				276C5D1C19AC83A8005B3024 /* gui-Prefix.pch */,
+				276C5D1D19AC83A8005B3024 /* Credits.rtf */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		276C5D3119AC83A9005B3024 /* guiTests */ = {
+			isa = PBXGroup;
+			children = (
+				276C5D3719AC83AA005B3024 /* guiTests.h */,
+				276C5D3819AC83AA005B3024 /* guiTests.m */,
+				276C5D3219AC83A9005B3024 /* Supporting Files */,
+			);
+			path = guiTests;
+			sourceTree = "<group>";
+		};
+		276C5D3219AC83A9005B3024 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				276C5D3319AC83A9005B3024 /* guiTests-Info.plist */,
+				276C5D3419AC83A9005B3024 /* InfoPlist.strings */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
 		277CC0491990D36000E9F4EF /* report */ = {
 			isa = PBXGroup;
 			children = (
@@ -185,6 +281,7 @@
 		27C6E4C519669B8A004192BD = {
 			isa = PBXGroup;
 			children = (
+				276C5D4219AC92AA005B3024 /* SenTestingKit.framework */,
 				27C6E4DC19669CD5004192BD /* README.md */,
 				27C6E4DA19669CD5004192BD /* COPYING.md */,
 				27C6E4D019669B8D004192BD /* src */,
@@ -202,6 +299,8 @@
 				27F184281982813A00FCD050 /* gcdc.dylib */,
 				27960C1B199A009B00B016FC /* hookie.dylib */,
 				276F1F80199BE9D40026537C /* testplugin.dylib */,
+				276C5D0E19AC83A8005B3024 /* OpenSALTO.app */,
+				276C5D2B19AC83A9005B3024 /* guiTests.octest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -209,6 +308,7 @@
 		27C6E4D019669B8D004192BD /* src */ = {
 			isa = PBXGroup;
 			children = (
+				276C5D1419AC83A8005B3024 /* gui */,
 				27F183E8198247AE00FCD050 /* plugins */,
 				27C6E4DE19669CD5004192BD /* salto_api.h */,
 				27C6E4DD19669CD5004192BD /* salto_api.c */,
@@ -228,6 +328,8 @@
 			children = (
 				27C6E5171966F5A8004192BD /* Python.framework */,
 				27F1841119827DF100FCD050 /* CoreFoundation.framework */,
+				276C5D0F19AC83A8005B3024 /* Cocoa.framework */,
+				276C5D2C19AC83A9005B3024 /* SenTestingKit.framework */,
 				27C6E4F01966A290004192BD /* Other Frameworks */,
 			);
 			name = Frameworks;
@@ -237,6 +339,9 @@
 			isa = PBXGroup;
 			children = (
 				27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */,
+				276C5D1119AC83A8005B3024 /* AppKit.framework */,
+				276C5D1219AC83A8005B3024 /* CoreData.framework */,
+				276C5D1319AC83A8005B3024 /* Foundation.framework */,
 			);
 			name = "Other Frameworks";
 			sourceTree = "<group>";
@@ -244,14 +349,14 @@
 		27F183D7196EAC2E00FCD050 /* test */ = {
 			isa = PBXGroup;
 			children = (
+				276C5D3119AC83A9005B3024 /* guiTests */,
 				27F183E21975429F00FCD050 /* test.py */,
 				276F1F75199BE9BD0026537C /* testplugin.c */,
 				27F183DC196EAC9D00FCD050 /* TINY.ATS */,
 				27F18436198967D700FCD050 /* HUGE.ATS */,
 				27F183E51975619000FCD050 /* GCDC.CSV */,
 			);
-			name = test;
-			path = OpenSALTO/test;
+			path = test;
 			sourceTree = "<group>";
 		};
 		27F183E8198247AE00FCD050 /* plugins */ = {
@@ -309,6 +414,42 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		276C5D0D19AC83A7005B3024 /* gui */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 276C5D3A19AC83AA005B3024 /* Build configuration list for PBXNativeTarget "gui" */;
+			buildPhases = (
+				276C5D0A19AC83A7005B3024 /* Sources */,
+				276C5D0B19AC83A7005B3024 /* Frameworks */,
+				276C5D0C19AC83A7005B3024 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = gui;
+			productName = gui;
+			productReference = 276C5D0E19AC83A8005B3024 /* OpenSALTO.app */;
+			productType = "com.apple.product-type.application";
+		};
+		276C5D2A19AC83A9005B3024 /* guiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 276C5D3D19AC83AA005B3024 /* Build configuration list for PBXNativeTarget "guiTests" */;
+			buildPhases = (
+				276C5D2619AC83A9005B3024 /* Sources */,
+				276C5D2719AC83A9005B3024 /* Frameworks */,
+				276C5D2819AC83A9005B3024 /* Resources */,
+				276C5D2919AC83A9005B3024 /* ShellScript */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				276C5D3019AC83A9005B3024 /* PBXTargetDependency */,
+			);
+			name = guiTests;
+			productName = guiTests;
+			productReference = 276C5D2B19AC83A9005B3024 /* guiTests.octest */;
+			productType = "com.apple.product-type.bundle";
+		};
 		276F1F76199BE9D40026537C /* test plugin */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */;
@@ -426,11 +567,67 @@
 				27F1841E1982813A00FCD050 /* gcdc */,
 				27960C11199A009B00B016FC /* hookie */,
 				276F1F76199BE9D40026537C /* test plugin */,
+				276C5D0D19AC83A7005B3024 /* gui */,
+				276C5D2A19AC83A9005B3024 /* guiTests */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		276C5D0C19AC83A7005B3024 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */,
+				276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */,
+				276C5D2519AC83A9005B3024 /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D2819AC83A9005B3024 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D4119AC9014005B3024 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		276C5D2919AC83A9005B3024 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Run the unit tests in this test bundle.\n\"${SYSTEM_DEVELOPER_DIR}/Tools/RunUnitTests\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
+		276C5D0A19AC83A7005B3024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D1B19AC83A8005B3024 /* main.m in Sources */,
+				276C5D2219AC83A8005B3024 /* SaltoGuiAppDelegate.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D2619AC83A9005B3024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D3919AC83AA005B3024 /* guiTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		276F1F79199BE9D40026537C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -477,6 +674,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		276C5D3019AC83A9005B3024 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 276C5D0D19AC83A7005B3024 /* gui */;
+			targetProxy = 276C5D2F19AC83A9005B3024 /* PBXContainerItemProxy */;
+		};
 		276F1F77199BE9D40026537C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
@@ -499,7 +701,106 @@
 		};
 /* End PBXTargetDependency section */
 
+/* Begin PBXVariantGroup section */
+		276C5D1719AC83A8005B3024 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				276C5D1819AC83A8005B3024 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		276C5D1D19AC83A8005B3024 /* Credits.rtf */ = {
+			isa = PBXVariantGroup;
+			children = (
+				276C5D1E19AC83A8005B3024 /* en */,
+			);
+			name = Credits.rtf;
+			sourceTree = "<group>";
+		};
+		276C5D2319AC83A9005B3024 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				276C5D2419AC83A9005B3024 /* en */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+		276C5D3419AC83A9005B3024 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				276C5D3519AC83AA005B3024 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
+		276C5D3B19AC83AA005B3024 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/src/gui/gui-Info.plist";
+				PRODUCT_NAME = OpenSALTO;
+				SDKROOT = "";
+				TEST_AFTER_BUILD = YES;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		276C5D3C19AC83AA005B3024 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/src/gui/gui-Info.plist";
+				PRODUCT_NAME = OpenSALTO;
+				SDKROOT = "";
+				TEST_AFTER_BUILD = YES;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		276C5D3E19AC83AA005B3024 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/gui.app/Contents/MacOS/gui";
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = "\"$(DEVELOPER_LIBRARY_DIR)/Frameworks\"";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/test/guiTests/guiTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = "";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = octest;
+			};
+			name = Debug;
+		};
+		276C5D3F19AC83AA005B3024 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/gui.app/Contents/MacOS/gui";
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				FRAMEWORK_SEARCH_PATHS = "\"$(DEVELOPER_LIBRARY_DIR)/Frameworks\"";
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				INFOPLIST_FILE = "$(SRCROOT)/test/guiTests/guiTests-Info.plist";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = "";
+				TEST_HOST = "$(BUNDLE_LOADER)";
+				WRAPPER_EXTENSION = octest;
+			};
+			name = Release;
+		};
 		276F1F7E199BE9D40026537C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -728,6 +1029,22 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		276C5D3A19AC83AA005B3024 /* Build configuration list for PBXNativeTarget "gui" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				276C5D3B19AC83AA005B3024 /* Debug */,
+				276C5D3C19AC83AA005B3024 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+		276C5D3D19AC83AA005B3024 /* Build configuration list for PBXNativeTarget "guiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				276C5D3E19AC83AA005B3024 /* Debug */,
+				276C5D3F19AC83AA005B3024 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
