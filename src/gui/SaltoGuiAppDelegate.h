@@ -7,11 +7,14 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import "SaltoMainWindowController.h"
+#import "SaltoConsoleController.h"
 
-@interface SaltoGuiAppDelegate : NSObject {
-    NSWindow *window;
-}
+@interface SaltoGuiAppDelegate : NSObject
 
-@property (assign) IBOutlet NSWindow *window;
+@property (readonly) IBOutlet SaltoMainWindowController *mainWindowController;
+@property (readonly) IBOutlet SaltoConsoleController *consoleController;
+
+- (IBAction)showConsoleWindow:(id)sender;
 
 @end

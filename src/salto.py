@@ -8,7 +8,7 @@
 #  GNU General Public License version 3 or later.
 #
 
-import re, json, os, pint
+import re, json, os, pint, code
 import importlib.machinery
 from datetime import datetime
 import ctypes as c
@@ -243,8 +243,7 @@ del PluginManager
 __name__ = moduleName
 del moduleName
 
-
-if __name__ == '__main__':
+def main():
     salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
     salto.units = pint.UnitRegistry()
     salto.Q = salto.units.Quantity
@@ -252,3 +251,6 @@ if __name__ == '__main__':
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover("plugins")
+
+if __name__ == '__main__':
+    main()

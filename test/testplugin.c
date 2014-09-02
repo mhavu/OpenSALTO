@@ -4,8 +4,8 @@
 //
 //  Tests the OpenSALTO API functions.
 //
-//  Created by Marko Havu on 2014-08-13.
-//  Released under the terms of GNU General Public License version 3.
+//  Copyright 2014 Marko Havu. Released under the terms of
+//  GNU General Public License version 3 or later.
 //
 
 #include <stdio.h>

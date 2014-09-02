@@ -1,5 +1,5 @@
 //
-//  main.m
+//  SaltoChannelViewController.h
 //  OpenSalto GUI
 //
 //  Copyright 2014 Marko Havu. Released under the terms of
@@ -8,6 +8,6 @@
 
 #import <Cocoa/Cocoa.h>
 
-int main(int argc, char *argv[]) {
-    return NSApplicationMain(argc, (const char **)argv);
-}
+@interface SaltoChannelViewController : NSViewController
+
+@end

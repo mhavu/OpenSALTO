@@ -1,3 +1,13 @@
+#
+#  test.py
+#  OpenSALTO
+#
+#  Python tests for OpenSALTO
+#
+#  Copyright 2014 Marko Havu. Released under the terms of
+#  GNU General Public License version 3 or later.
+#
+
 chTables = salto.channelTables
 m = chTables['main']
 pm = salto.pluginManager

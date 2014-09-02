@@ -447,8 +447,7 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
 }
 
 int registerComputation(void *obj, const char *name, const char *funcname,
-                        ComputationArgs *inputs, ComputationArgs *outputs)
-{
+                        ComputationArgs *inputs, ComputationArgs *outputs) {
     PyObject *pluginClass, *cdll, *func, *o, *defaultValue, *iList, *oList;
     PyGILState_STATE state;
     size_t i;
@@ -630,8 +629,7 @@ void clearEvents(const char *chTable, const char *name) {
 
 
 Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
-                struct timespec end, const char *description)
-{
+                struct timespec end, const char *description) {
     PyObject *eventClass;
     Event *event = NULL;
     PyGILState_STATE state;
@@ -722,13 +720,13 @@ static PyObject *PyInit_salto(void) {
 
 
 
-int main(int argc, const char *argv[]) {
+int saltoInit(void) {
     PyObject *mainModule;
+    int result = 0;
 
-    Py_SetProgramName(L"OpenSALTO");
     PyImport_AppendInittab("salto", &PyInit_salto);
     Py_Initialize();
-
+    
     // Get a reference to the Python global dictionary.
     mainModule = PyImport_AddModule("__main__");  // borrowed
     if (mainModule) {
@@ -736,7 +734,7 @@ int main(int argc, const char *argv[]) {
         Py_XINCREF(mainDict);
     } else {
         fprintf(stderr, "Python module __main__ not found\n");
-        exit(EXIT_FAILURE);
+        result = -1;
     }
 
     // Execute salto.py and run the Python interpreter.
@@ -745,15 +743,25 @@ int main(int argc, const char *argv[]) {
         PyRun_SimpleFileEx(fp, "salto.py", 1);
     } else {
         perror("fopen()");
-        exit(EXIT_FAILURE);
+        result = -1;
     }
-    Py_Main(0, (wchar_t **)argv);
 
-    // Release the Python objects.
+    return result;
+}
+
+static const char *saltoPyConsoleCode =
+"try:\n\
+    code.interact(\"OpenSALTO Python console\", None, locals())\n\
+except SystemExit:\n\
+    pass\n\
+print(\"Exiting OpenSALTO\")";
+
+int saltoRun(void) {
+    return PyRun_SimpleString(saltoPyConsoleCode);
+}
+
+void saltoEnd(void *context) {
     Py_XDECREF(mainDict);
     Py_XDECREF(saltoDict);
-
     Py_Finalize();
-
-    return EXIT_SUCCESS;
 }

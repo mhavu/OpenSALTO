@@ -7,9 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		276C5D03199DFF4A005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
-		276C5D07199E15AE005B3024 /* Event.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D06199E15AE005B3024 /* Event.c */; };
-		276C5D0919A78EAE005B3024 /* inclination.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 276C5D0819A478C5005B3024 /* inclination.py */; };
 		276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
 		276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1719AC83A8005B3024 /* InfoPlist.strings */; };
 		276C5D1B19AC83A8005B3024 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D1A19AC83A8005B3024 /* main.m */; };
@@ -20,18 +17,40 @@
 		276C5D3919AC83AA005B3024 /* guiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D3819AC83AA005B3024 /* guiTests.m */; };
 		276C5D4119AC9014005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D3419AC83A9005B3024 /* InfoPlist.strings */; };
 		276C5D4319AC92AA005B3024 /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D4219AC92AA005B3024 /* SenTestingKit.framework */; };
+		276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4519ACC83C005B3024 /* SaltoChannelView.m */; };
+		276C5D4919ACC893005B3024 /* SaltoChannelViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */; };
+		276C5D5619ADD798005B3024 /* inclination.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 276C5D0819A478C5005B3024 /* inclination.py */; };
+		276C5D5719ADD798005B3024 /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
+		276C5D5919ADD798005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
+		276C5D5A19ADD798005B3024 /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
+		276C5D5B19ADD798005B3024 /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
+		276C5D5C19ADD798005B3024 /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
+		276C5D6819ADD903005B3024 /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
+		276C5D6919ADD907005B3024 /* inclination.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 276C5D0819A478C5005B3024 /* inclination.py */; };
+		276C5D6B19ADD949005B3024 /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
+		276C5D6C19ADD94B005B3024 /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
+		276C5D6D19ADD94F005B3024 /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
+		276C5D6E19ADD953005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
+		276C5D7019ADD98E005B3024 /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		276C5D8719ADE731005B3024 /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		276C5D8819ADE73C005B3024 /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		276C5D8E19ADF110005B3024 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
+		276C5D8F19ADF111005B3024 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
+		276C5D9019ADF11B005B3024 /* Event.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D06199E15AE005B3024 /* Event.c */; };
+		276C5D9119ADF11C005B3024 /* Event.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D06199E15AE005B3024 /* Event.c */; };
+		276C5D9219ADF11F005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
+		276C5D9319ADF11F005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
+		276C5D9419ADF126005B3024 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
+		276C5D9519ADF127005B3024 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
+		276C5D9A19AE3541005B3024 /* SaltoMainWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */; };
+		276C5D9B19AE3541005B3024 /* SaltoMainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */; };
+		276C5D9F19AE35C5005B3024 /* SaltoConsoleController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */; };
+		276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */; };
+		276C5DA119AE4B04005B3024 /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
+		276C5DA219AE5A13005B3024 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4A19ADD6A3005B3024 /* main.c */; };
 		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
-		277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
-		27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
-		27960C0A1998BC6500B016FC /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
-		27960C0B1998BC6500B016FC /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
-		27960C0C1998BC7600B016FC /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
-		27960C0F1998CC7A00B016FC /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
-		27960C101999049B00B016FC /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		27960C1C199A0B8F00B016FC /* hookie.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F1842A19891A8E00FCD050 /* hookie.c */; };
-		27F183D4196D683C00FCD050 /* salto.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183D3196D683C00FCD050 /* salto.c */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
-		27F18407198252BE00FCD050 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
 		27F184291982816600FCD050 /* gcdc.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183E31975550100FCD050 /* gcdc.c */; };
 /* End PBXBuildFile section */
 
@@ -43,68 +62,74 @@
 			remoteGlobalIDString = 276C5D0D19AC83A7005B3024;
 			remoteInfo = gui;
 		};
-		276F1F78199BE9D40026537C /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
-			remoteInfo = OpenSALTO;
-		};
-		27960C13199A009B00B016FC /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
-			remoteInfo = OpenSALTO;
-		};
-		27F1840A198252D500FCD050 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
-			remoteInfo = OpenSALTO;
-		};
-		27F184201982813A00FCD050 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 27C6E4C619669B8A004192BD /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 27C6E4CD19669B8A004192BD;
-			remoteInfo = OpenSALTO;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		27960C081998BC4900B016FC /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 7;
-			files = (
-				27960C0C1998BC7600B016FC /* salto.py in CopyFiles */,
-				27960C091998BC6500B016FC /* TINY.ATS in CopyFiles */,
-				27960C0A1998BC6500B016FC /* HUGE.ATS in CopyFiles */,
-				27960C0B1998BC6500B016FC /* GCDC.CSV in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		27960C0D1998CC5A00B016FC /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				27960C0F1998CC7A00B016FC /* libpython3.4m.dylib in CopyFiles */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		27C6E4CC19669B8A004192BD /* CopyFiles */ = {
+		276C5D5519ADD798005B3024 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 12;
 			dstPath = plugins;
 			dstSubfolderSpec = 16;
 			files = (
-				276C5D0919A78EAE005B3024 /* inclination.py in CopyFiles */,
-				277CC04C1990DCE200E9F4EF /* gviewer.py in CopyFiles */,
+				276C5D5619ADD798005B3024 /* inclination.py in CopyFiles */,
+				276C5D5719ADD798005B3024 /* gviewer.py in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D5819ADD798005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+				276C5D5919ADD798005B3024 /* salto.py in CopyFiles */,
+				276C5D5A19ADD798005B3024 /* TINY.ATS in CopyFiles */,
+				276C5D5B19ADD798005B3024 /* HUGE.ATS in CopyFiles */,
+				276C5D5C19ADD798005B3024 /* GCDC.CSV in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D5D19ADD798005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				276C5DA119AE4B04005B3024 /* libpython3.4m.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D6719ADD8E4005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = plugins;
+			dstSubfolderSpec = 16;
+			files = (
+				276C5D6819ADD903005B3024 /* gviewer.py in CopyFiles */,
+				276C5D6919ADD907005B3024 /* inclination.py in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D6A19ADD919005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+				276C5D6E19ADD953005B3024 /* salto.py in CopyFiles */,
+				276C5D6B19ADD949005B3024 /* TINY.ATS in CopyFiles */,
+				276C5D6C19ADD94B005B3024 /* HUGE.ATS in CopyFiles */,
+				276C5D6D19ADD94F005B3024 /* GCDC.CSV in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D6F19ADD97B005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				276C5D7019ADD98E005B3024 /* libpython3.4m.dylib in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -130,21 +155,32 @@
 		276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SaltoGuiAppDelegate.m; sourceTree = "<group>"; };
 		276C5D2419AC83A9005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		276C5D2B19AC83A9005B3024 /* guiTests.octest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = guiTests.octest; sourceTree = BUILT_PRODUCTS_DIR; };
-		276C5D2C19AC83A9005B3024 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
 		276C5D3319AC83A9005B3024 /* guiTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "guiTests-Info.plist"; sourceTree = "<group>"; };
 		276C5D3519AC83AA005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		276C5D3719AC83AA005B3024 /* guiTests.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = guiTests.h; sourceTree = "<group>"; };
 		276C5D3819AC83AA005B3024 /* guiTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = guiTests.m; sourceTree = "<group>"; };
 		276C5D4219AC92AA005B3024 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
+		276C5D4419ACC83B005B3024 /* SaltoChannelView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoChannelView.h; sourceTree = "<group>"; };
+		276C5D4519ACC83C005B3024 /* SaltoChannelView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoChannelView.m; sourceTree = "<group>"; };
+		276C5D4719ACC892005B3024 /* SaltoChannelViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoChannelViewController.h; sourceTree = "<group>"; };
+		276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoChannelViewController.m; sourceTree = "<group>"; };
+		276C5D4A19ADD6A3005B3024 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		276C5D6219ADD798005B3024 /* salto */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = salto; sourceTree = BUILT_PRODUCTS_DIR; };
+		276C5D9619ADF811005B3024 /* OpenSALTO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = OpenSALTO.entitlements; path = ../../OpenSALTO.entitlements; sourceTree = "<group>"; };
+		276C5D9719AE3540005B3024 /* SaltoMainWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoMainWindowController.h; sourceTree = "<group>"; };
+		276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoMainWindowController.m; sourceTree = "<group>"; };
+		276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = SaltoMainWindow.xib; sourceTree = "<group>"; };
+		276C5D9C19AE35C4005B3024 /* SaltoConsoleController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoConsoleController.h; sourceTree = "<group>"; };
+		276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoConsoleController.m; sourceTree = "<group>"; };
+		276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = SaltoConsole.xib; sourceTree = "<group>"; };
 		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
 		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
-		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; };
+		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; lineEnding = 0; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.python; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
 		27960C1B199A009B00B016FC /* hookie.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = hookie.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
-		27C6E4CE19669B8D004192BD /* salto */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = salto; sourceTree = BUILT_PRODUCTS_DIR; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
-		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; };
+		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.c; };
 		27C6E4DC19669CD5004192BD /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 		27C6E4DD19669CD5004192BD /* salto_api.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = salto_api.c; sourceTree = "<group>"; };
 		27C6E4DE19669CD5004192BD /* salto_api.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = salto_api.h; sourceTree = "<group>"; };
@@ -169,6 +205,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */,
+				276C5D8819ADE73C005B3024 /* libpython3.4m.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -178,6 +215,14 @@
 			files = (
 				276C5D4319AC92AA005B3024 /* SenTestingKit.framework in Frameworks */,
 				276C5D2E19AC83A9005B3024 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D5319ADD798005B3024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D8719ADE731005B3024 /* libpython3.4m.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -192,14 +237,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		27C6E4CB19669B8A004192BD /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				27960C101999049B00B016FC /* libpython3.4m.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,6 +263,16 @@
 				276C5D2019AC83A8005B3024 /* SaltoGuiAppDelegate.h */,
 				276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */,
 				276C5D2319AC83A9005B3024 /* MainMenu.xib */,
+				276C5D9C19AE35C4005B3024 /* SaltoConsoleController.h */,
+				276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */,
+				276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */,
+				276C5D4419ACC83B005B3024 /* SaltoChannelView.h */,
+				276C5D4519ACC83C005B3024 /* SaltoChannelView.m */,
+				276C5D4719ACC892005B3024 /* SaltoChannelViewController.h */,
+				276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */,
+				276C5D9719AE3540005B3024 /* SaltoMainWindowController.h */,
+				276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */,
+				276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */,
 				276C5D1519AC83A8005B3024 /* Supporting Files */,
 			);
 			path = gui;
@@ -234,6 +281,7 @@
 		276C5D1519AC83A8005B3024 /* Supporting Files */ = {
 			isa = PBXGroup;
 			children = (
+				276C5D9619ADF811005B3024 /* OpenSALTO.entitlements */,
 				276C5D1619AC83A8005B3024 /* gui-Info.plist */,
 				276C5D1719AC83A8005B3024 /* InfoPlist.strings */,
 				276C5D1A19AC83A8005B3024 /* main.m */,
@@ -281,7 +329,6 @@
 		27C6E4C519669B8A004192BD = {
 			isa = PBXGroup;
 			children = (
-				276C5D4219AC92AA005B3024 /* SenTestingKit.framework */,
 				27C6E4DC19669CD5004192BD /* README.md */,
 				27C6E4DA19669CD5004192BD /* COPYING.md */,
 				27C6E4D019669B8D004192BD /* src */,
@@ -294,13 +341,13 @@
 		27C6E4CF19669B8D004192BD /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				27C6E4CE19669B8D004192BD /* salto */,
 				27F183F719824CE500FCD050 /* atsf.dylib */,
 				27F184281982813A00FCD050 /* gcdc.dylib */,
 				27960C1B199A009B00B016FC /* hookie.dylib */,
 				276F1F80199BE9D40026537C /* testplugin.dylib */,
 				276C5D0E19AC83A8005B3024 /* OpenSALTO.app */,
 				276C5D2B19AC83A9005B3024 /* guiTests.octest */,
+				276C5D6219ADD798005B3024 /* salto */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -319,6 +366,7 @@
 				27F183D5196D6AB900FCD050 /* salto.h */,
 				27F183D3196D683C00FCD050 /* salto.c */,
 				27F183D1196A8BFF00FCD050 /* salto.py */,
+				276C5D4A19ADD6A3005B3024 /* main.c */,
 			);
 			path = src;
 			sourceTree = "<group>";
@@ -329,7 +377,7 @@
 				27C6E5171966F5A8004192BD /* Python.framework */,
 				27F1841119827DF100FCD050 /* CoreFoundation.framework */,
 				276C5D0F19AC83A8005B3024 /* Cocoa.framework */,
-				276C5D2C19AC83A9005B3024 /* SenTestingKit.framework */,
+				276C5D4219AC92AA005B3024 /* SenTestingKit.framework */,
 				27C6E4F01966A290004192BD /* Other Frameworks */,
 			);
 			name = Frameworks;
@@ -421,6 +469,9 @@
 				276C5D0A19AC83A7005B3024 /* Sources */,
 				276C5D0B19AC83A7005B3024 /* Frameworks */,
 				276C5D0C19AC83A7005B3024 /* Resources */,
+				276C5D6719ADD8E4005B3024 /* CopyFiles */,
+				276C5D6A19ADD919005B3024 /* CopyFiles */,
+				276C5D6F19ADD97B005B3024 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -450,6 +501,25 @@
 			productReference = 276C5D2B19AC83A9005B3024 /* guiTests.octest */;
 			productType = "com.apple.product-type.bundle";
 		};
+		276C5D4C19ADD798005B3024 /* salto */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 276C5D5F19ADD798005B3024 /* Build configuration list for PBXNativeTarget "salto" */;
+			buildPhases = (
+				276C5D4D19ADD798005B3024 /* Sources */,
+				276C5D5319ADD798005B3024 /* Frameworks */,
+				276C5D5519ADD798005B3024 /* CopyFiles */,
+				276C5D5819ADD798005B3024 /* CopyFiles */,
+				276C5D5D19ADD798005B3024 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = salto;
+			productName = OpenSALTO;
+			productReference = 276C5D6219ADD798005B3024 /* salto */;
+			productType = "com.apple.product-type.tool";
+		};
 		276F1F76199BE9D40026537C /* test plugin */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */;
@@ -461,7 +531,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				276F1F77199BE9D40026537C /* PBXTargetDependency */,
 			);
 			name = "test plugin";
 			productName = atsf;
@@ -479,31 +548,11 @@
 			buildRules = (
 			);
 			dependencies = (
-				27960C12199A009B00B016FC /* PBXTargetDependency */,
 			);
 			name = hookie;
 			productName = atsf;
 			productReference = 27960C1B199A009B00B016FC /* hookie.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
-		};
-		27C6E4CD19669B8A004192BD /* OpenSALTO */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 27C6E4D719669B8E004192BD /* Build configuration list for PBXNativeTarget "OpenSALTO" */;
-			buildPhases = (
-				27C6E4CA19669B8A004192BD /* Sources */,
-				27C6E4CB19669B8A004192BD /* Frameworks */,
-				27C6E4CC19669B8A004192BD /* CopyFiles */,
-				27960C081998BC4900B016FC /* CopyFiles */,
-				27960C0D1998CC5A00B016FC /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = OpenSALTO;
-			productName = OpenSALTO;
-			productReference = 27C6E4CE19669B8D004192BD /* salto */;
-			productType = "com.apple.product-type.tool";
 		};
 		27F183F619824CE500FCD050 /* atsf */ = {
 			isa = PBXNativeTarget;
@@ -516,7 +565,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				27F1840B198252D500FCD050 /* PBXTargetDependency */,
 			);
 			name = atsf;
 			productName = atsf;
@@ -534,7 +582,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				27F1841F1982813A00FCD050 /* PBXTargetDependency */,
 			);
 			name = gcdc;
 			productName = atsf;
@@ -562,13 +609,13 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				27C6E4CD19669B8A004192BD /* OpenSALTO */,
+				276C5D4C19ADD798005B3024 /* salto */,
+				276C5D0D19AC83A7005B3024 /* gui */,
+				276C5D2A19AC83A9005B3024 /* guiTests */,
+				276F1F76199BE9D40026537C /* test plugin */,
 				27F183F619824CE500FCD050 /* atsf */,
 				27F1841E1982813A00FCD050 /* gcdc */,
 				27960C11199A009B00B016FC /* hookie */,
-				276F1F76199BE9D40026537C /* test plugin */,
-				276C5D0D19AC83A7005B3024 /* gui */,
-				276C5D2A19AC83A9005B3024 /* guiTests */,
 			);
 		};
 /* End PBXProject section */
@@ -581,6 +628,8 @@
 				276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */,
 				276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */,
 				276C5D2519AC83A9005B3024 /* MainMenu.xib in Resources */,
+				276C5D9B19AE3541005B3024 /* SaltoMainWindow.xib in Resources */,
+				276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -617,6 +666,14 @@
 			files = (
 				276C5D1B19AC83A8005B3024 /* main.m in Sources */,
 				276C5D2219AC83A8005B3024 /* SaltoGuiAppDelegate.m in Sources */,
+				276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */,
+				276C5D4919ACC893005B3024 /* SaltoChannelViewController.m in Sources */,
+				276C5D8E19ADF110005B3024 /* salto.c in Sources */,
+				276C5D9019ADF11B005B3024 /* Event.c in Sources */,
+				276C5D9219ADF11F005B3024 /* Channel.c in Sources */,
+				276C5D9419ADF126005B3024 /* salto_api.c in Sources */,
+				276C5D9A19AE3541005B3024 /* SaltoMainWindowController.m in Sources */,
+				276C5D9F19AE35C5005B3024 /* SaltoConsoleController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -625,6 +682,18 @@
 			buildActionMask = 2147483647;
 			files = (
 				276C5D3919AC83AA005B3024 /* guiTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5D4D19ADD798005B3024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				276C5D8F19ADF111005B3024 /* salto.c in Sources */,
+				276C5D9119ADF11C005B3024 /* Event.c in Sources */,
+				276C5D9319ADF11F005B3024 /* Channel.c in Sources */,
+				276C5D9519ADF127005B3024 /* salto_api.c in Sources */,
+				276C5DA219AE5A13005B3024 /* main.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -641,17 +710,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				27960C1C199A0B8F00B016FC /* hookie.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		27C6E4CA19669B8A004192BD /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				27F183D4196D683C00FCD050 /* salto.c in Sources */,
-				27F18407198252BE00FCD050 /* salto_api.c in Sources */,
-				276C5D03199DFF4A005B3024 /* Channel.c in Sources */,
-				276C5D07199E15AE005B3024 /* Event.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -678,26 +736,6 @@
 			isa = PBXTargetDependency;
 			target = 276C5D0D19AC83A7005B3024 /* gui */;
 			targetProxy = 276C5D2F19AC83A9005B3024 /* PBXContainerItemProxy */;
-		};
-		276F1F77199BE9D40026537C /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
-			targetProxy = 276F1F78199BE9D40026537C /* PBXContainerItemProxy */;
-		};
-		27960C12199A009B00B016FC /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
-			targetProxy = 27960C13199A009B00B016FC /* PBXContainerItemProxy */;
-		};
-		27F1840B198252D500FCD050 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
-			targetProxy = 27F1840A198252D500FCD050 /* PBXContainerItemProxy */;
-		};
-		27F1841F1982813A00FCD050 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 27C6E4CD19669B8A004192BD /* OpenSALTO */;
-			targetProxy = 27F184201982813A00FCD050 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -741,13 +779,23 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_ARC = NO;
+				CODE_SIGN_ENTITLEMENTS = OpenSALTO.entitlements;
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/include/python3.4m\"",
+					"\"$(HOME)/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
 				INFOPLIST_FILE = "$(SRCROOT)/src/gui/gui-Info.plist";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/lib\"",
+				);
 				PRODUCT_NAME = OpenSALTO;
-				SDKROOT = "";
-				TEST_AFTER_BUILD = YES;
+				SDKROOT = macosx10.7;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Debug;
@@ -756,13 +804,23 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_ARC = NO;
+				CODE_SIGN_ENTITLEMENTS = OpenSALTO.entitlements;
+				CODE_SIGN_IDENTITY = "";
 				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/include/python3.4m\"",
+					"\"$(HOME)/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
 				INFOPLIST_FILE = "$(SRCROOT)/src/gui/gui-Info.plist";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/lib\"",
+				);
 				PRODUCT_NAME = OpenSALTO;
-				SDKROOT = "";
-				TEST_AFTER_BUILD = YES;
+				SDKROOT = macosx10.7;
 				WRAPPER_EXTENSION = app;
 			};
 			name = Release;
@@ -770,15 +828,16 @@
 		276C5D3E19AC83AA005B3024 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/gui.app/Contents/MacOS/gui";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/OpenSALTO.app/Contents/MacOS/OpenSALTO";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = "\"$(DEVELOPER_LIBRARY_DIR)/Frameworks\"";
+				FRAMEWORK_SEARCH_PATHS = "$(DEVELOPER_LIBRARY_DIR)/Frameworks";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
 				INFOPLIST_FILE = "$(SRCROOT)/test/guiTests/guiTests-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = "";
+				TEST_AFTER_BUILD = YES;
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = octest;
 			};
@@ -787,17 +846,54 @@
 		276C5D3F19AC83AA005B3024 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/gui.app/Contents/MacOS/gui";
+				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/OpenSALTO.app/Contents/MacOS/OpenSALTO";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				COMBINE_HIDPI_IMAGES = YES;
-				FRAMEWORK_SEARCH_PATHS = "\"$(DEVELOPER_LIBRARY_DIR)/Frameworks\"";
+				FRAMEWORK_SEARCH_PATHS = "$(DEVELOPER_LIBRARY_DIR)/Frameworks";
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "$(SRCROOT)/src/gui/gui-Prefix.pch";
 				INFOPLIST_FILE = "$(SRCROOT)/test/guiTests/guiTests-Info.plist";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = "";
+				TEST_AFTER_BUILD = YES;
 				TEST_HOST = "$(BUNDLE_LOADER)";
 				WRAPPER_EXTENSION = octest;
+			};
+			name = Release;
+		};
+		276C5D6019ADD798005B3024 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/include/python3.4m\"",
+					"\"$(HOME)/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/lib\"",
+				);
+				PRODUCT_NAME = salto;
+				SDKROOT = macosx10.7;
+				TEST_AFTER_BUILD = NO;
+			};
+			name = Debug;
+		};
+		276C5D6119ADD798005B3024 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/include/python3.4m\"",
+					"\"$(HOME)/anaconda/lib/python3.4/site-packages/numpy/core/include\"",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(HOME)/anaconda/lib\"",
+				);
+				PRODUCT_NAME = salto;
+				SDKROOT = macosx10.7;
+				TEST_AFTER_BUILD = NO;
 			};
 			name = Release;
 		};
@@ -920,52 +1016,6 @@
 			};
 			name = Release;
 		};
-		27C6E4D819669B8E004192BD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SYSTEM_APPS_DIR)/Xcode.app/Contents/Developer/Library/Frameworks\"",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../anaconda/include/python3.4m\"",
-					"\"$(SRCROOT)/../../anaconda/lib/python3.4/site-packages/numpy/core/include\"",
-				);
-				LD_RUNPATH_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../anaconda/lib\"",
-				);
-				PRODUCT_NAME = salto;
-				SDKROOT = macosx10.7;
-				TEST_AFTER_BUILD = YES;
-			};
-			name = Debug;
-		};
-		27C6E4D919669B8E004192BD /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				FRAMEWORK_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SYSTEM_APPS_DIR)/Xcode.app/Contents/Developer/Library/Frameworks\"",
-				);
-				HEADER_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../anaconda/include/python3.4m\"",
-					"\"$(SRCROOT)/../../anaconda/lib/python3.4/site-packages/numpy/core/include\"",
-				);
-				LD_RUNPATH_SEARCH_PATHS = "";
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"\"$(SRCROOT)/../../anaconda/lib\"",
-				);
-				PRODUCT_NAME = salto;
-				SDKROOT = macosx10.7;
-				TEST_AFTER_BUILD = YES;
-			};
-			name = Release;
-		};
 		27F183F919824CE500FCD050 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1036,6 +1086,7 @@
 				276C5D3C19AC83AA005B3024 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		276C5D3D19AC83AA005B3024 /* Build configuration list for PBXNativeTarget "guiTests" */ = {
 			isa = XCConfigurationList;
@@ -1044,6 +1095,16 @@
 				276C5D3F19AC83AA005B3024 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		276C5D5F19ADD798005B3024 /* Build configuration list for PBXNativeTarget "salto" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				276C5D6019ADD798005B3024 /* Debug */,
+				276C5D6119ADD798005B3024 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		276F1F7D199BE9D40026537C /* Build configuration list for PBXNativeTarget "test plugin" */ = {
 			isa = XCConfigurationList;
@@ -1068,15 +1129,6 @@
 			buildConfigurations = (
 				27C6E4D519669B8E004192BD /* Debug */,
 				27C6E4D619669B8E004192BD /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		27C6E4D719669B8E004192BD /* Build configuration list for PBXNativeTarget "OpenSALTO" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				27C6E4D819669B8E004192BD /* Debug */,
-				27C6E4D919669B8E004192BD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

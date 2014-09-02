@@ -21,5 +21,8 @@ void *channelData(Channel *ch, size_t *length);
 int addChannel(const char *chTable, const char *name, Channel *ch);
 const char *getUniqueName(const char *chTable, const char *name);
 int setCallback(void *obj, const char *type, const char *format, const char *funcname);
+int saltoInit(void);
+int saltoRun(void);
+void saltoEnd(void *context);
 
 #endif
