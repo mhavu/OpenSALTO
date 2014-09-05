@@ -14,6 +14,7 @@
 
 @property (readonly) IBOutlet SaltoMainWindowController *mainWindowController;
 @property (readonly) IBOutlet SaltoConsoleController *consoleController;
+@property (nonatomic, assign) dispatch_queue_t queue;
 
 - (IBAction)showConsoleWindow:(id)sender;
 

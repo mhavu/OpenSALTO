@@ -13,6 +13,7 @@
 
 @synthesize mainWindowController;
 @synthesize consoleController;
+@synthesize queue;
 
 - (instancetype)init {
     self = [super init];
@@ -44,27 +45,24 @@
         [edit removeItemAtIndex:[edit numberOfItems] - 1];
 
     //  Start the Python backend.
-    if (saltoInit() == 0) {
-        dispatch_queue_t queue = dispatch_queue_create("com.mediavec.OpenSALTO.python", NULL);
+    const char *saltoPyPath = [[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"salto.py"] UTF8String];
+    if (saltoInit(saltoPyPath, &PyInit_saltoGui) == 0) {
+        queue = dispatch_queue_create("com.mediavec.OpenSALTO.python", NULL);
         if (queue) {
             dispatch_set_finalizer_f(queue, &saltoEnd);
-            dispatch_async(queue, ^{ [[consoleController console] run]; });
         }
     } else {
         NSLog(@"Failed to initialize Python interpreter");
-        dispatch_async(dispatch_get_main_queue(),
-                       ^{
-                           NSAlert *alert = [[NSAlert alloc] init];
-                           [alert setAlertStyle:NSCriticalAlertStyle];
-                           [alert setMessageText:@"Failed to initialize Python"];
-                           [alert setInformativeText:@"OpenSALTO failed to initialize the Python interpreter, and needs to quit."];
-                           [alert addButtonWithTitle:@"OK"];
-                           [alert runModal];
-                           [alert release];
-                           [NSApp terminate:self];
-                       });
+        NSAlert *alert = [[NSAlert alloc] init];
+        [alert setAlertStyle:NSCriticalAlertStyle];
+        [alert setMessageText:@"Failed to initialize Python"];
+        [alert setInformativeText:@"OpenSALTO failed to initialize the Python interpreter, and needs to quit."];
+        [alert addButtonWithTitle:@"OK"];
+        [alert runModal];
+        [alert release];
+        [NSApp terminate:self];
     }
-    
+
     //  Show the main window.
     [mainWindowController showWindow: self];
 }

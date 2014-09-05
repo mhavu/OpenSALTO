@@ -14,8 +14,7 @@ from datetime import datetime
 import ctypes as c
 import numpy as np
 
-# Load the OpenSALTO C extension module and extend it with native Python classes.
-import salto
+# Extend the OpenSALTO C extension module with native Python classes.
 moduleName = __name__
 __name__ = 'salto'
 
@@ -232,14 +231,9 @@ class PluginManager:
         if plugin:
             return plugin.write(filename, format, chTable)
 
-setattr(salto, 'makeUniqueKey', makeUniqueKey)
-setattr(salto, 'ChannelTable', ChannelTable)
-setattr(salto, 'Plugin', Plugin)
-setattr(salto, 'PluginManager', PluginManager)
-del makeUniqueKey
-del ChannelTable
-del Plugin
-del PluginManager
+for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager]:
+    setattr(salto, o.__name__, o)
+del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager]
 __name__ = moduleName
 del moduleName
 

@@ -7,21 +7,17 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#include <Python.h>
 
 
 @interface SaltoConsole : NSObject
 
-@property (readonly) NSFileHandle *inputHandle;
-@property (readonly) NSFileHandle *outputHandle;
-@property (readonly) NSFileHandle *errorOutputHandle;
 @property (readonly, getter = inputStrings) NSMutableArray *inputArray;
 @property (readonly, getter = outputStrings) NSMutableArray *outputArray;
-@property (retain) NSMutableString *editBuffer;
-@property (readonly, getter = isRunning) BOOL running;
+@property (readonly, getter = isExecuting) BOOL executing;
 
-- (void)run;
-- (void)addInputString:(NSString *)string;
-- (void)addOutputString:(NSString *)string;
+- (void)execute:(NSString *)string;
+- (void)appendOutput:(NSString *)string;
 
 @end
 
@@ -32,6 +28,9 @@
 @property (retain) SaltoConsole *console;
 @property (assign) NSUInteger insertionPoint;
 
-- (void)handleNewOutput:(id)notification;
+- (void)insertOutput:(NSString *)string;
 
 @end
+
+
+PyMODINIT_FUNC PyInit_saltoGui(void);

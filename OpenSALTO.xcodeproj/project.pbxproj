@@ -30,7 +30,6 @@
 		276C5D6B19ADD949005B3024 /* TINY.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183DC196EAC9D00FCD050 /* TINY.ATS */; };
 		276C5D6C19ADD94B005B3024 /* HUGE.ATS in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F18436198967D700FCD050 /* HUGE.ATS */; };
 		276C5D6D19ADD94F005B3024 /* GCDC.CSV in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183E51975619000FCD050 /* GCDC.CSV */; };
-		276C5D6E19ADD953005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		276C5D7019ADD98E005B3024 /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		276C5D8719ADE731005B3024 /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		276C5D8819ADE73C005B3024 /* libpython3.4m.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
@@ -48,6 +47,7 @@
 		276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */; };
 		276C5DA119AE4B04005B3024 /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
 		276C5DA219AE5A13005B3024 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4A19ADD6A3005B3024 /* main.c */; };
+		276C5DA419B74D2A005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
 		27960C1C199A0B8F00B016FC /* hookie.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F1842A19891A8E00FCD050 /* hookie.c */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
@@ -102,8 +102,8 @@
 		276C5D6719ADD8E4005B3024 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = plugins;
-			dstSubfolderSpec = 16;
+			dstPath = "";
+			dstSubfolderSpec = 13;
 			files = (
 				276C5D6819ADD903005B3024 /* gviewer.py in CopyFiles */,
 				276C5D6919ADD907005B3024 /* inclination.py in CopyFiles */,
@@ -116,7 +116,6 @@
 			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
-				276C5D6E19ADD953005B3024 /* salto.py in CopyFiles */,
 				276C5D6B19ADD949005B3024 /* TINY.ATS in CopyFiles */,
 				276C5D6C19ADD94B005B3024 /* HUGE.ATS in CopyFiles */,
 				276C5D6D19ADD94F005B3024 /* GCDC.CSV in CopyFiles */,
@@ -130,6 +129,16 @@
 			dstSubfolderSpec = 10;
 			files = (
 				276C5D7019ADD98E005B3024 /* libpython3.4m.dylib in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		276C5DA319B74CE6005B3024 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				276C5DA419B74D2A005B3024 /* salto.py in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -472,6 +481,7 @@
 				276C5D6719ADD8E4005B3024 /* CopyFiles */,
 				276C5D6A19ADD919005B3024 /* CopyFiles */,
 				276C5D6F19ADD97B005B3024 /* CopyFiles */,
+				276C5DA319B74CE6005B3024 /* CopyFiles */,
 			);
 			buildRules = (
 			);

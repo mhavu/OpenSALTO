@@ -698,6 +698,7 @@ static struct PyModuleDef saltoModuleDef = {
 
 static PyObject *PyInit_salto(void) {
     PyObject *module = NULL;
+    PyObject *path;
 
     if (PyType_Ready(&ChannelType) >= 0 && PyType_Ready(&EventType) >= 0) {
         module = PyModule_Create(&saltoModuleDef);
@@ -706,10 +707,16 @@ static PyObject *PyInit_salto(void) {
             import_array();
             // Initialize DateTime object API.
             PyDateTime_IMPORT;
-            // Add Channel class and get the module dictionary.
+            // Add Channel and Event classes.
             Py_INCREF(&ChannelType);
-            PyModule_AddObject(module, "Channel", (PyObject *)&ChannelType);
-            PyModule_AddObject(module, "Event", (PyObject *)&EventType);
+            PyModule_AddObject(module, "Channel", (PyObject *)&ChannelType);  // stolen
+            Py_INCREF(&EventType);
+            PyModule_AddObject(module, "Event", (PyObject *)&EventType);  // stolen
+            // Add a __path__ attribute, so Python knows this is a package.
+            path = PyList_New(1);  // new
+            PyList_SetItem(path, 0, PyUnicode_FromString("salto"));  // stolen
+            PyModule_AddObject(module, "__path__", path);
+            // Get the module dictionary.
             saltoDict = PyModule_GetDict(module);  // borrowed
             Py_XINCREF(saltoDict);
         }
@@ -719,26 +726,43 @@ static PyObject *PyInit_salto(void) {
 }
 
 
-
-int saltoInit(void) {
-    PyObject *mainModule;
+int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void)) {
+    PyObject *mainModule, *saltoModule, *saltoGuiModule;
     int result = 0;
 
     PyImport_AppendInittab("salto", &PyInit_salto);
+    if (guiInitFunc)
+        PyImport_AppendInittab("salto_gui", guiInitFunc);
     Py_Initialize();
-    
+
     // Get a reference to the Python global dictionary.
     mainModule = PyImport_AddModule("__main__");  // borrowed
     if (mainModule) {
         mainDict = PyModule_GetDict(mainModule);  // borrowed
         Py_XINCREF(mainDict);
     } else {
-        fprintf(stderr, "Python module __main__ not found\n");
+        PyErr_Print();
         result = -1;
     }
 
+    // Import the OpenSALTO modules.
+    saltoModule = PyImport_ImportModule("salto");
+    if (saltoModule) {
+        PyModule_AddObject(mainModule, "salto", saltoModule);
+    } else {
+        PyErr_Print();
+    }
+    if (guiInitFunc) {
+        saltoGuiModule = PyImport_ImportModule("salto_gui");
+        if (saltoGuiModule) {
+            PyModule_AddObject(saltoModule, "gui", saltoGuiModule);
+        } else {
+            PyErr_Print();
+        }
+    }
+    
     // Execute salto.py and run the Python interpreter.
-    FILE *fp = fopen("salto.py", "r");
+    FILE *fp = fopen(saltoPyPath, "r");
     if (fp) {
         PyRun_SimpleFileEx(fp, "salto.py", 1);
     } else {
@@ -758,6 +782,27 @@ print(\"Exiting OpenSALTO\")";
 
 int saltoRun(void) {
     return PyRun_SimpleString(saltoPyConsoleCode);
+}
+
+PyObject *saltoEval(const char *expr) {
+    PyObject *code, *o, *result = NULL;
+
+    code = Py_CompileString(expr, "<stdin>", Py_eval_input);
+    if (code) {
+        o = PyEval_EvalCode(code, mainDict, mainDict);
+        if (o) {
+            result = (o != Py_None) ? PyUnicode_FromFormat("%R\n", o) : PyUnicode_FromString("");  // new
+        } else {
+            PyErr_Print();
+            fprintf(stderr, "\n");
+        }
+    } else {
+        PyErr_Clear();
+        if (PyRun_SimpleString(expr) == 0)
+            result = PyUnicode_FromString("");
+    }
+
+    return result;
 }
 
 void saltoEnd(void *context) {

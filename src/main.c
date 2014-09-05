@@ -12,7 +12,7 @@
 int main(int argc, char *argv[]) {
     int result;
 
-    result = saltoInit();
+    result = saltoInit("salto.py", NULL);
     if (result == 0) {
         result = saltoRun();
         saltoEnd(NULL);
