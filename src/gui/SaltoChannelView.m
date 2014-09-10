@@ -7,11 +7,10 @@
 //
 
 #import "SaltoChannelView.h"
-#import "SaltoChannelViewController.h"
+#import "SaltoChannelWrapper.h"
 
-@implementation SaltoChannelCellView
+@implementation SaltoChannelView
 
-@synthesize viewController;
 @synthesize channel;
 
 - (instancetype)initWithFrame:(NSRect)frame {

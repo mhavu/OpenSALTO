@@ -8,18 +8,18 @@
 
 #import <Cocoa/Cocoa.h>
 #import "SaltoConsoleController.h"
+#import "SaltoChannelWrapper.h"
 #include "Channel.h"
 
 @interface SaltoGuiDelegate : NSObject
 
 @property (readonly) SaltoConsoleController *consoleController;
-@property (readonly) IBOutlet NSTableView *channelView;
 @property (readonly) NSMutableArray *channelArray;
 @property (nonatomic, assign) dispatch_queue_t queue;
 
 - (IBAction)showConsoleWindow:(id)sender;
 - (IBAction)toggleAlignment:(id)sender;
-- (void)addChannel:(Channel *)ch;
-- (void)removeChannel:(Channel *)ch;
+- (void)addChannel:(SaltoChannelWrapper *)channel;
+- (void)removeChannel:(SaltoChannelWrapper *)channel;
 
 @end

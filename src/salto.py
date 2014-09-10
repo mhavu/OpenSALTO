@@ -46,7 +46,7 @@ class ChannelTable:
         assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
         inTable = self._channels.setdefault(name, ch)
         if inTable is ch and hasattr(salto, 'gui'):
-            salto.gui.addChannel(ch)
+            salto.gui.addChannel(ch, name)
     def remove(self, name):
         removed = self._channels.pop(name, None)
         if removed and hasattr(salto, 'gui'):

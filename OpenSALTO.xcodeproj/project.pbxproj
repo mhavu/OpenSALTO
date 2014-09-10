@@ -18,7 +18,7 @@
 		276C5D4119AC9014005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D3419AC83A9005B3024 /* InfoPlist.strings */; };
 		276C5D4319AC92AA005B3024 /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D4219AC92AA005B3024 /* SenTestingKit.framework */; };
 		276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4519ACC83C005B3024 /* SaltoChannelView.m */; };
-		276C5D4919ACC893005B3024 /* SaltoChannelViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */; };
+		276C5D4919ACC893005B3024 /* SaltoChannelWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D4819ACC892005B3024 /* SaltoChannelWrapper.m */; };
 		276C5D5619ADD798005B3024 /* inclination.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 276C5D0819A478C5005B3024 /* inclination.py */; };
 		276C5D5719ADD798005B3024 /* gviewer.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 277CC0481990D29C00E9F4EF /* gviewer.py */; };
 		276C5D5919ADD798005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
@@ -171,8 +171,8 @@
 		276C5D4219AC92AA005B3024 /* SenTestingKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SenTestingKit.framework; path = Library/Frameworks/SenTestingKit.framework; sourceTree = DEVELOPER_DIR; };
 		276C5D4419ACC83B005B3024 /* SaltoChannelView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoChannelView.h; sourceTree = "<group>"; };
 		276C5D4519ACC83C005B3024 /* SaltoChannelView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoChannelView.m; sourceTree = "<group>"; };
-		276C5D4719ACC892005B3024 /* SaltoChannelViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoChannelViewController.h; sourceTree = "<group>"; };
-		276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoChannelViewController.m; sourceTree = "<group>"; };
+		276C5D4719ACC892005B3024 /* SaltoChannelWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoChannelWrapper.h; sourceTree = "<group>"; };
+		276C5D4819ACC892005B3024 /* SaltoChannelWrapper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoChannelWrapper.m; sourceTree = "<group>"; };
 		276C5D4A19ADD6A3005B3024 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		276C5D6219ADD798005B3024 /* salto */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = salto; sourceTree = BUILT_PRODUCTS_DIR; };
 		276C5D9619ADF811005B3024 /* OpenSALTO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = OpenSALTO.entitlements; path = ../../OpenSALTO.entitlements; sourceTree = "<group>"; };
@@ -282,8 +282,8 @@
 				276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */,
 				276C5D4419ACC83B005B3024 /* SaltoChannelView.h */,
 				276C5D4519ACC83C005B3024 /* SaltoChannelView.m */,
-				276C5D4719ACC892005B3024 /* SaltoChannelViewController.h */,
-				276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */,
+				276C5D4719ACC892005B3024 /* SaltoChannelWrapper.h */,
+				276C5D4819ACC892005B3024 /* SaltoChannelWrapper.m */,
 				276C5D1519AC83A8005B3024 /* Supporting Files */,
 			);
 			path = gui;
@@ -678,7 +678,7 @@
 				276C5D1B19AC83A8005B3024 /* main.m in Sources */,
 				276C5D2219AC83A8005B3024 /* SaltoGuiDelegate.m in Sources */,
 				276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */,
-				276C5D4919ACC893005B3024 /* SaltoChannelViewController.m in Sources */,
+				276C5D4919ACC893005B3024 /* SaltoChannelWrapper.m in Sources */,
 				276C5D8E19ADF110005B3024 /* salto.c in Sources */,
 				276C5D9019ADF11B005B3024 /* Event.c in Sources */,
 				276C5D9219ADF11F005B3024 /* Channel.c in Sources */,

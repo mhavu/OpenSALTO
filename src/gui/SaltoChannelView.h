@@ -8,12 +8,10 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class SaltoChannelViewController;
 @class SaltoChannelWrapper;
 
-@interface SaltoChannelCellView : NSTableCellView
+@interface SaltoChannelView : NSTableCellView
 
-@property (readonly) IBOutlet SaltoChannelViewController *viewController;
 @property (unsafe_unretained) SaltoChannelWrapper *channel;
 
 @end

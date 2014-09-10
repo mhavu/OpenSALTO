@@ -1,5 +1,5 @@
 //
-//  SaltoChannelViewController.h
+//  SaltoChannelWrapper.h
 //  OpenSALTO GUI
 //
 //  Copyright 2014 Marko Havu. Released under the terms of
@@ -9,12 +9,12 @@
 #import <Cocoa/Cocoa.h>
 #include "Channel.h"
 
-@class SaltoChannelCellView;
+@class SaltoChannelView;
 
 @interface SaltoChannelWrapper : NSObject
 
 @property (readonly) Channel *channel;
-@property (retain) SaltoChannelCellView *view;
+@property (retain) SaltoChannelView *view;
 @property (retain) NSString *label;
 @property (retain) NSDate *alignment;
 @property (retain) NSDate *visibleRangeStart;

@@ -7,13 +7,12 @@
 //
 
 #import "SaltoGuiDelegate.h"
-#import "SaltoChannelViewController.h"
+#import "SaltoChannelWrapper.h"
 #import "saltoGui.h"
 
 @implementation SaltoGuiDelegate
 
 @synthesize consoleController;
-@synthesize channelView;
 @synthesize channelArray;
 @synthesize queue;
 
@@ -82,15 +81,20 @@
     }
 }
 
-- (void)addChannel:(Channel *)ch {
-    SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
+- (void)addChannel:(SaltoChannelWrapper *)channel {
+    // TODO: Set the NSDate objects.
+    // TODO: Set SaltoChannelView heights.
+    [self willChangeValueForKey:@"channelArray"];
     [channelArray addObject:channel];
+    [self didChangeValueForKey:@"channelArray"];
 }
 
-- (void)removeChannel:(Channel *)ch {
+- (void)removeChannel:(SaltoChannelWrapper *)channel {
     [channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
-        if (obj.channel == ch) {
+        if (obj.channel == channel.channel) {
+            [self willChangeValueForKey:@"channelArray"];
             [channelArray removeObjectAtIndex:idx];
+            [self didChangeValueForKey:@"channelArray"];
             *stop = YES;
         }
     }];

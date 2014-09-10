@@ -8,7 +8,7 @@
 
 #import <Cocoa/Cocoa.h>
 #import "SaltoGuiDelegate.h"
-#import "SaltoChannelViewController.h"
+#import "SaltoChannelWrapper.h"
 #import "saltoGui.h"
 
 static PyObject *readFromConsole(PyObject *pyself, PyObject *args) {
@@ -138,10 +138,13 @@ static PyObject *returnFalse(PyObject *pyself, PyObject *args) {
 
 PyObject *saltoGuiAddChannel(PyObject *pyself, PyObject *args) {
     Channel *ch;
+    const char *name;
     
-    if (PyArg_ParseTuple(args, "O!:addChannel", &ChannelType, &ch)) {
+    if (PyArg_ParseTuple(args, "O!s:addChannel", &ChannelType, &ch, &name)) {
+        SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
+        [channel setLabel:[NSString stringWithUTF8String:name]];
         SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        [appDelegate addChannel:ch];
+        [appDelegate performSelectorOnMainThread:@selector(addChannel:) withObject:channel waitUntilDone:NO];
     } else {
         PyErr_SetString(PyExc_TypeError, "addChannel() takes a Channel argument");
     }
@@ -154,8 +157,9 @@ PyObject *saltoGuiRemoveChannel(PyObject *pyself, PyObject *args) {
     Channel *ch;
 
     if (PyArg_ParseTuple(args, "O!:removeChannel", &ChannelType, &ch)) {
+        SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
         SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        [appDelegate removeChannel:ch];
+        [appDelegate performSelectorOnMainThread:@selector(removeChannel:) withObject:channel waitUntilDone:NO];
     } else {
         PyErr_SetString(PyExc_TypeError, "removeChannel() takes a Channel argument");
     }

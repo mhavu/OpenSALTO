@@ -1,12 +1,12 @@
 //
-//  SaltoChannelViewController.m
+//  SaltoChannelWrapper.m
 //  OpenSALTO GUI
 //
 //  Copyright 2014 Marko Havu. Released under the terms of
 //  GNU General Public License version 3 or later.
 //
 
-#import "SaltoChannelViewController.h"
+#import "SaltoChannelWrapper.h"
 #import "SaltoChannelView.h"
 #include "salto.h"
 
@@ -29,7 +29,6 @@
     if (self) {
         Py_INCREF(ch);
         channel = ch;
-        label = @"label";
     }
 
     return self;
@@ -37,6 +36,10 @@
 
 - (void)dealloc {
     [view release];
+    [label release];
+    [alignment release];
+    [visibleRangeStart release];
+    [visibleRangeEnd release];
     Py_XDECREF(channel);
     [super dealloc];
 }
