@@ -27,7 +27,7 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2014 Marko Havu. Released under GPL 3 (or later).</string>
 	<key>NSMainNibFile</key>
-	<string>MainMenu</string>
+	<string>SaltoMainWindow</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>

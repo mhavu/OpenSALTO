@@ -1,33 +1,35 @@
 //
-//  AppDelegate.m
-//  OpenSalto GUI
+//  SaltoGuiDelegate.m
+//  OpenSALTO GUI
 //
 //  Copyright 2014 Marko Havu. Released under the terms of
 //  GNU General Public License version 3 or later.
 //
 
-#import "SaltoGuiAppDelegate.h"
-#include "salto.h"
+#import "SaltoGuiDelegate.h"
+#import "SaltoChannelViewController.h"
+#import "saltoGui.h"
 
-@implementation SaltoGuiAppDelegate
+@implementation SaltoGuiDelegate
 
-@synthesize mainWindowController;
 @synthesize consoleController;
+@synthesize channelView;
+@synthesize channelArray;
 @synthesize queue;
 
 - (instancetype)init {
     self = [super init];
     if (self) {
-        mainWindowController = [[SaltoMainWindowController alloc] init];
         consoleController = [[SaltoConsoleController alloc] init];
+        channelArray = [[NSMutableArray alloc] init];
     }
 
     return self;
 }
 
 - (void)dealloc {
-    [mainWindowController release];
     [consoleController release];
+    [channelArray release];
     [super dealloc];
 }
 
@@ -62,13 +64,37 @@
         [alert release];
         [NSApp terminate:self];
     }
-
-    //  Show the main window.
-    [mainWindowController showWindow: self];
 }
 
 - (IBAction)showConsoleWindow:(id)sender {
     [consoleController showWindow:sender];
 }
+
+- (IBAction)toggleAlignment:(id)sender {
+    if ([sender state] == NSOnState) {
+        // TODO: fix
+        // [channelView.delegate alignByTimeOfDay:NO];
+        [sender setState:NSOffState];
+    } else {
+        // TODO: fix
+        // [channelView.delegate alignByTimeOfDay:YES];
+        [sender setState:NSOnState];
+    }
+}
+
+- (void)addChannel:(Channel *)ch {
+    SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
+    [channelArray addObject:channel];
+}
+
+- (void)removeChannel:(Channel *)ch {
+    [channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
+        if (obj.channel == ch) {
+            [channelArray removeObjectAtIndex:idx];
+            *stop = YES;
+        }
+    }];
+}
+
 
 @end

@@ -11,8 +11,8 @@
 		276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1719AC83A8005B3024 /* InfoPlist.strings */; };
 		276C5D1B19AC83A8005B3024 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D1A19AC83A8005B3024 /* main.m */; };
 		276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1D19AC83A8005B3024 /* Credits.rtf */; };
-		276C5D2219AC83A8005B3024 /* SaltoGuiAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */; };
-		276C5D2519AC83A9005B3024 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D2319AC83A9005B3024 /* MainMenu.xib */; };
+		276C5D2219AC83A8005B3024 /* SaltoGuiDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D2119AC83A8005B3024 /* SaltoGuiDelegate.m */; };
+		276C5D2519AC83A9005B3024 /* SaltoMainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D2319AC83A9005B3024 /* SaltoMainWindow.xib */; };
 		276C5D2E19AC83A9005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
 		276C5D3919AC83AA005B3024 /* guiTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D3819AC83AA005B3024 /* guiTests.m */; };
 		276C5D4119AC9014005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D3419AC83A9005B3024 /* InfoPlist.strings */; };
@@ -41,8 +41,6 @@
 		276C5D9319ADF11F005B3024 /* Channel.c in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D02199DFF4A005B3024 /* Channel.c */; };
 		276C5D9419ADF126005B3024 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
 		276C5D9519ADF127005B3024 /* salto_api.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DD19669CD5004192BD /* salto_api.c */; };
-		276C5D9A19AE3541005B3024 /* SaltoMainWindowController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */; };
-		276C5D9B19AE3541005B3024 /* SaltoMainWindow.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */; };
 		276C5D9F19AE35C5005B3024 /* SaltoConsoleController.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */; };
 		276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */; };
 		276C5DA119AE4B04005B3024 /* libpython3.4m.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */; };
@@ -50,6 +48,8 @@
 		276C5DA419B74D2A005B3024 /* salto.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27F183D1196A8BFF00FCD050 /* salto.py */; };
 		276F1F81199BEA0F0026537C /* testplugin.c in Sources */ = {isa = PBXBuildFile; fileRef = 276F1F75199BE9BD0026537C /* testplugin.c */; };
 		27960C1C199A0B8F00B016FC /* hookie.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F1842A19891A8E00FCD050 /* hookie.c */; };
+		27B2183A19BEF3BE001A50AD /* saltoGui.m in Sources */ = {isa = PBXBuildFile; fileRef = 27B2183919BEF3BE001A50AD /* saltoGui.m */; };
+		27B2183D19BF31F7001A50AD /* SaltoConsole.m in Sources */ = {isa = PBXBuildFile; fileRef = 27B2183C19BF31F7001A50AD /* SaltoConsole.m */; };
 		27F183FB19824CE700FCD050 /* atsf.c in Sources */ = {isa = PBXBuildFile; fileRef = 27C6E4DB19669CD5004192BD /* atsf.c */; };
 		27F184291982816600FCD050 /* gcdc.c in Sources */ = {isa = PBXBuildFile; fileRef = 27F183E31975550100FCD050 /* gcdc.c */; };
 /* End PBXBuildFile section */
@@ -160,9 +160,9 @@
 		276C5D1A19AC83A8005B3024 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		276C5D1C19AC83A8005B3024 /* gui-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "gui-Prefix.pch"; sourceTree = "<group>"; };
 		276C5D1E19AC83A8005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
-		276C5D2019AC83A8005B3024 /* SaltoGuiAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SaltoGuiAppDelegate.h; sourceTree = "<group>"; };
-		276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SaltoGuiAppDelegate.m; sourceTree = "<group>"; };
-		276C5D2419AC83A9005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		276C5D2019AC83A8005B3024 /* SaltoGuiDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SaltoGuiDelegate.h; sourceTree = "<group>"; };
+		276C5D2119AC83A8005B3024 /* SaltoGuiDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SaltoGuiDelegate.m; sourceTree = "<group>"; };
+		276C5D2419AC83A9005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/SaltoMainWindow.xib; sourceTree = "<group>"; };
 		276C5D2B19AC83A9005B3024 /* guiTests.octest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = guiTests.octest; sourceTree = BUILT_PRODUCTS_DIR; };
 		276C5D3319AC83A9005B3024 /* guiTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "guiTests-Info.plist"; sourceTree = "<group>"; };
 		276C5D3519AC83AA005B3024 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -176,18 +176,19 @@
 		276C5D4A19ADD6A3005B3024 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		276C5D6219ADD798005B3024 /* salto */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = salto; sourceTree = BUILT_PRODUCTS_DIR; };
 		276C5D9619ADF811005B3024 /* OpenSALTO.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.xml; name = OpenSALTO.entitlements; path = ../../OpenSALTO.entitlements; sourceTree = "<group>"; };
-		276C5D9719AE3540005B3024 /* SaltoMainWindowController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoMainWindowController.h; sourceTree = "<group>"; };
-		276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoMainWindowController.m; sourceTree = "<group>"; };
-		276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = SaltoMainWindow.xib; sourceTree = "<group>"; };
 		276C5D9C19AE35C4005B3024 /* SaltoConsoleController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoConsoleController.h; sourceTree = "<group>"; };
 		276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoConsoleController.m; sourceTree = "<group>"; };
-		276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = SaltoConsole.xib; sourceTree = "<group>"; };
+		276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; name = SaltoConsole.xib; path = en.lproj/SaltoConsole.xib; sourceTree = "<group>"; };
 		276F1F75199BE9BD0026537C /* testplugin.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = testplugin.c; path = test/testplugin.c; sourceTree = SOURCE_ROOT; };
 		276F1F80199BE9D40026537C /* testplugin.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = testplugin.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		277CC0481990D29C00E9F4EF /* gviewer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = gviewer.py; path = plugins/file/gviewer.py; sourceTree = "<group>"; };
 		277CC04B1990D3AB00E9F4EF /* analysis.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; lineEnding = 0; name = analysis.py; path = plugins/report/analysis.py; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.python; };
 		27960C0E1998CC7A00B016FC /* libpython3.4m.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpython3.4m.dylib; path = ../../anaconda/lib/libpython3.4m.dylib; sourceTree = "<group>"; };
 		27960C1B199A009B00B016FC /* hookie.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = hookie.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		27B2183819BEF3BE001A50AD /* saltoGui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = saltoGui.h; sourceTree = "<group>"; };
+		27B2183919BEF3BE001A50AD /* saltoGui.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = saltoGui.m; sourceTree = "<group>"; };
+		27B2183B19BF31F7001A50AD /* SaltoConsole.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoConsole.h; sourceTree = "<group>"; };
+		27B2183C19BF31F7001A50AD /* SaltoConsole.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoConsole.m; sourceTree = "<group>"; };
 		27C6E4DA19669CD5004192BD /* COPYING.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = COPYING.md; sourceTree = "<group>"; };
 		27C6E4DB19669CD5004192BD /* atsf.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; lineEnding = 0; name = atsf.c; path = plugins/file/atsf.c; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.c; };
 		27C6E4DC19669CD5004192BD /* README.md */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
@@ -269,9 +270,13 @@
 		276C5D1419AC83A8005B3024 /* gui */ = {
 			isa = PBXGroup;
 			children = (
-				276C5D2019AC83A8005B3024 /* SaltoGuiAppDelegate.h */,
-				276C5D2119AC83A8005B3024 /* SaltoGuiAppDelegate.m */,
-				276C5D2319AC83A9005B3024 /* MainMenu.xib */,
+				27B2183819BEF3BE001A50AD /* saltoGui.h */,
+				27B2183919BEF3BE001A50AD /* saltoGui.m */,
+				276C5D2019AC83A8005B3024 /* SaltoGuiDelegate.h */,
+				276C5D2119AC83A8005B3024 /* SaltoGuiDelegate.m */,
+				276C5D2319AC83A9005B3024 /* SaltoMainWindow.xib */,
+				27B2183B19BF31F7001A50AD /* SaltoConsole.h */,
+				27B2183C19BF31F7001A50AD /* SaltoConsole.m */,
 				276C5D9C19AE35C4005B3024 /* SaltoConsoleController.h */,
 				276C5D9D19AE35C4005B3024 /* SaltoConsoleController.m */,
 				276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */,
@@ -279,9 +284,6 @@
 				276C5D4519ACC83C005B3024 /* SaltoChannelView.m */,
 				276C5D4719ACC892005B3024 /* SaltoChannelViewController.h */,
 				276C5D4819ACC892005B3024 /* SaltoChannelViewController.m */,
-				276C5D9719AE3540005B3024 /* SaltoMainWindowController.h */,
-				276C5D9819AE3540005B3024 /* SaltoMainWindowController.m */,
-				276C5D9919AE3541005B3024 /* SaltoMainWindow.xib */,
 				276C5D1519AC83A8005B3024 /* Supporting Files */,
 			);
 			path = gui;
@@ -637,8 +639,7 @@
 			files = (
 				276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */,
 				276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */,
-				276C5D2519AC83A9005B3024 /* MainMenu.xib in Resources */,
-				276C5D9B19AE3541005B3024 /* SaltoMainWindow.xib in Resources */,
+				276C5D2519AC83A9005B3024 /* SaltoMainWindow.xib in Resources */,
 				276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -675,15 +676,16 @@
 			buildActionMask = 2147483647;
 			files = (
 				276C5D1B19AC83A8005B3024 /* main.m in Sources */,
-				276C5D2219AC83A8005B3024 /* SaltoGuiAppDelegate.m in Sources */,
+				276C5D2219AC83A8005B3024 /* SaltoGuiDelegate.m in Sources */,
 				276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */,
 				276C5D4919ACC893005B3024 /* SaltoChannelViewController.m in Sources */,
 				276C5D8E19ADF110005B3024 /* salto.c in Sources */,
 				276C5D9019ADF11B005B3024 /* Event.c in Sources */,
 				276C5D9219ADF11F005B3024 /* Channel.c in Sources */,
 				276C5D9419ADF126005B3024 /* salto_api.c in Sources */,
-				276C5D9A19AE3541005B3024 /* SaltoMainWindowController.m in Sources */,
 				276C5D9F19AE35C5005B3024 /* SaltoConsoleController.m in Sources */,
+				27B2183A19BEF3BE001A50AD /* saltoGui.m in Sources */,
+				27B2183D19BF31F7001A50AD /* SaltoConsole.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -766,12 +768,12 @@
 			name = Credits.rtf;
 			sourceTree = "<group>";
 		};
-		276C5D2319AC83A9005B3024 /* MainMenu.xib */ = {
+		276C5D2319AC83A9005B3024 /* SaltoMainWindow.xib */ = {
 			isa = PBXVariantGroup;
 			children = (
 				276C5D2419AC83A9005B3024 /* en */,
 			);
-			name = MainMenu.xib;
+			name = SaltoMainWindow.xib;
 			sourceTree = "<group>";
 		};
 		276C5D3419AC83A9005B3024 /* InfoPlist.strings */ = {

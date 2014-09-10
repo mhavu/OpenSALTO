@@ -44,9 +44,13 @@ class ChannelTable:
         return self._channels
     def add(self, name, ch):
         assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
-        self._channels.setdefault(name, ch)
+        inTable = self._channels.setdefault(name, ch)
+        if inTable is ch and hasattr(salto, 'gui'):
+            salto.gui.addChannel(ch)
     def remove(self, name):
-        self._channels.pop(name, None)
+        removed = self._channels.pop(name, None)
+        if removed and hasattr(salto, 'gui'):
+            salto.gui.removeChannel(removed)
     def getUnique(self, name):
         return salto.makeUniqueKey(self._channels, name)
 
