@@ -21,10 +21,12 @@ static PyObject *saltoDict = NULL;  // salto namespace
 
 double duration(const char *chTable, const char *name) {
     double duration;
+    PyObject *channel;
     PyGILState_STATE state;
 
+    channel = (PyObject *)getChannel(chTable, name);
     state = PyGILState_Ensure();
-    duration = PyFloat_AsDouble(Channel_duration(getChannel(chTable, name)));
+    duration = PyFloat_AsDouble(PyObject_CallMethod(channel, "duration", NULL));
     PyGILState_Release(state);
 
     return duration;
@@ -69,16 +71,15 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *ndarray, *channelClass;
+    PyObject *ndarray;
     PyGILState_STATE state;
 
     typenum = numpyType(size, 1, is_signed);
     if (typenum != NPY_NOTYPE) {
         state = PyGILState_Ensure();
         ndarray = PyArray_SimpleNew(1, (npy_intp *)&length, typenum);  // new
-        channelClass = PyDict_GetItemString(saltoDict, "Channel");  // borrowed
-        if (ndarray && channelClass) {
-            ch = (Channel *)PyObject_CallFunctionObjArgs(channelClass, ndarray, NULL);  // new
+        if (ndarray) {
+            ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType, ndarray, NULL);  // new
             if (ch && addChannel(chTable, name, ch) == 0) {
                 ptr = PyArray_DATA((PyArrayObject *)ch->data);
                 Py_DECREF(ch);
@@ -97,17 +98,16 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *ndarray, *channelClass;
+    PyObject *ndarray;
     PyGILState_STATE state;
 
     typenum = numpyType(size, 0, 1);
     if (typenum != NPY_NOTYPE) {
         state = PyGILState_Ensure();
         ndarray = PyArray_SimpleNew(1, (npy_intp *)&length, typenum);  // new
-        channelClass = PyDict_GetItemString(saltoDict, "Channel");  // borrowed
-        if (ndarray && channelClass) {
-            ch = (Channel *)PyObject_CallFunction(channelClass, "OdddsLlssis", ndarray, 0.0,
-                                                  nan(NULL), nan(NULL), "",
+        if (ndarray) {
+            ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdddsLlssis",
+                                                  ndarray, 0.0, nan(NULL), nan(NULL), "",
                                                   0, 0, "unknown", "unknown", 0, "{}");  // new
             if (ch && addChannel(chTable, name, ch) == 0) {
                 ptr = PyArray_DATA((PyArrayObject *)ch->data);
@@ -140,6 +140,33 @@ Channel *getChannel(const char *chTable, const char *name) {
     PyGILState_Release(state);
 
     return ch;
+}
+
+struct timespec channelEndTime(Channel *ch) {
+    struct timespec t;
+    double duration;
+    time_t s;
+    long ns;
+    size_t length;
+
+    if (ch) {
+        channelData(ch, &length);
+        if (length > 0) {
+            duration = (length - 1) / ch->samplerate;
+            s = duration;
+            ns = (long)((duration - s) * 1.0e9);
+            t.tv_sec = ch->start_sec + s + (ch->start_nsec + ns) / 1000000000;
+            t.tv_nsec = (ch->start_nsec + ns) % 1000000000;
+        } else {
+            t.tv_sec = -1;
+            t.tv_nsec = -1;
+        }
+    } else {
+        t.tv_sec = -1;
+        t.tv_nsec = -1;
+    }
+
+    return t;
 }
 
 void *channelData(Channel *ch, size_t *length) {
@@ -213,7 +240,7 @@ const char *getChannelName(const char *chTable, void *ptr) {
 }
 
 int addChannel(const char *chTable, const char *name, Channel *ch) {
-    PyObject *chTableDict, *channelTable, *channelClass, *o;
+    PyObject *chTableDict, *channelTable, *o;
     int result = -1;
     PyGILState_STATE state;
 
@@ -221,7 +248,6 @@ int addChannel(const char *chTable, const char *name, Channel *ch) {
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
-        channelClass = PyDict_GetItemString(saltoDict, "Channel");  // borrowed
         o = PyObject_CallMethod(channelTable, "add", "(sO)", name, ch);  // new
         result = (o ? 0 : -1);
         Py_XDECREF(o);
@@ -342,8 +368,8 @@ const char **getChannelNames(const char *chTable, size_t *size) {
     return names;
 }
 
-int newCombinationChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
-    PyObject *chTableDict, *channelClass, *sourceTable, *sourceDict, *sourceChannels = NULL;
+int newCollectionChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
+    PyObject *chTableDict, *sourceTable, *sourceDict, *sourceChannels = NULL;
     PyObject *start, *prevEnd, *fill;
     Channel *ch, *part;
     Py_ssize_t i, nParts;
@@ -353,8 +379,7 @@ int newCombinationChannel(const char *chTable, const char *name, const char *fro
 
     state = PyGILState_Ensure();
     chTableDict = PyDict_GetItemString(saltoDict, "channelTables");  // borrowed
-    channelClass = PyDict_GetItemString(saltoDict, "Channel");  // borrowed
-    if (chTableDict && channelClass) {
+    if (chTableDict) {
         sourceTable = PyDict_GetItemString(chTableDict, fromChannelTable);  // borrowed
         sourceDict = PyObject_GetAttrString(sourceTable, "channels");  // new
         if (sourceDict) {
@@ -376,10 +401,10 @@ int newCombinationChannel(const char *chTable, const char *name, const char *fro
                 default:
                     part = (Channel *)PyList_GET_ITEM(sourceChannels, 0);  // borrowed
                     typenum = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
-                    prevEnd = Channel_end(part);  // new
+                    prevEnd = PyObject_CallMethod((PyObject *)part, "end", NULL);  // new
                     for (i = 1; i < nParts; i++) {
                         part = (Channel *)PyList_GET_ITEM(sourceChannels, i);  // borrowed
-                        start = Channel_start(part);  // new
+                        start = PyObject_CallMethod((PyObject *)part, "start", NULL);;  // new
                         hasOverlap = (start < prevEnd);
                         Py_XDECREF(start);
                         Py_XDECREF(prevEnd);
@@ -394,13 +419,13 @@ int newCombinationChannel(const char *chTable, const char *name, const char *fro
                             }
                             break;
                         }
-                        prevEnd = Channel_end(part);  // new
+                        prevEnd = PyObject_CallMethod((PyObject *)part, "end", NULL);  // new
                     }
                     Py_XDECREF(prevEnd);
                     if (!err) {
                         nFillValues = nParts - 1;
                         fill = PyArray_SimpleNewFromData(1, &nFillValues, typenum, fillValues);
-                        ch = (Channel *)PyObject_CallFunctionObjArgs(channelClass, sourceChannels,
+                        ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType, sourceChannels,
                                                                      fill, NULL);  // new
                     }
             }
@@ -630,17 +655,13 @@ void clearEvents(const char *chTable, const char *name) {
 
 Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
                 struct timespec end, const char *description) {
-    PyObject *eventClass;
     Event *event = NULL;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
-    eventClass = PyDict_GetItemString(saltoDict, "Event");  // borrowed
-    if (eventClass) {
-        event = (Event *)PyObject_CallFunction(eventClass, "siLlLls", type, subtype,
+    event = (Event *)PyObject_CallFunction((PyObject *)&EventType, "siLlLls", type, subtype,
                                                start.tv_sec, start.tv_nsec, end.tv_sec, end.tv_nsec,
                                                description);  // new
-    }
     PyGILState_Release(state);
 
     return event;

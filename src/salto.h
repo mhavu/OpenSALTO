@@ -17,6 +17,7 @@ PyObject *datetimeFromTimespec(PyObject *self, PyObject *args);
 void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed);
 void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size);
 Channel *getChannel(const char *chTable, const char *name);
+struct timespec channelEndTime(Channel *ch);
 void *channelData(Channel *ch, size_t *length);
 int addChannel(const char *chTable, const char *name, Channel *ch);
 const char *getUniqueName(const char *chTable, const char *name);

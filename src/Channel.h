@@ -12,7 +12,6 @@
 #include <Python.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include <numpy/arrayobject.h>
-#include <structmember.h>
 
 PyTypeObject ChannelType;
 
@@ -35,14 +34,5 @@ typedef struct {
     char *json;
     PySetObject *events;
 } Channel;
-
-void Channel_dealloc(Channel* self);
-PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-int Channel_init(Channel *self, PyObject *args, PyObject *kwds);
-PyObject *Channel_richcmp(Channel *self, PyObject *other, int op);
-PyObject *Channel_start(Channel *self);
-PyObject *Channel_duration(Channel *self);
-PyObject *Channel_end(Channel *self);
-PyObject *Channel_matches(Channel *self, PyObject *other);
 
 #endif

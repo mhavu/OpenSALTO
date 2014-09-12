@@ -37,7 +37,8 @@ def makeUniqueKey(dict, key):
 
 class ChannelTable:
     """OpenSALTO channel table"""
-    def __init__(self):
+    def __init__(self, gui = False):
+        self.showsInGui = gui if hasattr(salto, 'gui') else False
         self._channels = {}
     @property
     def channels(self):
@@ -45,11 +46,11 @@ class ChannelTable:
     def add(self, name, ch):
         assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
         inTable = self._channels.setdefault(name, ch)
-        if inTable is ch and hasattr(salto, 'gui'):
+        if self.showsInGui and inTable is ch:
             salto.gui.addChannel(ch, name)
     def remove(self, name):
         removed = self._channels.pop(name, None)
-        if removed and hasattr(salto, 'gui'):
+        if self.showsInGui and removed:
             salto.gui.removeChannel(removed)
     def getUnique(self, name):
         return salto.makeUniqueKey(self._channels, name)
@@ -245,7 +246,7 @@ def main():
     salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
     salto.units = pint.UnitRegistry()
     salto.Q = salto.units.Quantity
-    salto.channelTables = {'main': salto.ChannelTable()}
+    salto.channelTables = {'main': salto.ChannelTable(gui = True)}
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover("plugins")

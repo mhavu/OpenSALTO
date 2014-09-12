@@ -16,6 +16,8 @@
 @property (readonly) Channel *channel;
 @property (retain) SaltoChannelView *view;
 @property (retain) NSString *label;
+@property (retain) NSString *signalType;
+@property (retain) NSString *samplerate;
 @property (retain) NSDate *alignment;
 @property (retain) NSDate *visibleRangeStart;
 @property (retain) NSDate *visibleRangeEnd;
@@ -23,5 +25,6 @@
 
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
+- (void)drawInContext:(CGContextRef)context;
 
 @end

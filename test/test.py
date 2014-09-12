@@ -34,3 +34,5 @@ pm.compute(test, {'channelTable': 'main', 'iarg1': 100, 'iarg2': "testi", 'iarg3
 chTables['a'] = salto.ChannelTable()
 len([chTables['a'].add(name, ch) for name, ch in m.channels.items() if ch.type == 'acceleration'])
 pm.compute('inclination', {'channelTable': 'a'})
+m.channels['X'].resampledData(10,method="decimate-addminmax")
+m.channels['X'].resampledData(100,method="decimate-addminmax")

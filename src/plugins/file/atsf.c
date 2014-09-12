@@ -248,7 +248,6 @@ int readFile(const char *filename, const char *chTable) {
             for (blk = 0; blk < nBlocks; blk++) {
                 for (ch = 0; ch < nChannels; ch++) {
                     if (fread(buffer, 1, channel[ch].pktlen, fp) == channel[ch].pktlen)
-
                         for (i = 0; i < channel[ch].subpktlen; i++) {
                             for (sub = 0; sub < channel[ch].nsubs; sub++) {
                                 // The samples are interleaved.

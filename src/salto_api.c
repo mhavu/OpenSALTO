@@ -214,32 +214,7 @@ struct timespec startTime(const char *chTable, const char *name) {
 }
 
 struct timespec endTime(const char *chTable, const char *name) {
-    struct timespec t;
-    double duration;
-    time_t s;
-    long ns;
-    size_t length;
-    Channel *ch;
-
-    ch = getChannel(chTable, name);
-    if (ch) {
-        channelData(ch, &length);
-        if (length > 0) {
-            duration = (length - 1) / ch->samplerate;
-            s = duration;
-            ns = (long)((duration - s) * 1.0e9);
-            t.tv_sec = ch->start_sec + s + (ch->start_nsec + ns) / 1000000000;
-            t.tv_nsec = (ch->start_nsec + ns) % 1000000000;
-        } else {
-            t.tv_sec = -1;
-            t.tv_nsec = -1;
-        }
-    } else {
-        t.tv_sec = -1;
-        t.tv_nsec = -1;
-    }
-    
-    return t;
+    return channelEndTime(getChannel(chTable, name));
 }
 
 size_t length(const char *chTable, const char *name) {
