@@ -94,9 +94,11 @@ static int typenum;
     long end_nsec = start_nsec;
     
     PyGILState_STATE state = PyGILState_Ensure();
-    PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
-                                                               "dLlLlis", pixelRatio, start_sec, start_nsec,
-                                                               end_sec, end_nsec, typenum, "VRA");
+    PyArrayObject *data = (channel->collection || channel->samplerate > 3.0 * pixelRatio) ?
+        (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
+                                             "dLlLlis", pixelRatio, start_sec, start_nsec,
+                                             end_sec, end_nsec, typenum, "VRA") :
+        channel->data;
     if (data) {
         size_t count = PyArray_DIM(data, 0);
         CGPoint *strokeSegments = calloc(2 * count - 2, sizeof(CGPoint));

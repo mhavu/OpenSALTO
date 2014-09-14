@@ -289,11 +289,11 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *part;
     PyArrayObject *roundedArray, *newArray = NULL, *tmpArray = NULL;
-    PyObject *numpy, *linspace, *rint, *slice, *idxArray, *start, *end;
+    PyObject *numpy, *linspace, *rint, *slice, *idxArray, *start, *end, *step;
     double samplerate;
     long long start_sec, end_sec, tmpvar;
     long start_nsec, end_nsec;
-    int oldTypenum, newTypenum, flip = 0;
+    int oldTypenum, newTypenum;
     struct timespec end_t;
     Py_ssize_t start_idx, end_idx, nParts, i;
     const char *method = "interpolate-decimate";
@@ -333,7 +333,9 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
             tmpvar = start_nsec;
             start_nsec = end_nsec;
             end_nsec = tmpvar;
-            flip = 1;  // TODO: Flip data.
+            step = PyLong_FromSsize_t(-1);  // new
+        } else {
+            step = PyLong_FromSsize_t(1);  // new
         }
         
         // Get references to necessary NumPy functions.
@@ -351,7 +353,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                 // Get a view to the specified part of the array.
                 start = PyLong_FromSsize_t(start_idx);
                 end = PyLong_FromSsize_t(end_idx);
-                slice = PySlice_New(start, end, NULL);  // new
+                slice = PySlice_New(start, end, step);  // new
                 Py_DECREF(start);
                 Py_DECREF(end);
                 tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
@@ -370,7 +372,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                 } else {
                     start = PyLong_FromSsize_t(start_idx);
                     end = PyLong_FromSsize_t(end_idx);
-                    slice = PySlice_New(start, end, NULL);  // new
+                    slice = PySlice_New(start, end, step);  // new
                     Py_DECREF(start);
                     Py_DECREF(end);
                     tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
@@ -390,6 +392,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
         }
         Py_XDECREF(linspace);
         Py_XDECREF(rint);
+        Py_XDECREF(step);
         if (tmpArray) {
             if (newTypenum != oldTypenum) {
                 newArray = (PyArrayObject *)PyArray_Cast(tmpArray, newTypenum);  // new
