@@ -36,7 +36,7 @@
     [super dealloc];
 }
 
-- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {
     // "Start Dictation..." and "Special Characters..." are not relevant to this application.
     // Remove these automatically added entries from the Edit menu.
     NSMenu *edit = [[[NSApp mainMenu] itemWithTitle:@"Edit"] submenu];
@@ -69,8 +69,8 @@
     }
 }
 
-- (void)tableView:(NSTableView *)tableView didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
-    [tableView setBackgroundColor:[NSColor whiteColor]];
+- (void)tableView:(NSTableView *)view didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+    [view setBackgroundColor:[NSColor whiteColor]];
 }
 
 - (IBAction)showConsoleWindow:(id)sender {
