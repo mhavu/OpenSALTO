@@ -50,8 +50,12 @@ class Plugin(salto.Plugin):
                                                for l in f['measurement'].attrs['notes'].tolist()]),
                             measurement = int(f['measurement'].value.item()))
             samplerate = float(f.attrs['samplerate'].item())
-            device = f['source'].attrs.get('device', np.array(b"unknown", dtype='S')).item().decode('utf-8')
-            serial = f['source'].attrs.get('serialno', np.array(b"unknown", dtype='S')).item().decode('utf-8')
+            device = (f['source'].attrs['device'].item().decode('utf-8')
+                      if 'device' in f['source'].attrs
+                      else "unknown")
+            serial = (f['source'].attrs['serialno'].item().decode('utf-8')
+                      if 'serialno' in f['source'].attrs
+                      else "unknown")
             resolution = f['source'].attrs['resolution'].item()
             datasets = [f[d] for d in f.keys() if d.startswith('dataset')]
             # Multi-channel variables 
@@ -59,7 +63,7 @@ class Plugin(salto.Plugin):
             starttime = [timespecFromString(d.attrs['starttime'].item().decode('utf-8'))
                          for d in datasets]
             data = [9.81 * d[()] for d in datasets]
-            events = [d.attrs.get('events') for d in datasets]
+            events = [d.attrs['events'] if 'events' in d.attrs else None for d in datasets]
             for n, d, t, elist in zip(name, data, starttime, events):
                 ch = salto.Channel(d,
                                    samplerate = samplerate,
