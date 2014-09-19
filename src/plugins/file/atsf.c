@@ -162,8 +162,8 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
                         if (channel[ch].sub) {
-                            channel[ch].sub[0] = getUniqueName(tmpTable, "Button event");
-                            channel[ch].sub[1] = getUniqueName(tmpTable, "Battery voltage");
+                            channel[ch].sub[0] = getUniqueName(chTable, "Button event");
+                            channel[ch].sub[1] = getUniqueName(chTable, "Battery voltage");
                         } else {
                             err = ALLOCATION_FAILED;
                         }
@@ -197,7 +197,7 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 1;
                         channel[ch].sub = calloc(1, sizeof(char *));
                         if (channel[ch].sub) {
-                            channel[ch].sub[0] = getUniqueName(tmpTable, "ECG");
+                            channel[ch].sub[0] = getUniqueName(chTable, "ECG");
                         } else {
                             err = ALLOCATION_FAILED;
                         }
@@ -230,8 +230,8 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
                         if (channel[ch].sub) {
-                            channel[ch].sub[0] = getUniqueName(tmpTable, "X");
-                            channel[ch].sub[1] = getUniqueName(tmpTable, "Y");
+                            channel[ch].sub[0] = getUniqueName(chTable, "X");
+                            channel[ch].sub[1] = getUniqueName(chTable, "Y");
                         } else {
                             err = ALLOCATION_FAILED;
                         }
@@ -259,9 +259,9 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 3;
                         channel[ch].length /= 3;
                         channel[ch].sub = calloc(3, sizeof(char *));if (channel[ch].sub) {
-                            channel[ch].sub[0] = getUniqueName(tmpTable, "X");
-                            channel[ch].sub[1] = getUniqueName(tmpTable, "Y");
-                            channel[ch].sub[2] = getUniqueName(tmpTable, "Z");
+                            channel[ch].sub[0] = getUniqueName(chTable, "X");
+                            channel[ch].sub[1] = getUniqueName(chTable, "Y");
+                            channel[ch].sub[2] = getUniqueName(chTable, "Z");
                         } else {
                             err = ALLOCATION_FAILED;
                         }
