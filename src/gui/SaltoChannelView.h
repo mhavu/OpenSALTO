@@ -12,6 +12,4 @@
 
 @interface SaltoChannelView : NSTableCellView
 
-@property (unsafe_unretained) SaltoChannelWrapper *channel;
-
 @end

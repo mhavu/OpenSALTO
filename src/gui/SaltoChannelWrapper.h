@@ -14,17 +14,17 @@
 @interface SaltoChannelWrapper : NSObject
 
 @property (readonly) Channel *channel;
-@property (retain) SaltoChannelView *view;
+@property (unsafe_unretained) SaltoChannelView *view;
 @property (retain) NSString *label;
 @property (retain) NSString *signalType;
 @property (retain) NSString *samplerate;
-@property (retain) NSDate *alignment;
-@property (retain) NSDate *visibleRangeStart;
-@property (retain) NSDate *visibleRangeEnd;
+@property (assign) NSTimeInterval alignment;
+@property (assign) double yVisibleRangeMin;
+@property (assign) double yVisibleRangeMax;
 @property (assign, getter = isVisible) BOOL visible;
 
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
-- (void)drawInContext:(CGContextRef)context;
+- (void)drawInContext:(CGContextRef)context size:(CGSize)size;
 
 @end

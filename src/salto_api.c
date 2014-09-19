@@ -213,6 +213,19 @@ struct timespec startTime(const char *chTable, const char *name) {
     return t;
 }
 
+struct timespec endTimeFromDuration(time_t start_sec, long start_nsec, double duration) {
+    struct timespec end;
+    time_t s;
+    long ns;
+
+    s = duration;
+    ns = (long)((duration - s) * 1.0e9);
+    end.tv_sec = start_sec + s + (start_nsec + ns) / 1000000000;
+    end.tv_nsec = (start_nsec + ns) % 1000000000;
+
+    return end;
+}
+
 struct timespec endTime(const char *chTable, const char *name) {
     return channelEndTime(getChannel(chTable, name));
 }

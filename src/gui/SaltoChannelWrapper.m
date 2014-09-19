@@ -8,6 +8,7 @@
 
 #import "SaltoChannelWrapper.h"
 #import "SaltoChannelView.h"
+#import "SaltoGuiDelegate.h"
 #include "salto.h"
 
 static int typenum;
@@ -20,8 +21,8 @@ static int typenum;
 @synthesize signalType;
 @synthesize samplerate;
 @synthesize alignment;
-@synthesize visibleRangeStart;
-@synthesize visibleRangeEnd;
+@synthesize yVisibleRangeMin;
+@synthesize yVisibleRangeMax;
 @synthesize visible;
 
 + (void)initialize {
@@ -49,10 +50,30 @@ static int typenum;
     if (self) {
         PyGILState_STATE state = PyGILState_Ensure();
         Py_INCREF(ch);
+        BOOL isSigned = (!ch->collection) ?
+                        PyArray_ISSIGNED((PyArrayObject *)ch->data) :
+                        PyArray_ISSIGNED((PyArrayObject *)ch->fill_values);
         PyGILState_Release(state);
         channel = ch;
         signalType = [[NSString stringWithUTF8String:channel->type] retain];
         samplerate = [[NSString stringWithFormat:@"%lf Hz", channel->samplerate] retain];
+        SaltoGuiDelegate *appDelegate = [NSApp delegate];
+        NSTimeInterval duration = channelDuration(channel);
+        if (duration > appDelegate.xRange) {
+            appDelegate.xRange = duration;
+            appDelegate.xVisibleRangeStart = 0.0;
+            appDelegate.xVisibleRangeEnd = duration;
+        }
+        if (appDelegate.alignment == SaltoAlignTimeOfDay) {
+            // TODO: alignment = ?
+        }
+        if (isSigned) {
+            yVisibleRangeMax = (1 << channel->resolution) * channel->scale + channel->offset;
+            yVisibleRangeMin = -(1 << channel->resolution) * channel->scale + channel->offset;
+        } else {
+            yVisibleRangeMax = (1 << channel->resolution) * channel->scale + channel->offset;
+            yVisibleRangeMin = channel->offset;
+        }
         // TODO: PySetObject *events;
     }
 
@@ -60,63 +81,75 @@ static int typenum;
 }
 
 - (void)dealloc {
-    [view release];
     [label release];
     [signalType release];
     [samplerate release];
-    [alignment release];
-    [visibleRangeStart release];
-    [visibleRangeEnd release];
     PyGILState_STATE state = PyGILState_Ensure();
 	Py_XDECREF(channel);
 	PyGILState_Release(state);
     [super dealloc];
 }
 
-- (void)drawInContext:(CGContextRef)context {
-    // Use black stroke with width of 1.0, round caps, and bevel joints.
-    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.0, 1.0);
-    CGContextSetLineWidth(context, 1.0);
-    CGContextSetLineCap(context, kCGLineCapRound);
-    CGContextSetLineJoin(context, kCGLineJoinBevel);
+- (void)drawInContext:(CGContextRef)context size:(CGSize)size {
+    // Determine start time, end time, and samplerate based on the shown area.
+    double yScale = size.height / (yVisibleRangeMax - yVisibleRangeMin);
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
+    NSTimeInterval visibleInterval = appDelegate.xVisibleRangeEnd - appDelegate.xVisibleRangeStart;
+    double pixelsPerSecond = (size.width - 5.0) / visibleInterval;
+    struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.xVisibleRangeStart);
+    struct timespec end_t = endTimeFromDuration(channel->start_sec, channel->start_nsec, visibleInterval);
+
+    CGContextSaveGState(context);
+    CGContextTranslateCTM(context, 5.0, yScale * -yVisibleRangeMin);
 
     // Draw the Y coordinate axis.
+    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.1, 1.0);
+    CGContextSetLineWidth(context, 1.0);
+    CGContextSetLineCap(context, kCGLineCapSquare);
     CGContextBeginPath(context);
-    CGContextMoveToPoint(context, 0.0, -100.0);
-    CGContextAddLineToPoint(context, 0.0, 100.0);
+    CGContextMoveToPoint(context, 5.0, yVisibleRangeMin * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
+    CGContextMoveToPoint(context, 3.0, 0.0);
+    CGContextAddLineToPoint(context, 5.0, 0.0);
+    CGContextMoveToPoint(context, 3.0, yVisibleRangeMin * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMin * yScale);
+    CGContextMoveToPoint(context, 3.0, yVisibleRangeMax * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
     CGContextDrawPath(context, kCGPathStroke);
 
-    // TODO: Determine start and end times and samplerate based on the shown area.
-    double pixelRatio = 10.0; // new samplerate
-    long long start_sec = channel->start_sec;
-    long long end_sec = channel->start_sec + 600;
-    long start_nsec = channel->start_nsec;
-    long end_nsec = start_nsec;
-    
+    // Use blue stroke with width of 1.0, round caps, and miter joints.
+    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.7, 1.0);
+    CGContextSetLineWidth(context, 1.0);
+    CGContextSetLineCap(context, kCGLineCapRound);
+    CGContextSetLineJoin(context, kCGLineJoinMiter);
+
     PyGILState_STATE state = PyGILState_Ensure();
-    PyArrayObject *data = (channel->collection || channel->samplerate > 3.0 * pixelRatio) ?
-        (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
-                                             "dLlLlis", pixelRatio, start_sec, start_nsec,
-                                             end_sec, end_nsec, typenum, "VRA") :
-        channel->data;
+    PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
+                                                               "dLlLlis", pixelsPerSecond,
+                                                               start_t.tv_sec, start_t.tv_nsec,
+                                                               end_t.tv_sec, end_t.tv_nsec,
+                                                               typenum, "VRA");
+    // TODO: If necessary, optimize.
+    // One in every three drawing calls is unnecessary when using VRA.
     if (data) {
         size_t count = PyArray_DIM(data, 0);
         CGPoint *strokeSegments = calloc(2 * count - 2, sizeof(CGPoint));
         if (strokeSegments) {
             CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
-            strokeSegments[0] = CGPointMake(0, buffer[0]);
+            strokeSegments[0] = CGPointMake(6, buffer[0] * yScale);
             for (NSUInteger i = 1; i < count - 1; i++) {
-                strokeSegments[2 * i - 1] = CGPointMake(i, buffer[i]);
-                strokeSegments[2 * i] = CGPointMake(i, buffer[i]);
+                strokeSegments[2 * i - 1] = CGPointMake(6 + i, buffer[i] * yScale);
+                strokeSegments[2 * i] = CGPointMake(6 + i, buffer[i] * yScale);
             }
-            strokeSegments[2 * count - 3] = CGPointMake(count - 1, buffer[count - 1]);
+            strokeSegments[2 * count - 3] = CGPointMake(6 + count - 1, buffer[count - 1] * yScale);
         } else {
             NSLog(@"calloc failed in %s\n", __func__);
         }
-        // TODO: Move up so that negative values are shown.
         CGContextStrokeLineSegments(context, strokeSegments, count);
     }
     PyGILState_Release(state);
+
+    CGContextRestoreGState(context);
 }
 
 @end

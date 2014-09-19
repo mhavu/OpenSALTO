@@ -220,34 +220,7 @@ static PyObject *Channel_end(Channel *self) {
 }
 
 static PyObject *Channel_duration(Channel *self) {
-    PyObject *start, *end, *timedelta, *s;
-    Channel *last;
-    Py_ssize_t nParts;
-    npy_intp length;
-    double duration;
-
-    if (self->collection) {
-        start = Channel_start(self);  // new
-        nParts = PyList_Size(self->data);
-        last = (Channel *)PyList_GET_ITEM(self->data, nParts - 1);  // borrowed
-        end = Channel_end(last);  // new
-        timedelta = PyObject_CallMethod(start, "__sub__", "(O)", end);  // new
-        s = PyObject_CallMethod(timedelta, "total_seconds", NULL);  // new
-        duration = PyFloat_AsDouble(s);
-        Py_XDECREF(start);
-        Py_XDECREF(end);
-        Py_XDECREF(timedelta);
-        Py_XDECREF(s);
-    } else {
-        length = PyArray_DIM((PyArrayObject *)self->data, 0);
-        if (length > 0) {
-            duration = (length - 1) / self->samplerate;
-        } else {
-            duration = nan(NULL);
-        }
-    }
-
-    return PyFloat_FromDouble(duration);
+    return PyFloat_FromDouble(channelDuration(self));
 }
 
 static PyObject *Channel_matches(Channel *self, PyObject *args) {
@@ -288,14 +261,15 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
 
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *part;
-    PyArrayObject *roundedArray, *newArray = NULL, *tmpArray = NULL;
-    PyObject *numpy, *linspace, *rint, *slice, *idxArray, *start, *end, *step;
-    double samplerate;
-    long long start_sec, end_sec, tmpvar;
+    PyArrayObject *newArray = NULL, *tmpArray = NULL;
+    PyObject *numpy, *linspace, *slice, *start, *end, *step;
+    double samplerate, *sliceData;
+    long long start_sec, end_sec, tmpvar, k;
     long start_nsec, end_nsec;
     int oldTypenum, newTypenum;
     struct timespec end_t;
     Py_ssize_t start_idx, end_idx, nParts, i;
+    npy_intp size, dims[1], *index = NULL;
     const char *method = "interpolate-decimate";
     static char *kwlist[] = {"samplerate", "start_sec", "start_nsec", "end_sec", "end_nsec", "typenum", "method", NULL};
 
@@ -341,7 +315,6 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
         // Get references to necessary NumPy functions.
         numpy = PyImport_AddModule("numpy");  // borrowed
         linspace = PyObject_GetAttrString(numpy, "linspace");  // new
-        rint = PyObject_GetAttrString(numpy, "rint");  // new
 
         // Resample the specified part of the array.
         if (!self->collection) {
@@ -351,8 +324,8 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
 
             if (strcmp(method, "interpolate-decimate") == 0) {
                 // Get a view to the specified part of the array.
-                start = PyLong_FromSsize_t(start_idx);
-                end = PyLong_FromSsize_t(end_idx);
+                start = PyLong_FromSsize_t(start_idx);  // new
+                end = PyLong_FromSsize_t(end_idx);  // new
                 slice = PySlice_New(start, end, step);  // new
                 Py_DECREF(start);
                 Py_DECREF(end);
@@ -360,16 +333,82 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                 // TODO: FIR
                 Py_XDECREF(slice);
             } else if (strcmp(method, "VRA") == 0) {
-                if (samplerate < self->samplerate) {
-                    slice = PyObject_CallFunction(linspace, "nnd", start_idx, end_idx - 1,
-                                                  (end_idx - start_idx) * samplerate / self->samplerate);  // new
-                    roundedArray = (PyArrayObject *)PyObject_CallFunctionObjArgs(rint, slice, NULL);  // new
-                    Py_XDECREF(slice);
-                    idxArray = PyArray_Cast(roundedArray, NPY_INT64);  // new
-                    Py_XDECREF(roundedArray);
-                    tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, idxArray);
-                    Py_XDECREF(idxArray);
+                if (self->samplerate > 3.0 * samplerate) {
+                    size = llabs(end_idx - start_idx) * samplerate / self->samplerate;
+                    if (size < 2)
+                        size = 2;
+                    slice = PyObject_CallFunction(linspace, "nnn", start_idx, end_idx - 1, size);  // new
+                    if (slice) {
+                        sliceData = PyArray_DATA((PyArrayObject *)slice);
+                        index = calloc(size, sizeof(npy_intp));
+                        if (sliceData && index) {
+                            for (i = 0; i< size; i++) {
+                                index[i] = rint(sliceData[i]);
+                            }
+                        }
+                        Py_DECREF(slice);
+                    }
+                    if (index) {
+                        dims[0] = 3 * size - 2;
+                        tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, oldTypenum);
+                        switch (oldTypenum) {
+                            #define AGGREGATEMINMAX(type)                                   \
+                            do {                                                            \
+                                type *tmp = PyArray_DATA(tmpArray);                         \
+                                type *data = PyArray_DATA((PyArrayObject *)self->data);     \
+                                tmp[0] = data[*index];                                      \
+                                for (i = 0; i < size - 1; i++) {                            \
+                                    tmp[3 * i + 1] = tmp[3 * i];                            \
+                                    tmp[3 * i + 2] = tmp[3 * i];                            \
+                                    for (k = index[i] + 1; k < index[i + 1]; k++) {         \
+                                        if (data[k] < tmp[3 * i + 1])                       \
+                                            tmp[3 * i + 1] = data[k];                       \
+                                        if (data[k] > tmp[3 * i + 2])                       \
+                                            tmp[3 * i + 2] = data[k];                       \
+                                    }                                                       \
+                                    tmp[3 * i + 3] = data[index[i + 1]];                    \
+                                    tmp[3 * i + 3] = data[index[i + 1]];                    \
+                                }                                                           \
+                            } while (0);
+                            case NPY_BYTE: {
+                                AGGREGATEMINMAX(int8_t);
+                                break;
+                            }
+                            case NPY_UBYTE: {
+                                AGGREGATEMINMAX(uint8_t);
+                                break;
+                            }
+                            case NPY_INT16: {
+                                AGGREGATEMINMAX(int16_t);
+                                break;
+                            }
+                            case NPY_UINT16: {
+                                AGGREGATEMINMAX(uint16_t);
+                                break;
+                            }
+                            case NPY_INT32: {
+                                AGGREGATEMINMAX(int32_t);
+                                break;
+                            }
+                            case NPY_UINT32: {
+                                AGGREGATEMINMAX(uint32_t);
+                                break;
+                            }
+                            case NPY_FLOAT: {
+                                AGGREGATEMINMAX(float);
+                                break;
+                            }
+                            case NPY_DOUBLE: {
+                                AGGREGATEMINMAX(double);
+                                break;
+                            }
+                            default:
+                                PyErr_SetString(PyExc_TypeError, "unsupported dtype");
+                        }
+                        free(index);
+                    }
                 } else {
+                    // There is no need for aggregation. Return original samples.
                     start = PyLong_FromSsize_t(start_idx);
                     end = PyLong_FromSsize_t(end_idx);
                     slice = PySlice_New(start, end, step);  // new
@@ -377,7 +416,6 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                     Py_DECREF(end);
                     tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
                 }
-                // TODO: Aggregate min and max between each new sample.
             } else {
                 PyErr_SetString(PyExc_AttributeError, "unknown resampling method");
             }
@@ -386,18 +424,36 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
             for (i = 0; i < nParts; i++) {
                 part = (Channel *)PyList_GET_ITEM(self->data, i);
                 PyArray_GETPTR1(self->fill_values, i);
-                // TODO: implement
+                // TODO: Implement resampling of collection channels.
                 // PyObject_RichCompareBool(o1, o2, Py_LT);
             }
         }
         Py_XDECREF(linspace);
-        Py_XDECREF(rint);
         Py_XDECREF(step);
         if (tmpArray) {
             if (newTypenum != oldTypenum) {
                 newArray = (PyArrayObject *)PyArray_Cast(tmpArray, newTypenum);  // new
-                // TODO: (TYPE)value * (double)scale + (double)offset * (char *)unit
                 Py_DECREF(tmpArray);
+                if (newArray && self->scale != 1.0 && self->offset != 0.0) {
+                    // Apply scale and offset.
+                    if (newTypenum == NPY_DOUBLE) {
+                        size = PyArray_DIM(newArray, 0);
+                        double *data = PyArray_DATA(newArray);
+                        if (data) {
+                            for (i = 0; i < size; i++) {
+                                data[i] = data[i] * self->scale + self->offset;
+                            }
+                        }
+                    } else if (newTypenum == NPY_FLOAT) {
+                        size = PyArray_DIM(newArray, 0);
+                        float *data = PyArray_DATA(newArray);
+                        if (data) {
+                            for (i = 0; i < size; i++) {
+                                data[i] = data[i] * self->scale + self->offset;
+                            }
+                        }
+                    }
+                }
             } else {
                 newArray = tmpArray;
             }
@@ -409,12 +465,14 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
 
 static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *newChannel = NULL;
-    PyObject *array, *events, *iterator;
+    PyObject *array, *tmpArray, *events, *iterator, *resampleArgs;
     Event *e, *eCopy;
-    double samplerate, scale, offset;
+    double samplerate, scale, offset, *data, max, min;
     long long start_sec, end_sec, eStart_sec, eEnd_sec;
     long start_nsec, end_nsec, eStart_nsec, eEnd_nsec;
-    int oldTypenum, newTypenum, resolution, copyEvents;
+    int oldTypenum, newTypenum, tmpTypenum, resolution, copyEvents;
+    PyArray_Descr *typeDescr;
+    npy_intp size, i;
     struct timespec end_t;
     const char *method = "interpolate-decimate";
     static char *kwlist[] = {"samplerate", "start_sec", "start_nsec", "end_sec", "end_nsec", "typenum", "method", "copyEvents", NULL};
@@ -446,17 +504,69 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
         } else if (end_sec == end_t.tv_sec && end_nsec > end_t.tv_nsec) {
             end_nsec = end_t.tv_nsec;
         }
+        // Check that the new channel type is compatible with the old type.
+        if (PyArray_CanCastSafely(oldTypenum, newTypenum)) {
+            tmpTypenum = newTypenum;
+        } else {
+            // Types are not compatible. Resample to double, and convert to new type later.
+            tmpTypenum = NPY_DOUBLE;
+        }
         // Resample and create a new Channel object.
-        array = Channel_resampledData(self, args, kwds);  // new
+        resampleArgs = Py_BuildValue("(dLlLlis)", samplerate, start_sec, start_nsec,
+                                     end_sec, end_nsec, tmpTypenum, method);  // new
+        array = Channel_resampledData(self, resampleArgs, NULL);  // new
         if (array) {
-            if (newTypenum == oldTypenum) {
+            if (tmpTypenum != newTypenum) {
+                typeDescr = PyArray_DescrFromType(newTypenum);
+                if (typeDescr->kind == 'u') {
+                    size = PyArray_DIM((PyArrayObject *)array, 0);
+                    data = PyArray_DATA((PyArrayObject *)array);
+                    max = data[0];
+                    min = data[0];
+                    for (i = 1; i < size; i++) {
+                        if (max < data[i])
+                            max = data[i];
+                        if (min > data[i])
+                            min = data[i];
+                    }
+                    scale = (max - min) / ((1ULL << typeDescr->elsize) - 1);
+                    offset = min;
+                    for (i = 0; i < size; i++) {
+                        data[i] = rint((data[i] - min) / scale);
+                    }
+                } else if (typeDescr->kind == 'i') {
+                    size = PyArray_DIM((PyArrayObject *)array, 0);
+                    data = PyArray_DATA((PyArrayObject *)array);
+                    max = data[0];
+                    min = data[0];
+                    for (i = 1; i < size; i++) {
+                        if (max < data[i])
+                            max = data[i];
+                        if (min > data[i])
+                            min = data[i];
+                    }
+                    max = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
+                    scale = max / ((1ULL << typeDescr->elsize - 1) - 1);
+                    offset = 0.0;
+                    for (i = 0; i < size; i++) {
+                        data[i] = rint(data[i] / scale);
+                    }
+                } else {
+                    scale = 1.0;
+                    offset = 0.0;
+                }
+                resolution = (self->resolution > typeDescr->elsize) ? typeDescr->elsize : self->resolution;
+                tmpArray = PyArray_Cast((PyArrayObject *)array, newTypenum);  // new
+                Py_DECREF(array);
+                array = tmpArray;
+            } else if (newTypenum == NPY_FLOAT || newTypenum == NPY_DOUBLE) {
+                scale = 1.0;
+                offset = 0.0;
+                resolution = self->resolution;
+            } else {
                 scale = self->scale;
                 offset = self->offset;
                 resolution = self->resolution;
-            } else {
-                scale = 1.0;
-                offset = 0.0;
-                resolution = 0;
             }
             events = PySet_New(NULL);  // new
             if (copyEvents) {

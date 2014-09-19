@@ -92,6 +92,7 @@ double sampleRate(const char *chTable, const char *ch);
 int setStartTime(const char *chTable, const char *ch, struct timespec start);
 struct timespec startTime(const char *chTable, const char *ch);
 struct timespec endTime(const char *chTable, const char *ch);
+struct timespec endTimeFromDuration(time_t start_sec, long start_nsec, double duration);
 size_t length(const char *chTable, const char *ch);
 double duration(const char *chTable, const char *ch);
 int setDevice(const char *chTable, const char *ch, const char *device, const char *serial);

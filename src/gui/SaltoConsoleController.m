@@ -58,7 +58,7 @@
     
     if (aSelector == @selector(insertNewline:)) {
         if (![console isExecuting]) {
-            if (NSApplication.sharedApplication.currentEvent.modifierFlags & NSShiftKeyMask) {
+            if ([[NSApp currentEvent] modifierFlags] & NSShiftKeyMask) {
                 // Add a newline at the end of the edit buffer.
                 [view setSelectedRange:NSMakeRange(view.string.length, 0)];
                 [view insertNewlineIgnoringFieldEditor:self];

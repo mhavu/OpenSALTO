@@ -145,18 +145,13 @@ Channel *getChannel(const char *chTable, const char *name) {
 struct timespec channelEndTime(Channel *ch) {
     struct timespec t;
     double duration;
-    time_t s;
-    long ns;
     size_t length;
 
     if (ch) {
         channelData(ch, &length);
         if (length > 0) {
             duration = (length - 1) / ch->samplerate;
-            s = duration;
-            ns = (long)((duration - s) * 1.0e9);
-            t.tv_sec = ch->start_sec + s + (ch->start_nsec + ns) / 1000000000;
-            t.tv_nsec = (ch->start_nsec + ns) % 1000000000;
+            t = endTimeFromDuration(ch->start_sec, ch->start_nsec, duration);
         } else {
             t.tv_sec = -1;
             t.tv_nsec = -1;
@@ -167,6 +162,20 @@ struct timespec channelEndTime(Channel *ch) {
     }
 
     return t;
+}
+
+double channelDuration(Channel *ch) {
+    struct timespec end;
+    double duration;
+
+    end = channelEndTime(ch);
+    if (end.tv_nsec >= 0) {
+        duration = end.tv_sec - ch->start_sec + (end.tv_nsec - ch->start_nsec) / 1e9;
+    } else {
+        duration = nan(NULL);
+    }
+
+    return duration;
 }
 
 void *channelData(Channel *ch, size_t *length) {
@@ -755,7 +764,9 @@ int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void)) {
     if (guiInitFunc)
         PyImport_AppendInittab("salto_gui", guiInitFunc);
     Py_Initialize();
-
+    if (guiInitFunc)
+        PyEval_InitThreads();
+    
     // Get a reference to the Python global dictionary.
     mainModule = PyImport_AddModule("__main__");  // borrowed
     if (mainModule) {
@@ -782,7 +793,7 @@ int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void)) {
         }
     }
     
-    // Execute salto.py and run the Python interpreter.
+    // Execute salto.py.
     FILE *fp = fopen(saltoPyPath, "r");
     if (fp) {
         PyRun_SimpleFileEx(fp, "salto.py", 1);
@@ -790,6 +801,9 @@ int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void)) {
         perror("fopen()");
         result = -1;
     }
+    
+    if (guiInitFunc)
+        PyEval_ReleaseThread(PyGILState_GetThisThreadState());
 
     return result;
 }
@@ -807,26 +821,35 @@ int saltoRun(void) {
 
 PyObject *saltoEval(const char *expr) {
     PyObject *code, *o, *result = NULL;
+    PyGILState_STATE state;
 
+    state = PyGILState_Ensure();
     code = Py_CompileString(expr, "<stdin>", Py_eval_input);
     if (code) {
         o = PyEval_EvalCode(code, mainDict, mainDict);
         if (o) {
             result = (o != Py_None) ? PyUnicode_FromFormat("%R\n", o) : PyUnicode_FromString("");  // new
+        } else if (PyErr_ExceptionMatches(PyExc_SystemExit)) {
+            // PyErr_Print() calls handle_system_exit(), so we need to
+            // catch SystemExit before calling PyErr_Print().
+            PyErr_Clear();
+            // TODO: Show in console.
+            fprintf(stderr, "SystemExit raised\n");
         } else {
-            PyErr_Print();
-            fprintf(stderr, "\n");
+            PyErr_PrintEx(1);
         }
     } else {
         PyErr_Clear();
         if (PyRun_SimpleString(expr) == 0)
             result = PyUnicode_FromString("");
     }
+    PyGILState_Release(state);
 
     return result;
 }
 
 void saltoEnd(void *context) {
+    PyGILState_Ensure();
     Py_XDECREF(mainDict);
     Py_XDECREF(saltoDict);
     Py_Finalize();

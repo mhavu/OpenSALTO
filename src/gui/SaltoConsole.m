@@ -47,7 +47,7 @@
 }
 
 - (void)execute:(NSString *)statement {
-    SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
     dispatch_async(appDelegate.queue,
                    ^{
                        executing = YES;

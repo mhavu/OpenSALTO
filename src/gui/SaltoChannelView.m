@@ -11,12 +11,10 @@
 
 @implementation SaltoChannelView
 
-@synthesize channel;
-
 - (instancetype)initWithFrame:(NSRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
-        // init
+        [self setBackgroundStyle:NSBackgroundStyleLight];
     }
 
     return self;
@@ -29,8 +27,7 @@
 
 - (void)drawRect:(NSRect)rect {
     // TODO: Only draw rect.
-    CGSize size = self.frame.size;
-    [self.objectValue drawInContext:NSGraphicsContext.currentContext.graphicsPort];
+    [self.objectValue drawInContext:NSGraphicsContext.currentContext.graphicsPort size:self.frame.size];
 }
 
 @end
