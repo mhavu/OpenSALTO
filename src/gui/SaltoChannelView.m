@@ -11,23 +11,14 @@
 
 @implementation SaltoChannelView
 
-- (instancetype)initWithFrame:(NSRect)frame {
-    self = [super initWithFrame:frame];
-    if (self) {
-        [self setBackgroundStyle:NSBackgroundStyleLight];
-    }
-
-    return self;
-}
-
-- (void)dealloc {
-    // dealloc
-    [super dealloc];
+- (void)viewDidMoveToSuperview {
+    SaltoChannelView *linkedView = self.superview ? self : nil;
+    [self.objectValue setView:linkedView];
 }
 
 - (void)drawRect:(NSRect)rect {
     // TODO: Only draw rect.
-    [self.objectValue drawInContext:NSGraphicsContext.currentContext.graphicsPort size:self.frame.size];
+    [self.objectValue drawInContext:NSGraphicsContext.currentContext.graphicsPort];
 }
 
 @end

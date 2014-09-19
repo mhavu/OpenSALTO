@@ -90,12 +90,12 @@ static int typenum;
     [super dealloc];
 }
 
-- (void)drawInContext:(CGContextRef)context size:(CGSize)size {
+- (void)drawInContext:(CGContextRef)context {
     // Determine start time, end time, and samplerate based on the shown area.
-    double yScale = size.height / (yVisibleRangeMax - yVisibleRangeMin);
+    double yScale = view.frame.size.height / (yVisibleRangeMax - yVisibleRangeMin);
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
     NSTimeInterval visibleInterval = appDelegate.xVisibleRangeEnd - appDelegate.xVisibleRangeStart;
-    double pixelsPerSecond = (size.width - 5.0) / visibleInterval;
+    double pixelsPerSecond = (view.frame.size.width - 5.0) / visibleInterval;
     struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.xVisibleRangeStart);
     struct timespec end_t = endTimeFromDuration(channel->start_sec, channel->start_nsec, visibleInterval);
 
@@ -136,6 +136,8 @@ static int typenum;
         CGPoint *strokeSegments = calloc(2 * count - 2, sizeof(CGPoint));
         if (strokeSegments) {
             CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
+            // TODO: Calculate correct x coordinates based on
+            // true start time, end time, and number of returned pixels.
             strokeSegments[0] = CGPointMake(6, buffer[0] * yScale);
             for (NSUInteger i = 1; i < count - 1; i++) {
                 strokeSegments[2 * i - 1] = CGPointMake(6 + i, buffer[i] * yScale);
@@ -146,6 +148,7 @@ static int typenum;
             NSLog(@"calloc failed in %s\n", __func__);
         }
         CGContextStrokeLineSegments(context, strokeSegments, count);
+        free(strokeSegments);
     }
     PyGILState_Release(state);
 

@@ -25,6 +25,6 @@
 
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
-- (void)drawInContext:(CGContextRef)context size:(CGSize)size;
+- (void)drawInContext:(CGContextRef)context;
 
 @end
