@@ -58,7 +58,8 @@ typedef enum {
     INVALID_FORMAT,
     INVALID_HEADER,
     INVALID_FILE,
-    UNKNOWN_MODEL
+    UNKNOWN_MODEL,
+    ALLOCATION_FAILED
 } Error;
 
 typedef struct {
@@ -90,6 +91,7 @@ int readFile(const char *filename, const char *chTable) {
     nChannels = 3;
     int16_t *channel[3];
     const char *name[3] = {"X", "Y", "Z"};
+    const char *tmpTable;
 
     FILE *fp = fopen(filename, "r");
     if (!fp) {
@@ -232,66 +234,89 @@ int readFile(const char *filename, const char *chTable) {
         buffer = malloc(length);
         duration = 0.0;
         nSamples = 0;
-        if (fread(buffer, 1, length, fp) == length) {
-            lines = 1;
-            for (j = length; j > 0; j--) {
-                if (buffer[j] == '\n')
-                    lines++;
-            }
-            data = calloc(lines, sizeof(Sample));
-            sample = data;
-            line = buffer;
-            while (sscanf(line, "%lf, %d, %d, %d%n", &sample->t,
-                          &sample->a[0], &sample->a[1], &sample->a[2], &i) == 4) {
-                // Adjust sample times and start time so that first sample is at start time.
-                if (nSamples == 0) {
-                    first = sample->t;
-                    start.tv_sec += (int)first;
-                    start.tv_nsec += fmod(first, 1.0) * 1000000000;
-                    if (start.tv_nsec > 1000000000) {
-                        start.tv_sec++;
-                        start.tv_nsec -= 1000000000;
-                    }
+        if (buffer) {
+            if (fread(buffer, 1, length, fp) == length) {
+                lines = 1;
+                for (j = length; j > 0; j--) {
+                    if (buffer[j] == '\n')
+                        lines++;
                 }
-                sample->t -= first;
+                data = calloc(lines, sizeof(Sample));
+                if (data) {
+                    sample = data;
+                    line = buffer;
+                    while (sscanf(line, "%lf, %d, %d, %d%n", &sample->t,
+                                  &sample->a[0], &sample->a[1], &sample->a[2], &i) == 4) {
+                        // Adjust sample times and start time so that first sample is at start time.
+                        if (nSamples == 0) {
+                            first = sample->t;
+                            start.tv_sec += (int)first;
+                            start.tv_nsec += fmod(first, 1.0) * 1000000000;
+                            if (start.tv_nsec > 1000000000) {
+                                start.tv_sec++;
+                                start.tv_nsec -= 1000000000;
+                            }
+                        }
+                        sample->t -= first;
 
-                if (sample->t > duration)
-                    duration = sample->t;
+                        if (sample->t > duration)
+                            duration = sample->t;
 
-                sample++;
-                nSamples++;
-                line += i;
+                        sample++;
+                        nSamples++;
+                        line += i;
+                    }
+                } else {
+                    fprintf(stderr, "readFile(): Resource allocation failed\n");
+                    err = ALLOCATION_FAILED;
+                }
             }
+            free(buffer);
+        } else {
+            fprintf(stderr, "readFile(): Resource allocation failed\n");
+            err = ALLOCATION_FAILED;
+            data = NULL;
         }
-        free(buffer);
         fclose(fp);
+    }
 
+    if (!err) {
         if (nSamples > 0) {
             // Adjust channel length to constant sample interval.
             length = lrint(duration * samplerate) + 1;
             // Create the channels.
-            for (i = 0; i < nChannels; i++) {
-                name[i] = getUniqueName(chTable, name[i]);
-                channel[i] = newInt16Channel(chTable, name[i], length);
-                channel[i][j] = data[0].a[i];
-                setScaleAndOffset(chTable, name[i], scale, 0.0);
-                setUnit(chTable, name[i], "m/s^2");
-                setSignalType(chTable, name[i], "acceleration");
-                setSampleRate(chTable, name[i], samplerate);
-                setDevice(chTable, name[i], device, serial);
-                setStartTime(chTable, name[i], start);
-                setResolution(chTable, name[i], resolution);
-            }
-            // Resample data using constant sample interval.
-            t = 0.5 / samplerate;
-            n = 0;
-            for (j = 1; j < length; j++) {
+            tmpTable = newChannelTable(NULL);
+            if (tmpTable) {
                 for (i = 0; i < nChannels; i++) {
-                    if (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t))
-                        n++;
-                    channel[i][j] = data[n].a[i];
-                    t += 1.0 / samplerate;
+                    name[i] = getUniqueName(chTable, name[i]);
+                    channel[i] = newInt16Channel(tmpTable, name[i], length);
+                    channel[i][j] = data[0].a[i];
+                    setScaleAndOffset(tmpTable, name[i], scale, 0.0);
+                    setUnit(tmpTable, name[i], "m/s^2");
+                    setSignalType(tmpTable, name[i], "acceleration");
+                    setSampleRate(tmpTable, name[i], samplerate);
+                    setDevice(tmpTable, name[i], device, serial);
+                    setStartTime(tmpTable, name[i], start);
+                    setResolution(tmpTable, name[i], resolution);
+                    moveChannel(tmpTable, name[i], chTable);
+                    free((void *)name[i]);
                 }
+                // Resample data using constant sample interval.
+                t = 0.5 / samplerate;
+                n = 0;
+                for (j = 1; j < length; j++) {
+                    for (i = 0; i < nChannels; i++) {
+                        if (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t))
+                            n++;
+                        channel[i][j] = data[n].a[i];
+                        t += 1.0 / samplerate;
+                    }
+                }
+                deleteChannelTable(tmpTable);
+                free((void *)tmpTable);
+            } else {
+                fprintf(stderr, "readFile(): Resource allocation failed\n");
+                err = ALLOCATION_FAILED;
             }
         }
         free(data);
@@ -321,6 +346,9 @@ const char *describeError(int err) {
             break;
         case UNKNOWN_MODEL:
             str = "Unknown GCDC device model";
+            break;
+        case ALLOCATION_FAILED:
+            str = "Resource allocation failed";
             break;
         default:
             str = "Unknown error";

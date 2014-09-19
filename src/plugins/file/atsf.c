@@ -38,7 +38,8 @@ typedef enum {
     FOPEN_FAILED,
     INVALID_FORMAT,
     INVALID_FILE,
-    INVALID_BLOCK_COUNT
+    INVALID_BLOCK_COUNT,
+    ALLOCATION_FAILED
 } Error;
 
 static uint16_t betoh16(uint8_t *buffer) {
@@ -73,7 +74,7 @@ int readFile(const char *filename, const char *chTable) {
     char *device = "unknown";
     struct timespec startTime;
     struct tm time;
-
+    const char *tmpTable;
 
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
@@ -91,7 +92,7 @@ int readFile(const char *filename, const char *chTable) {
             err = INVALID_FORMAT;
         }
     }
-    
+
     if (!err) {
         headerLength = betoh16(&header[5]);
         nChannels = header[7];
@@ -108,6 +109,21 @@ int readFile(const char *filename, const char *chTable) {
         paddingLength = blockLength;
         maxPktLength = 0;
         channel = calloc(nChannels, sizeof(Channel));
+        if (!channel) {
+            fclose(fp);
+            fprintf(stderr, "readFile(): Resource allocation failed\n");
+            err = ALLOCATION_FAILED;
+        } else {
+            tmpTable = newChannelTable(NULL);
+            if (!tmpTable) {
+                fclose(fp);
+                fprintf(stderr, "readFile(): Resource allocation failed\n");
+                err = ALLOCATION_FAILED;
+            }
+        }
+    }
+
+    if (!err) {
         // The nBlocks stored in the file is often 0, in which case the
         // number of blocks has to be calculated from the file size.
         if (nBlocks == 0)
@@ -117,7 +133,9 @@ int readFile(const char *filename, const char *chTable) {
             fprintf(stderr, "readFile(): No data blocks or block count could not be determined\n");
             err = INVALID_BLOCK_COUNT;
         }
-
+    }
+    
+    if (!err) {
         // Read channel descriptions (32 bytes each).
         for (ch = 0; ch < nChannels; ch++) {
             if (!err && fread(header, 1, 32, fp) != 32) {
@@ -130,7 +148,7 @@ int readFile(const char *filename, const char *chTable) {
                 channel[ch].format = header[1];
                 channel[ch].pktlen = betoh16(&header[2]);
                 channel[ch].length = nBlocks * channel[ch].pktlen;
-
+ 
                 switch (channel[ch].type) {
                     case 0x11:
                         // status channel
@@ -143,11 +161,19 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 2;
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
-                        channel[ch].sub[0] = getUniqueName(chTable, "Button event");
-                        channel[ch].sub[1] = getUniqueName(chTable, "Battery voltage");
+                        if (channel[ch].sub) {
+                            channel[ch].sub[0] = getUniqueName(tmpTable, "Button event");
+                            channel[ch].sub[1] = getUniqueName(tmpTable, "Battery voltage");
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
+                        if (channel[ch].dset) {
+                            channel[ch].dset[0] = newUInt8Channel(tmpTable, channel[ch].sub[0], channel[ch].length);
+                            channel[ch].dset[1] = newUInt8Channel(tmpTable, channel[ch].sub[1], channel[ch].length);
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         channel[ch].scale = 0.5;
                         channel[ch].offset = 0.0;
                         channel[ch].unit = "%";
@@ -170,9 +196,17 @@ int readFile(const char *filename, const char *chTable) {
                         }
                         channel[ch].nsubs = 1;
                         channel[ch].sub = calloc(1, sizeof(char *));
-                        channel[ch].sub[0] = getUniqueName(chTable, "ECG");
+                        if (channel[ch].sub) {
+                            channel[ch].sub[0] = getUniqueName(tmpTable, "ECG");
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         channel[ch].dset = calloc(1, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
+                        if (channel[ch].dset) {
+                            channel[ch].dset[0] = newUInt8Channel(tmpTable, channel[ch].sub[0], channel[ch].length);
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         // range: [-2.66 2.66] mV
                         channel[ch].scale = 2 * 2.66 / 256;
                         channel[ch].offset = -2.66;
@@ -195,11 +229,19 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].nsubs = 2;
                         channel[ch].length /= 2;
                         channel[ch].sub = calloc(2, sizeof(char *));
-                        channel[ch].sub[0] = getUniqueName(chTable, "X");
-                        channel[ch].sub[1] = getUniqueName(chTable, "Y");
+                        if (channel[ch].sub) {
+                            channel[ch].sub[0] = getUniqueName(tmpTable, "X");
+                            channel[ch].sub[1] = getUniqueName(tmpTable, "Y");
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         channel[ch].dset = calloc(2, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
+                        if (channel[ch].dset) {
+                            channel[ch].dset[0] = newUInt8Channel(tmpTable, channel[ch].sub[0], channel[ch].length);
+                            channel[ch].dset[1] = newUInt8Channel(tmpTable, channel[ch].sub[1], channel[ch].length);
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         break;
                     case 0x56:
                         // 3-axis accelerometer channel
@@ -215,19 +257,28 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].samplerate = 75.0;
                         device = "Alive HM131";
                         channel[ch].nsubs = 3;
-                        channel[ch].sub = calloc(3, sizeof(char *));
                         channel[ch].length /= 3;
-                        channel[ch].sub[0] = getUniqueName(chTable, "X");
-                        channel[ch].sub[1] = getUniqueName(chTable, "Y");
-                        channel[ch].sub[2] = getUniqueName(chTable, "Z");
+                        channel[ch].sub = calloc(3, sizeof(char *));if (channel[ch].sub) {
+                            channel[ch].sub[0] = getUniqueName(tmpTable, "X");
+                            channel[ch].sub[1] = getUniqueName(tmpTable, "Y");
+                            channel[ch].sub[2] = getUniqueName(tmpTable, "Z");
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         channel[ch].dset = calloc(3, sizeof(uint8_t *));
-                        channel[ch].dset[0] = newUInt8Channel(chTable, channel[ch].sub[0], channel[ch].length);
-                        channel[ch].dset[1] = newUInt8Channel(chTable, channel[ch].sub[1], channel[ch].length);
-                        channel[ch].dset[2] = newUInt8Channel(chTable, channel[ch].sub[2], channel[ch].length);
+                        if (channel[ch].dset) {
+                            channel[ch].dset[0] = newUInt8Channel(tmpTable, channel[ch].sub[0], channel[ch].length);
+                            channel[ch].dset[1] = newUInt8Channel(tmpTable, channel[ch].sub[1], channel[ch].length);
+                            channel[ch].dset[2] = newUInt8Channel(tmpTable, channel[ch].sub[2], channel[ch].length);
+                        } else {
+                            err = ALLOCATION_FAILED;
+                        }
                         break;
                     default:
                         // unknown channel type
                         // TODO: handle nicely
+                        channel[ch].sub = NULL;
+                        channel[ch].dset = NULL;
                         break;
                 }
                 channel[ch].subpktlen = channel[ch].pktlen / channel[ch].nsubs;
@@ -242,6 +293,9 @@ int readFile(const char *filename, const char *chTable) {
             fclose(fp);
             fprintf(stderr, "readFile(): Premature end of file\n");
             err = INVALID_FILE;
+        } else if (err == ALLOCATION_FAILED) {
+            fclose(fp);
+            fprintf(stderr, "readFile(): Resource allocation failed\n");
         }
         if (!err) {
             buffer = malloc(maxPktLength);
@@ -271,19 +325,25 @@ int readFile(const char *filename, const char *chTable) {
                 if (channel[ch].type == 0x11 && sub == 0) {
                     // TODO: add this as events to all channels
                     // Bit 7 (LSB) = Button Event
-                    deleteChannel(chTable, channel[ch].sub[sub]);
-                } else {
-                    setScaleAndOffset(chTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
-                    setUnit(chTable, channel[ch].sub[sub], channel[ch].unit);
-                    setSignalType(chTable, channel[ch].sub[sub], channel[ch].typestr);
-                    setSampleRate(chTable, channel[ch].sub[sub], channel[ch].samplerate);
-                    setDevice(chTable, channel[ch].sub[sub], device, "unknown");
-                    setStartTime(chTable, channel[ch].sub[sub], startTime);
-                    setResolution(chTable, channel[ch].sub[sub], 8);
+                    deleteChannel(tmpTable, channel[ch].sub[sub]);
+                } else if (channel[ch].sub) {
+                    setScaleAndOffset(tmpTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
+                    setUnit(tmpTable, channel[ch].sub[sub], channel[ch].unit);
+                    setSignalType(tmpTable, channel[ch].sub[sub], channel[ch].typestr);
+                    setSampleRate(tmpTable, channel[ch].sub[sub], channel[ch].samplerate);
+                    setDevice(tmpTable, channel[ch].sub[sub], device, "unknown");
+                    setStartTime(tmpTable, channel[ch].sub[sub], startTime);
+                    setResolution(tmpTable, channel[ch].sub[sub], 8);
+                    moveChannel(tmpTable, channel[ch].sub[sub], chTable);
+                    free((void *)channel[ch].sub[sub]);
                 }
             }
+            free(channel[ch].dset);
+            free(channel[ch].sub);
         }
         free(channel);
+        deleteChannelTable(tmpTable);
+        free((void *)tmpTable);
         fclose(fp);
     }
 
@@ -308,6 +368,9 @@ const char *describeError(int err) {
             break;
         case INVALID_BLOCK_COUNT:
             str = "No data blocks or block count could not be determined";
+            break;
+        case ALLOCATION_FAILED:
+            str = "Resource allocation failed";
             break;
         default:
             str = "Unknown error";

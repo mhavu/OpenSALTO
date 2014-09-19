@@ -29,7 +29,8 @@ typedef enum {
     INVALID_FORMAT,
     INVALID_HEADER,
     INVALID_FILE,
-    UNSUPPORTED_COMPRESSION
+    UNSUPPORTED_COMPRESSION,
+    ALLOCATION_FAILED
 } Error;
 
 static const char headerTop[] = "\
@@ -80,8 +81,8 @@ int readFile(const char *filename, const char *chTable) {
     double samplerate, t;
     Error err = SUCCESS;
     struct timespec startTime;
-    time_t *latestStart, *timecodes;
-
+    time_t *latestStart, *timecodes = NULL;
+    const char *tmpTable;
 
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
@@ -135,10 +136,27 @@ int readFile(const char *filename, const char *chTable) {
         nBlocks = fileLength / 512 - 1;
         length = samplesPerBlock * nBlocks;
         for (ch = 0; ch < nChannels; ch++) {
-            channel[ch].name = getUniqueName(chTable, names[ch]);
             channel[ch].buffer = calloc(length, sizeof(uint16_t));
+            if (!channel[ch].buffer) {
+                err = ALLOCATION_FAILED;
+            } else {
+                channel[ch].name = getUniqueName(chTable, names[ch]);
+                if (!channel[ch].name) {
+                    err = ALLOCATION_FAILED;
+                }
+            }
         }
         timecodes = calloc(nBlocks, sizeof(time_t));
+        if (!timecodes) {
+            err = ALLOCATION_FAILED;
+        }
+        tmpTable = newChannelTable(NULL);
+        if (!tmpTable) {
+            err = ALLOCATION_FAILED;
+        }
+    }
+    
+    if (!err) {
         latestStart = timecodes;
         t = 0;
         for (blk = 0; blk < nBlocks; blk++) {
@@ -170,6 +188,15 @@ int readFile(const char *filename, const char *chTable) {
             }
         }
         fclose(fp);
+    } else if (err == ALLOCATION_FAILED) {
+        fclose(fp);
+        fprintf(stderr, "readFile(): Resource allocation failed\n");
+        for (ch = 0; ch < nChannels; ch++) {
+            free(channel[ch].buffer);
+            free((void *)channel[ch].name);
+        }
+        free(timecodes);
+        free((void *)tmpTable);
     }
 
     if (!err) {
@@ -178,16 +205,16 @@ int readFile(const char *filename, const char *chTable) {
         startTime.tv_nsec = 0;
         json[strlen(json) - 1] = '}';
         for (ch = 0; ch < nChannels; ch++) {
-            channel[ch].data = newInt16Channel(chTable, channel[ch].name, length);
+            channel[ch].data = newInt16Channel(tmpTable, channel[ch].name, length);
             // range: [-16 16] * 9.81 m/s^2
-            setScaleAndOffset(chTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
-            setResolution(chTable, channel[ch].name, 13);
-            setUnit(chTable, channel[ch].name, "m/s^2");
-            setSignalType(chTable, channel[ch].name, "acceleration");
-            setSampleRate(chTable, channel[ch].name, samplerate);
-            setDevice(chTable, channel[ch].name, "Hookie AM20", serialno);
-            setStartTime(chTable, channel[ch].name, startTime);
-            setMetadata(chTable, channel[ch].name, json);
+            setScaleAndOffset(tmpTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
+            setResolution(tmpTable, channel[ch].name, 13);
+            setUnit(tmpTable, channel[ch].name, "m/s^2");
+            setSignalType(tmpTable, channel[ch].name, "acceleration");
+            setSampleRate(tmpTable, channel[ch].name, samplerate);
+            setDevice(tmpTable, channel[ch].name, "Hookie AM20", serialno);
+            setStartTime(tmpTable, channel[ch].name, startTime);
+            setMetadata(tmpTable, channel[ch].name, json);
             // Copy data filling in blanks if the device has entered sleep mode.
             latestStart = timecodes;
             t = 0;
@@ -206,9 +233,13 @@ int readFile(const char *filename, const char *chTable) {
                     channel[ch].data[position++] = channel[ch].buffer[samplesPerBlock * blk + i];
                 }
             }
+            moveChannel(tmpTable, channel[ch].name, chTable);
             free(channel[ch].buffer);
+            free((void *)channel[ch].name);
         }
         free(timecodes);
+        deleteChannelTable(tmpTable);
+        free((void *)tmpTable);
     }
 
     return err;
@@ -235,6 +266,9 @@ const char *describeError(int err) {
             break;
         case UNSUPPORTED_COMPRESSION:
             str = "Unsupported data compression";
+            break;
+        case ALLOCATION_FAILED:
+            str = "Resource allocation failed";
             break;
         default:
             str = "Unknown error";
