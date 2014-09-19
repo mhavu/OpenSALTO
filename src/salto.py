@@ -236,9 +236,22 @@ class PluginManager:
         if plugin:
             return plugin.write(filename, format, chTable)
 
-for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager]:
+def setquit():
+    """Define new built-ins 'quit' and 'exit'.
+        These are simply strings that display a hint on how to exit.
+
+        """
+    class Quitter(object):
+        def __repr__(self):
+            return "Close the OpenSALTO application to exit"
+        def __call__(self, code=None):
+            print("Close the OpenSALTO application to exit")
+    __builtins__.exit = Quitter()
+    __builtins__.quit = __builtins__.exit
+
+for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager, setquit]:
     setattr(salto, o.__name__, o)
-del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager]
+del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager, setquit]
 __name__ = moduleName
 del moduleName
 
@@ -250,6 +263,9 @@ def main():
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
     salto.pluginManager.discover("plugins")
+    if hasattr(salto, 'gui'):
+        salto.setquit()
+    del salto.setquit
 
 if __name__ == '__main__':
     main()

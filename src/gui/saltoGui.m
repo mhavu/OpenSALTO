@@ -65,8 +65,7 @@ static PyObject *writeToConsole(PyObject *pyself, PyObject *args) {
 
     if (PyArg_ParseTuple(args, "s:write", &str)) {
         NSString *string = [NSString stringWithUTF8String:str];
-        SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        SaltoConsoleController *consoleController = appDelegate.consoleController;
+        SaltoConsoleController *consoleController = [[NSApp delegate] consoleController];
         // TODO: Use NSParagraphStyle
         dispatch_async(dispatch_get_main_queue(), ^{ [consoleController insertOutput:string]; });
     } else {
@@ -82,8 +81,7 @@ static PyObject *writeLinesToConsole(PyObject *pyself, PyObject *args) {
     NSRange range;
 
     if (PyArg_ParseTuple(args, "O:writelines", &iterable)) {
-        SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        SaltoConsoleController *consoleController = appDelegate.consoleController;
+        SaltoConsoleController *consoleController = [[NSApp delegate] consoleController];
         iterator = PyObject_GetIter(iterable);  // new
         while ((o = PyIter_Next(iterator))) {  // new
             if (PyUnicode_Check(o)) {
@@ -143,8 +141,8 @@ PyObject *saltoGuiAddChannel(PyObject *pyself, PyObject *args) {
     if (PyArg_ParseTuple(args, "O!s:addChannel", &ChannelType, &ch, &name)) {
         SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
         [channel setLabel:[NSString stringWithUTF8String:name]];
-        SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        [appDelegate performSelectorOnMainThread:@selector(addChannel:) withObject:channel waitUntilDone:NO];
+        [[NSApp delegate] performSelectorOnMainThread:@selector(addChannel:)
+                                           withObject:channel waitUntilDone:NO];
     } else {
         PyErr_SetString(PyExc_TypeError, "addChannel() takes a Channel argument");
     }
@@ -158,12 +156,18 @@ PyObject *saltoGuiRemoveChannel(PyObject *pyself, PyObject *args) {
 
     if (PyArg_ParseTuple(args, "O!:removeChannel", &ChannelType, &ch)) {
         SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
-        SaltoGuiDelegate *appDelegate = NSApplication.sharedApplication.delegate;
-        [appDelegate performSelectorOnMainThread:@selector(removeChannel:) withObject:channel waitUntilDone:NO];
+        [[NSApp delegate] performSelectorOnMainThread:@selector(removeChannel:)
+                                           withObject:channel waitUntilDone:NO];
     } else {
         PyErr_SetString(PyExc_TypeError, "removeChannel() takes a Channel argument");
     }
 
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+PyObject *saltoGuiTerminate(PyObject *pyself) {
+    [NSApp terminate:nil];
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -184,6 +188,7 @@ static PyMethodDef saltoGuiMethods[] = {
     {"writelines", writeLinesToConsole, METH_VARARGS, "write an iterable of strings to console"},
     {"addChannel", saltoGuiAddChannel, METH_VARARGS, "called from salto.ChannelTable.add()"},
     {"removeChannel", saltoGuiRemoveChannel, METH_VARARGS, "called from salto.ChannelTable.remove()"},
+    {"quit", (PyCFunction)saltoGuiTerminate, METH_NOARGS, "close OpenSALTO GUI"},
     {0, 0, 0, 0} // sentinel
 };
 
