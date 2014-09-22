@@ -15,7 +15,7 @@ static PyObject *readFromConsole(PyObject *pyself, PyObject *args) {
     Py_ssize_t size;
 
     if (PyArg_ParseTuple(args, "|n:read", &size)) {
-        NSLog(@"read is not implemented yet\n");
+        NSLog(@"read is not implemented yet");
         // TODO: implement
         // Read and return up to size bytes.
         // If the argument is omitted, None, or negative, data is read and returned until EOF is reached.
@@ -31,7 +31,7 @@ static PyObject *readLineFromConsole(PyObject *pyself, PyObject *args) {
     Py_ssize_t size;
 
     if (PyArg_ParseTuple(args, "|n:readline", &size)) {
-        NSLog(@"readline is not implemented yet\n");
+        NSLog(@"readline is not implemented yet");
         // TODO: implement
         // Read and return one line from the stream. If size is specified, at most size bytes will be read.
         // Return when newline is entered.
@@ -48,7 +48,7 @@ static PyObject *readLinesFromConsole(PyObject *pyself, PyObject *args) {
     Py_ssize_t hint;
 
     if (PyArg_ParseTuple(args, "|n:readlines", &hint)) {
-        NSLog(@"readlines is not implemented yet\n");
+        NSLog(@"readlines is not implemented yet");
         // TODO: implement
         // Read and return a list of lines from the stream.
         // A hint can be specified to control the number of lines read:
