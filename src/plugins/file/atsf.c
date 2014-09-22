@@ -66,13 +66,16 @@ int readFile(const char *filename, const char *chTable) {
     uint8_t header[128];
     uint8_t *buffer;
     long long blk, nBlocks;
-    uint16_t i, headerLength, blockLength, paddingLength, maxPktLength;
+    uint16_t headerLength, blockLength, paddingLength, maxPktLength;
     uint8_t ch, nChannels, sub;
+    size_t i, nReadBytes, nEvents = 0;
+    double maxSamplerate;
     int headerIsValid;
     Channel *channel;
+    Event **event;
     Error err = SUCCESS;
     char *device = "unknown";
-    struct timespec startTime;
+    struct timespec startTime, t;
     struct tm time;
     const char *tmpTable;
 
@@ -108,16 +111,17 @@ int readFile(const char *filename, const char *chTable) {
         startTime.tv_nsec = 0;
         paddingLength = blockLength;
         maxPktLength = 0;
+        maxSamplerate = 0.0;
         channel = calloc(nChannels, sizeof(Channel));
         if (!channel) {
             fclose(fp);
-            fprintf(stderr, "readFile(): Resource allocation failed\n");
+            fprintf(stderr, "readFile(): Memory allocation failed\n");
             err = ALLOCATION_FAILED;
         } else {
             tmpTable = newChannelTable(NULL);
             if (!tmpTable) {
                 fclose(fp);
-                fprintf(stderr, "readFile(): Resource allocation failed\n");
+                fprintf(stderr, "readFile(): Channel table allocation failed\n");
                 err = ALLOCATION_FAILED;
             }
         }
@@ -178,7 +182,8 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].offset = 0.0;
                         channel[ch].unit = "%";
                         channel[ch].typestr = "voltage";
-                        channel[ch].samplerate = 0.0; // TODO: set to NAN?
+                        // Samplerate is set later.
+                        channel[ch].samplerate = 0.0;
                         break;
                     case 0xAA:
                         // ECG channel
@@ -258,7 +263,8 @@ int readFile(const char *filename, const char *chTable) {
                         device = "Alive HM131";
                         channel[ch].nsubs = 3;
                         channel[ch].length /= 3;
-                        channel[ch].sub = calloc(3, sizeof(char *));if (channel[ch].sub) {
+                        channel[ch].sub = calloc(3, sizeof(char *));
+                        if (channel[ch].sub) {
                             channel[ch].sub[0] = getUniqueName(chTable, "X");
                             channel[ch].sub[1] = getUniqueName(chTable, "Y");
                             channel[ch].sub[2] = getUniqueName(chTable, "Z");
@@ -283,9 +289,11 @@ int readFile(const char *filename, const char *chTable) {
                 }
                 channel[ch].subpktlen = channel[ch].pktlen / channel[ch].nsubs;
                 paddingLength -= channel[ch].pktlen;
-                if (channel[ch].pktlen > maxPktLength)
+                if (channel[ch].pktlen > maxPktLength) {
                     maxPktLength = channel[ch].pktlen;
-            } 
+                    maxSamplerate = channel[ch].samplerate;
+                }
+            }
         }
 
         // Read data blocks.
@@ -301,13 +309,17 @@ int readFile(const char *filename, const char *chTable) {
             buffer = malloc(maxPktLength);
             for (blk = 0; blk < nBlocks; blk++) {
                 for (ch = 0; ch < nChannels; ch++) {
-                    if (fread(buffer, 1, channel[ch].pktlen, fp) == channel[ch].pktlen)
+                    nReadBytes = fread(buffer, 1, channel[ch].pktlen, fp);
+                    if (nReadBytes == channel[ch].pktlen) {
                         for (i = 0; i < channel[ch].subpktlen; i++) {
                             for (sub = 0; sub < channel[ch].nsubs; sub++) {
                                 // The samples are interleaved.
                                 channel[ch].dset[sub][i] = buffer[channel[ch].nsubs * i + sub];
                             }
                         }
+                    } else {
+                        fprintf(stderr, "readFile(): Read %ld bytes, expected %d\n", nReadBytes, channel[ch].pktlen);
+                    }
                 }
 
                 if (paddingLength > 0 && fseek(fp, paddingLength, SEEK_CUR) != 0) {
@@ -321,12 +333,36 @@ int readFile(const char *filename, const char *chTable) {
 
         // Clean up.
         for (ch = 0; ch < nChannels; ch++) {
+            if (channel[ch].type == 0x11) {
+                channel[ch].samplerate = maxSamplerate * channel[ch].pktlen / maxPktLength;
+                // Convert channel[ch].sub[0] to events.
+                for (i = 0; i < channel[ch].length; i++) {
+                    if (channel[ch].dset[0][i] & 0x00000001)
+                        nEvents++;
+                }
+                event = calloc(nEvents, sizeof(Event *));
+                nEvents = 0;
+                if (event) {
+                    for (i = 0; i < channel[ch].length; i++) {
+                        // Bit 7 (LSB) = Button Event
+                        if (channel[ch].dset[0][i] & 0x00000001) {
+                            t = endTimeFromDuration(startTime.tv_sec, startTime.tv_nsec, i / channel[ch].samplerate);
+                            event[nEvents++] = newEvent(MARKER_EVENT, "Button press", t, t, "Button event");
+                        }
+                    }
+                } else {
+                    fprintf(stderr, "readFile(): Memory allocation failed\n");
+                    err = ALLOCATION_FAILED;
+                }
+                deleteChannel(tmpTable, channel[ch].sub[0]);
+                free((void *)channel[ch].sub[0]);
+                channel[ch].sub[0] = channel[ch].sub[1];
+                channel[ch].nsubs = 1;
+            }
+        }
+        for (ch = 0; ch < nChannels; ch++) {
             for (sub = 0; sub < channel[ch].nsubs; sub++) {
-                if (channel[ch].type == 0x11 && sub == 0) {
-                    // TODO: add this as events to all channels
-                    // Bit 7 (LSB) = Button Event
-                    deleteChannel(tmpTable, channel[ch].sub[sub]);
-                } else if (channel[ch].sub) {
+                if (channel[ch].sub) {
                     setScaleAndOffset(tmpTable, channel[ch].sub[sub], channel[ch].scale, channel[ch].offset);
                     setUnit(tmpTable, channel[ch].sub[sub], channel[ch].unit);
                     setSignalType(tmpTable, channel[ch].sub[sub], channel[ch].typestr);
@@ -334,6 +370,9 @@ int readFile(const char *filename, const char *chTable) {
                     setDevice(tmpTable, channel[ch].sub[sub], device, "unknown");
                     setStartTime(tmpTable, channel[ch].sub[sub], startTime);
                     setResolution(tmpTable, channel[ch].sub[sub], 8);
+                    for (i = 0; i < nEvents; i++) {
+                        addEvent(tmpTable, channel[ch].sub[sub], event[i]);
+                    }
                     moveChannel(tmpTable, channel[ch].sub[sub], chTable);
                     free((void *)channel[ch].sub[sub]);
                 }
@@ -341,6 +380,10 @@ int readFile(const char *filename, const char *chTable) {
             free(channel[ch].dset);
             free(channel[ch].sub);
         }
+        for (i = 0; i < nEvents; i++) {
+            discardEvent(event[i]);
+        }
+        free(event);
         free(channel);
         deleteChannelTable(tmpTable);
         free((void *)tmpTable);

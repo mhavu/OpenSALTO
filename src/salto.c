@@ -77,7 +77,7 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
     typenum = numpyType(size, 1, is_signed);
     if (typenum != NPY_NOTYPE) {
         state = PyGILState_Ensure();
-        ndarray = PyArray_SimpleNew(1, (npy_intp *)&length, typenum);  // new
+        ndarray = PyArray_ZEROS(1, (npy_intp *)&length, typenum, 0);  // new
         if (ndarray) {
             ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType, ndarray, NULL);  // new
             if (ch && addChannel(chTable, name, ch) == 0) {
@@ -104,7 +104,7 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
     typenum = numpyType(size, 0, 1);
     if (typenum != NPY_NOTYPE) {
         state = PyGILState_Ensure();
-        ndarray = PyArray_SimpleNew(1, (npy_intp *)&length, typenum);  // new
+        ndarray = PyArray_ZEROS(1, (npy_intp *)&length, typenum, 0);  // new
         if (ndarray) {
             ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdddsLlssis",
                                                   ndarray, 0.0, nan(NULL), nan(NULL), "",
@@ -668,7 +668,7 @@ Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
-    event = (Event *)PyObject_CallFunction((PyObject *)&EventType, "siLlLls", type, subtype,
+    event = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls", type, subtype,
                                                start.tv_sec, start.tv_nsec, end.tv_sec, end.tv_nsec,
                                                description);  // new
     PyGILState_Release(state);
