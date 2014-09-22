@@ -98,7 +98,9 @@ static int typenum;
     double pixelsPerSecond = (view.frame.size.width - 5.0) / visibleInterval;
     struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.xVisibleRangeStart);
     struct timespec end_t = endTimeFromDuration(channel->start_sec, channel->start_nsec, visibleInterval);
-
+    NSTimeInterval xMin = MAX(-alignment, 0);
+    NSTimeInterval xMax = MIN(channelDuration(channel) - alignment, visibleInterval);
+    
     CGContextSaveGState(context);
     CGContextTranslateCTM(context, 5.0, yScale * -yVisibleRangeMin);
 
@@ -138,12 +140,15 @@ static int typenum;
             CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
             // TODO: Calculate correct x coordinates based on
             // true start time, end time, and number of returned pixels.
-            strokeSegments[0] = CGPointMake(6, buffer[0] * yScale);
+            CGFloat x = 6 + xMin * pixelsPerSecond;
+            CGFloat xStep = (xMax - xMin) * pixelsPerSecond / (count - 1);
+            strokeSegments[0] = CGPointMake(x, buffer[0] * yScale);
             for (NSUInteger i = 1; i < count - 1; i++) {
-                strokeSegments[2 * i - 1] = CGPointMake(6 + i, buffer[i] * yScale);
-                strokeSegments[2 * i] = CGPointMake(6 + i, buffer[i] * yScale);
+                x += xStep;
+                strokeSegments[2 * i - 1] = CGPointMake(x, buffer[i] * yScale);
+                strokeSegments[2 * i] = CGPointMake(x, buffer[i] * yScale);
             }
-            strokeSegments[2 * count - 3] = CGPointMake(6 + count - 1, buffer[count - 1] * yScale);
+            strokeSegments[2 * count - 3] = CGPointMake(x + xStep, buffer[count - 1] * yScale);
         } else {
             NSLog(@"calloc failed in %s\n", __func__);
         }
