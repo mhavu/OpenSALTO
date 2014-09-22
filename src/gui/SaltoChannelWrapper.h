@@ -15,6 +15,8 @@
 
 @property (readonly) Channel *channel;
 @property (unsafe_unretained) SaltoChannelView *view;
+@property (assign) CGPoint *strokeSegments;
+@property (assign) size_t strokeCount;
 @property (retain) NSString *label;
 @property (retain) NSString *signalType;
 @property (retain) NSString *samplerate;
@@ -26,5 +28,6 @@
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
 - (void)drawInContext:(CGContextRef)context;
+- (void)drawScaleInContext:(CGContextRef)context;
 
 @end

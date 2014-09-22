@@ -17,6 +17,8 @@ static int typenum;
 
 @synthesize channel;
 @synthesize view;
+@synthesize strokeSegments;
+@synthesize strokeCount;
 @synthesize label;
 @synthesize signalType;
 @synthesize samplerate;
@@ -35,7 +37,7 @@ static int typenum;
                 typenum = NPY_FLOAT32;
                 break;
             default:
-                NSLog(@"Fatal error: size of CGFloat (%li bytes) is not 4 or 8 bytes.\n", sizeof(CGFloat));
+                NSLog(@"Fatal error: size of CGFloat (%li bytes) is not 4 or 8 bytes.", sizeof(CGFloat));
                 [NSApp terminate:self];
         }
     }
@@ -84,6 +86,7 @@ static int typenum;
     [label release];
     [signalType release];
     [samplerate release];
+    free(strokeSegments);
     PyGILState_STATE state = PyGILState_Ensure();
 	Py_XDECREF(channel);
 	PyGILState_Release(state);
@@ -101,23 +104,10 @@ static int typenum;
     NSTimeInterval xMin = MAX(-alignment, 0);
     NSTimeInterval xMax = MIN(channelDuration(channel) - alignment, visibleInterval);
     
+    [self drawScaleInContext:context];
+    
     CGContextSaveGState(context);
     CGContextTranslateCTM(context, 5.0, yScale * -yVisibleRangeMin);
-
-    // Draw the Y coordinate axis.
-    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.1, 1.0);
-    CGContextSetLineWidth(context, 1.0);
-    CGContextSetLineCap(context, kCGLineCapSquare);
-    CGContextBeginPath(context);
-    CGContextMoveToPoint(context, 5.0, yVisibleRangeMin * yScale);
-    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
-    CGContextMoveToPoint(context, 3.0, 0.0);
-    CGContextAddLineToPoint(context, 5.0, 0.0);
-    CGContextMoveToPoint(context, 3.0, yVisibleRangeMin * yScale);
-    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMin * yScale);
-    CGContextMoveToPoint(context, 3.0, yVisibleRangeMax * yScale);
-    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
-    CGContextDrawPath(context, kCGPathStroke);
 
     // Use blue stroke with width of 1.0, round caps, and miter joints.
     CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.7, 1.0);
@@ -125,38 +115,66 @@ static int typenum;
     CGContextSetLineCap(context, kCGLineCapRound);
     CGContextSetLineJoin(context, kCGLineJoinMiter);
 
-    PyGILState_STATE state = PyGILState_Ensure();
-    PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
-                                                               "dLlLlis", pixelsPerSecond,
-                                                               start_t.tv_sec, start_t.tv_nsec,
-                                                               end_t.tv_sec, end_t.tv_nsec,
-                                                               typenum, "VRA");
-    // TODO: If necessary, optimize.
-    // One in every three drawing calls is unnecessary when using VRA.
-    if (data) {
-        size_t count = PyArray_DIM(data, 0);
-        CGPoint *strokeSegments = calloc(2 * count - 2, sizeof(CGPoint));
-        if (strokeSegments) {
-            CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
-            // TODO: Calculate correct x coordinates based on
-            // true start time, end time, and number of returned pixels.
-            CGFloat x = 6 + xMin * pixelsPerSecond;
-            CGFloat xStep = (xMax - xMin) * pixelsPerSecond / (count - 1);
-            strokeSegments[0] = CGPointMake(x, buffer[0] * yScale);
-            for (NSUInteger i = 1; i < count - 1; i++) {
-                x += xStep;
-                strokeSegments[2 * i - 1] = CGPointMake(x, buffer[i] * yScale);
-                strokeSegments[2 * i] = CGPointMake(x, buffer[i] * yScale);
+    if (!strokeSegments) {
+        PyGILState_STATE state = PyGILState_Ensure();
+        size_t length = 0;
+        channelData(channel, &length);
+        PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "resampledData",
+                                                                   "dLlLlis", pixelsPerSecond,
+                                                                   start_t.tv_sec, start_t.tv_nsec,
+                                                                   end_t.tv_sec, end_t.tv_nsec,
+                                                                   typenum, "VRA");
+        // TODO: If necessary, optimize.
+        // One in every three drawing calls is unnecessary when using VRA.
+        if (data) {
+            strokeCount  = PyArray_DIM(data, 0);
+            strokeSegments = calloc(2 * strokeCount - 2, sizeof(CGPoint));
+            if (strokeSegments) {
+                CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
+                // TODO: Calculate correct x coordinates based on
+                // true start time, end time, and number of returned pixels.
+                CGFloat x = 6 + xMin * pixelsPerSecond;
+                CGFloat xStep = (xMax - xMin) * pixelsPerSecond / (strokeCount - 1);
+                strokeSegments[0] = CGPointMake(x, buffer[0] * yScale);
+                for (NSUInteger i = 1; i < strokeCount - 1; i++) {
+                    x += xStep;
+                    strokeSegments[2 * i - 1] = CGPointMake(x, buffer[i] * yScale);
+                    strokeSegments[2 * i] = CGPointMake(x, buffer[i] * yScale);
+                }
+                strokeSegments[2 * strokeCount - 3] = CGPointMake(x + xStep, buffer[strokeCount - 1] * yScale);
+            } else {
+                NSLog(@"calloc failed in %s", __func__);
             }
-            strokeSegments[2 * count - 3] = CGPointMake(x + xStep, buffer[count - 1] * yScale);
-        } else {
-            NSLog(@"calloc failed in %s\n", __func__);
         }
-        CGContextStrokeLineSegments(context, strokeSegments, count);
-        free(strokeSegments);
+        PyGILState_Release(state);
     }
-    PyGILState_Release(state);
+    CGContextStrokeLineSegments(context, strokeSegments, 2 * strokeCount - 2);
 
+    CGContextRestoreGState(context);
+}
+
+- (void)drawScaleInContext:(CGContextRef)context {
+    double yScale = view.frame.size.height / (yVisibleRangeMax - yVisibleRangeMin);
+    CGContextSaveGState(context);
+    CGContextTranslateCTM(context, 5.0, yScale * -yVisibleRangeMin);
+    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.1, 1.0);
+    CGContextSetLineCap(context, kCGLineCapSquare);
+    // Draw y coordinate axis.
+    CGContextSetLineWidth(context, 1.0);
+    CGContextBeginPath(context);
+    CGContextMoveToPoint(context, 5.0, yVisibleRangeMin * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
+    CGContextMoveToPoint(context, 3.0, yVisibleRangeMin * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMin * yScale);
+    CGContextMoveToPoint(context, 3.0, yVisibleRangeMax * yScale);
+    CGContextAddLineToPoint(context, 5.0, yVisibleRangeMax * yScale);
+    CGContextDrawPath(context, kCGPathStroke);
+    // Draw x coordinate axis.
+    CGContextSetLineWidth(context, 0.1);
+    CGContextBeginPath(context);
+    CGContextMoveToPoint(context, 3.0, 0.0);
+    CGContextAddLineToPoint(context, view.frame.size.width, 0.0);
+    CGContextDrawPath(context, kCGPathStroke);
     CGContextRestoreGState(context);
 }
 
