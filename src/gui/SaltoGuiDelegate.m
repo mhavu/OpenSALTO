@@ -97,7 +97,7 @@
     [panel beginSheetModalForWindow:[NSApp mainWindow] completionHandler:^(NSInteger result) {
         if (result == NSFileHandlingPanelOKButton) {
             for (NSURL *file in [panel URLs]) {
-                NSString *command = [NSString stringWithFormat:@"salto.pluginManager.read(\"%@\", 'main')", file.path];
+                NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", file.path];
                 [consoleController insertInput:command];
                 [consoleController.console execute:command];
             }

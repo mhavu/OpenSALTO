@@ -253,7 +253,7 @@ class PluginManager:
             else:
                 raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._importFormats[format]
-        return plugin.read(filename, format, chTable)
+        plugin.read(filename, format, chTable)
     def write(self, filename, format, chTable = None):
         if chTable is None:
             format, chTable = None, format
@@ -265,7 +265,10 @@ class PluginManager:
             else:
                 raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._exportFormats[format]
-        return plugin.write(filename, format, chTable)
+        plugin.write(filename, format, chTable)
+
+def open(filename, format = None):
+    salto.pluginManager.read(filename, format, 'main')
 
 def setquit():
     """Define new built-ins 'quit' and 'exit'.
@@ -280,9 +283,9 @@ def setquit():
     __builtins__.exit = Quitter()
     __builtins__.quit = __builtins__.exit
 
-for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager, setquit]:
+for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager, open, setquit]:
     setattr(salto, o.__name__, o)
-del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager, setquit]
+del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager, open, setquit]
 __name__ = moduleName
 del moduleName
 
