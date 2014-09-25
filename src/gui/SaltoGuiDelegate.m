@@ -89,6 +89,22 @@
     }
 }
 
+- (IBAction)openDocument:(id)sender {
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    // TODO: [panel setCanChooseDirectories:YES];
+    // TODO: [panel setAllowedFileTypes:(NSArray *)types];
+    [panel setDelegate:(id)self];
+    [panel beginSheetModalForWindow:[NSApp mainWindow] completionHandler:^(NSInteger result) {
+        if (result == NSFileHandlingPanelOKButton) {
+            for (NSURL *file in [panel URLs]) {
+                NSString *command = [NSString stringWithFormat:@"salto.pluginManager.read(\"%@\", 'main')", file.path];
+                [consoleController insertInput:command];
+                [consoleController.console execute:command];
+            }
+        }
+    }];
+}
+
 - (void)addChannel:(SaltoChannelWrapper *)channel {
     // TODO: Set the NSDate objects.
     // TODO: Set SaltoChannelView heights.

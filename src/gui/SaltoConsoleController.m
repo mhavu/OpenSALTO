@@ -78,12 +78,32 @@
     return result;
 }
 
+- (void)insertInput:(NSString *)string {
+    NSRange range = NSMakeRange(insertionPoint, 0);
+    [textView selectedRange];
+    [textView setSelectedRange:range];
+    [textView.textStorage replaceCharactersInRange:range withString:string];
+    [textView insertNewlineIgnoringFieldEditor:self];
+    insertionPoint += string.length + 1;
+    [console appendInput:string];
+    [textView scrollRangeToVisible:NSMakeRange(insertionPoint, 0)];
+    [textView setSelectedRange:NSMakeRange(textView.string.length, 0)];
+}
+
 - (void)insertOutput:(NSString *)string {
     NSRange range = NSMakeRange(insertionPoint, 0);
     [textView.textStorage replaceCharactersInRange:range withString:string];
     insertionPoint += string.length;
     [console appendOutput:string];
     [textView scrollRangeToVisible:NSMakeRange(insertionPoint, 0)];
+}
+
+@end
+
+@implementation SaltoConsoleWindow
+
+- (BOOL)canBecomeMainWindow {
+    return NO;
 }
 
 @end

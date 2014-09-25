@@ -42,7 +42,7 @@
 				<string key="NSWindowRect">{{196, 240}, {374, 351}}</string>
 				<int key="NSWTFlags">1618478080</int>
 				<string key="NSWindowTitle">Console</string>
-				<string key="NSWindowClass">NSWindow</string>
+				<string key="NSWindowClass">SaltoConsoleWindow</string>
 				<nil key="NSViewClass"/>
 				<nil key="NSUserInterfaceItemIdentifier"/>
 				<object class="NSView" key="NSWindowView" id="1006">
@@ -468,6 +468,14 @@
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">./Classes/SaltoConsoleController.h</string>
+					</object>
+				</object>
+				<object class="IBPartialClassDescription">
+					<string key="className">SaltoConsoleWindow</string>
+					<string key="superclassName">NSWindow</string>
+					<object class="IBClassDescriptionSource" key="sourceIdentifier">
+						<string key="majorKey">IBProjectSource</string>
+						<string key="minorKey">./Classes/SaltoConsoleWindow.h</string>
 					</object>
 				</object>
 			</array>

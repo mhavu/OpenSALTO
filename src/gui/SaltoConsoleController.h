@@ -15,6 +15,11 @@
 @property (retain) SaltoConsole *console;
 @property (assign) NSUInteger insertionPoint;
 
+- (void)insertInput:(NSString *)string;
 - (void)insertOutput:(NSString *)string;
+
+@end
+
+@interface SaltoConsoleWindow : NSWindow
 
 @end

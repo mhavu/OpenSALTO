@@ -14,12 +14,12 @@ pm = salto.pluginManager
 rf = pm.importFormats
 wf = pm.exportFormats
 comp = pm.computations
-alive = pm.query(ext=".ats")[0]
-gcdc = pm.query(ext=".csv")[0]
-hookie = pm.query(ext=".dat")[0]
+alive = pm.query(ext=".ats").pop()
+gcdc = 'Gulf Coast Data Concepts'
+hookie = 'Hookie AM20 Activity Meter'
 test = 'Plugin test'
-pm.read("TINY.ATS", alive, 'main')
-pm.read("HUGE.ATS", alive, 'main')
+pm.read("TINY.ATS", 'main')
+pm.read("HUGE.ATS", 'main')
 pm.read("GCDC.CSV", gcdc, 'main')
 pm.read("/Volumes/homes3/mhavu/My Documents/Testidata/DATA0001.DAT", hookie, 'main')
 pm.read("/Volumes/homes3/mhavu/My Documents/Testidata/koeM1.h5", 'GViewer', 'main')

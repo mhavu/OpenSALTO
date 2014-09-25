@@ -44,7 +44,8 @@ class ChannelTable:
     def channels(self):
         return self._channels
     def add(self, name, ch):
-        assert isinstance(ch, salto.Channel), "%r is not a Channel object" % ch
+        if not isinstance(ch, salto.Channel):
+            raise TypeError("%r is not a Channel object" % ch)
         inTable = self._channels.setdefault(name, ch)
         if self.showsInGui and inTable is ch:
             salto.gui.addChannel(ch, name)
@@ -146,8 +147,7 @@ class Plugin:
         chTable = inputs.get('channelTable')
         nChannels = len(salto.channelTables[chTable].channels) if chTable else 0
         if nChannels < minChannels or nChannels > maxChannels:
-            raise TypeError("Number of input channels must be between " +
-                            str(minChannels) + " and " + str(maxChannels))
+            raise TypeError("Number of input channels must be between %i and %i" % (minChannels, maxChannels))
         if self._cdll:
             inputs = {k: v.encode('utf-8') if isinstance(v, str) else v for k, v in inputs.items()}
             values = tuple([salto.Plugin.convertInputPtr(inputs.get(i[0], i[3]), i[1]) for i in inputSpec])
@@ -218,23 +218,54 @@ class PluginManager:
             for key, value in self._computations.items()
             if value is not plugin}
     def query(self, **kwargs):
+        result = set()
         ext = kwargs.get('ext')
+        if not isinstance(ext, str):
+            raise TypeError("Invalid extension %r" % ext)
         if ext:
-            return [format for format, plugin in self._importFormats.items()
-                           if ext.lower() in map(str.lower, plugin.formats[format]['exts'])]
+            mode = kwargs.get('mode')
+            if mode is None:
+                mode = 'rw'
+            if not isinstance(mode, str):
+                raise TypeError("Invalid mode %r" % mode)
+            if mode.lower() not in ('r', 'w', 'rw', 'wr'):
+                raise ValueError("Mode %r not 'r', 'w', or 'rw'" % mode)
+            if mode.lower() in ('r', 'rw', 'wr'):
+                result = {format for format, plugin in self._importFormats.items()
+                          if ext.lower() in map(str.lower, plugin.formats[format]['exts'])}
+            if mode.lower() in ('w', 'rw', 'wr'):
+                result.union({format for format, plugin in self._exportFormats.items()
+                              if ext.lower() in map(str.lower, plugin.formats[format]['exts'])})
+        return result
     # convenience functions for calling plugins
     def compute(self, compname, inputs):
         plugin = self._computations.get(compname)
         if plugin:
             return plugin.compute(compname, inputs)
-    def read(self, filename, format, chTable):
-        plugin = self._importFormats.get(format)
-        if plugin:
-            return plugin.read(filename, format, chTable)
-    def write(self, filename, format, chTable):
-        plugin = self._exportFormats.get(format)
-        if plugin:
-            return plugin.write(filename, format, chTable)
+    def read(self, filename, format, chTable = None):
+        if chTable is None:
+            format, chTable = None, format
+        if format is None:
+            _, ext = os.path.splitext(filename)
+            formatsWithExt = self.query(ext = ext, mode = 'r')
+            if len(formatsWithExt) == 1:
+                format = formatsWithExt.pop()
+            else:
+                raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
+        plugin = self._importFormats[format]
+        return plugin.read(filename, format, chTable)
+    def write(self, filename, format, chTable = None):
+        if chTable is None:
+            format, chTable = None, format
+        if format is None:
+            _, ext = os.path.splitext(filename)
+            formatsWithExt = self.query(ext = ext, mode = 'w')
+            if len(formatsWithExt) == 1:
+                format = formatsWithExt.pop()
+            else:
+                raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
+        plugin = self._exportFormats[format]
+        return plugin.write(filename, format, chTable)
 
 def setquit():
     """Define new built-ins 'quit' and 'exit'.
