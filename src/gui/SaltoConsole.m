@@ -41,10 +41,6 @@
     return [NSArray arrayWithArray:outputArray];
 }
 
-- (void)appendInput:(NSString *)string {
-    [inputArray addObject:string];
-}
-
 - (void)appendOutput:(NSString *)string {
     NSMutableString *currentOutput = [outputArray objectAtIndex:outputArray.count - 1];
     [currentOutput appendString:string];

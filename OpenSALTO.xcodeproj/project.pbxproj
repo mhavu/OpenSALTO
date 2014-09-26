@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		272E1E2E19D4B63500BB6464 /* zoom.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 272E1E2D19D4B63500BB6464 /* zoom.pdf */; };
 		276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
 		276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1719AC83A8005B3024 /* InfoPlist.strings */; };
 		276C5D1B19AC83A8005B3024 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D1A19AC83A8005B3024 /* main.m */; };
@@ -145,6 +146,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		272E1E2D19D4B63500BB6464 /* zoom.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = zoom.pdf; sourceTree = "<group>"; };
 		276C5D02199DFF4A005B3024 /* Channel.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Channel.c; sourceTree = "<group>"; };
 		276C5D04199DFF5A005B3024 /* Channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Channel.h; sourceTree = "<group>"; };
 		276C5D05199E15A2005B3024 /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
@@ -298,6 +300,7 @@
 				276C5D1A19AC83A8005B3024 /* main.m */,
 				276C5D1C19AC83A8005B3024 /* gui-Prefix.pch */,
 				276C5D1D19AC83A8005B3024 /* Credits.rtf */,
+				272E1E2D19D4B63500BB6464 /* zoom.pdf */,
 			);
 			name = "Supporting Files";
 			sourceTree = "<group>";
@@ -641,6 +644,7 @@
 				276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */,
 				276C5D2519AC83A9005B3024 /* SaltoMainWindow.xib in Resources */,
 				276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */,
+				272E1E2E19D4B63500BB6464 /* zoom.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -15,7 +15,6 @@
 @property (readonly, getter = isExecuting) BOOL executing;
 
 - (void)execute:(NSString *)string;
-- (void)appendInput:(NSString *)string;
 - (void)appendOutput:(NSString *)string;
 
 @end

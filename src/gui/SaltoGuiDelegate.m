@@ -100,9 +100,18 @@
                 NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", file.path];
                 [consoleController insertInput:command];
                 [consoleController.console execute:command];
+                // TODO: [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file];
             }
         }
     }];
+}
+
+- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename {
+    NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", filename];
+    [consoleController insertInput:command];
+    [consoleController.console execute:command];
+
+    return YES;  // TODO: Return no, if there is an error.
 }
 
 - (void)addChannel:(SaltoChannelWrapper *)channel {

@@ -85,7 +85,7 @@
     [textView.textStorage replaceCharactersInRange:range withString:string];
     [textView insertNewlineIgnoringFieldEditor:self];
     insertionPoint += string.length + 1;
-    [console appendInput:string];
+    [console.inputArray addObject:string];
     [textView scrollRangeToVisible:NSMakeRange(insertionPoint, 0)];
     [textView setSelectedRange:NSMakeRange(textView.string.length, 0)];
 }
