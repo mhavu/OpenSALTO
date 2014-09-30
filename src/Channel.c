@@ -209,13 +209,13 @@ static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
 }
 
 static PyObject *Channel_start(Channel *self) {
-    PyObject *timespec = Py_BuildValue("(Ll)", self->start_sec, self->start_nsec);
+    PyObject *timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);
     return datetimeFromTimespec((PyObject *)self, timespec);
 }
 
 static PyObject *Channel_end(Channel *self) {
     struct timespec t = channelEndTime(self);
-    PyObject *timespec = Py_BuildValue("(Ll)", t.tv_sec, t.tv_nsec);
+    PyObject *timespec = Py_BuildValue("Ll", t.tv_sec, t.tv_nsec);
     return datetimeFromTimespec((PyObject *)self, timespec);
 }
 
@@ -259,14 +259,124 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
     return result;
 }
 
+static PyObject *Channel_validateTimes(Channel *self, PyObject *args) {
+    // Check validity of the start and end times.
+    long long start_sec, end_sec, tmpvar;
+    long start_nsec, end_nsec;
+    struct timespec end_t;
+    int dir = 1;
+    PyObject *validatedTimes = NULL;
+
+    if (PyArg_ParseTuple(args, "LlLl", &start_sec, &start_nsec, &end_sec, &end_nsec)) {
+        if (end_sec < start_sec || (end_sec == start_sec && end_nsec < start_nsec)) {
+            // End time is before start time.
+            tmpvar = start_sec;
+            start_sec = end_sec;
+            end_sec = tmpvar;
+            tmpvar = start_nsec;
+            start_nsec = end_nsec;
+            end_nsec = tmpvar;
+            dir = -1;
+        }
+        end_t = channelEndTime(self);
+        if (end_sec < self->start_sec ||
+            (end_sec == self->start_sec && end_nsec < self->start_nsec) ||
+            start_sec > end_t.tv_sec ||
+            (start_sec == end_t.tv_sec && start_nsec > end_t.tv_nsec)) {
+            // Times are out of range.
+            validatedTimes = Py_None;
+            Py_INCREF(Py_None);
+        } else {
+            if (start_sec < self->start_sec) {
+                start_sec = self->start_sec;
+                start_nsec = self->start_nsec;
+            } else if (start_sec == self->start_sec && start_nsec < self->start_nsec) {
+                start_nsec = self->start_nsec;
+            }
+            if (end_sec > end_t.tv_sec) {
+                end_sec = end_t.tv_sec;
+                end_nsec = end_t.tv_nsec;
+            } else if (end_sec == end_t.tv_sec && end_nsec > end_t.tv_nsec) {
+                end_nsec = end_t.tv_nsec;
+            }
+        }
+    }
+
+    if (!validatedTimes)
+        validatedTimes = Py_BuildValue("LlLli", start_sec, start_nsec, end_sec, end_nsec, dir);
+
+    return validatedTimes;
+}
+
+static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds) {
+    PyObject *events, *times, *iterator = NULL;
+    Event *e, *eCopy;
+    long long start_sec, end_sec, eStart_sec, eEnd_sec;
+    long start_nsec, end_nsec, eStart_nsec, eEnd_nsec;
+    int dir;
+    static char *kwlist[] = {"start_sec", "start_nsec", "end_sec", "end_nsec", NULL};
+
+    start_sec = 0;
+    start_nsec = 0;
+    end_sec = 0;
+    end_nsec = 0;
+    events = PySet_New(NULL);  // new
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "|LlLl:getEvents", kwlist,
+                                    &start_sec, &start_nsec, &end_sec, &end_nsec)) {
+        times = PyObject_CallMethod((PyObject *)self, "validateTimes", "LlLl",
+                                    start_sec, start_nsec, end_sec, end_nsec);  // new
+        if (times) {
+            if (times != Py_None) {
+                PyArg_ParseTuple(times, "LlLl", &start_sec, &start_nsec, &end_sec, &end_nsec, &dir);
+                iterator = PyObject_GetIter((PyObject *)self->events);  // new
+            }
+            Py_DECREF(times);
+        }
+
+        if (iterator) {
+            while ((e = (Event *)PyIter_Next(iterator))) {
+                if (e->end_sec >= start_sec && e->start_sec <= end_sec) {
+                    eStart_sec = e->start_sec;
+                    eStart_nsec = e->start_nsec;
+                    eEnd_sec = e->end_sec;
+                    eEnd_nsec = e->end_nsec;
+                    if (eStart_sec < start_sec) {
+                        eStart_sec = start_sec;
+                        eStart_nsec = start_nsec;
+                    } else if (eStart_sec == start_sec && eStart_nsec < start_nsec){
+                        eStart_nsec = start_nsec;
+                    }
+                    if (eEnd_sec > end_sec) {
+                        eEnd_sec = end_sec;
+                        eEnd_nsec = end_nsec;
+                    } else if (eEnd_sec == end_sec && eEnd_nsec < end_nsec){
+                        eEnd_nsec = end_nsec;
+                    }
+                    eCopy = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls", e->type,
+                                                           e->subtype, eStart_sec, eStart_nsec,
+                                                           eEnd_sec, eEnd_nsec, e->description);  // new
+                    if (eCopy) {
+                        PySet_Add(events, (PyObject *)eCopy);
+                        Py_DECREF(eCopy);
+                    }
+                }
+                Py_DECREF(e);
+            }
+            Py_DECREF(iterator);
+        }
+    }
+
+    return (PyObject *)events;
+}
+
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *part;
     PyArrayObject *newArray = NULL, *tmpArray = NULL;
-    PyObject *numpy, *linspace, *slice, *start, *end, *step;
+    PyObject *numpy, *linspace, *slice, *start, *end, *step, *times;
     double samplerate, *sliceData;
-    long long start_sec, end_sec, tmpvar, k;
+    long long start_sec, end_sec, k;
     long start_nsec, end_nsec;
-    int oldTypenum, newTypenum;
+    int oldTypenum, newTypenum, err = 0;
     struct timespec end_t;
     Py_ssize_t start_idx, end_idx, nParts, i;
     npy_intp size, dims[1], *index = NULL;
@@ -287,31 +397,21 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
     newTypenum = oldTypenum;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "d|LlLlis", kwlist, &samplerate,
                                     &start_sec, &start_nsec, &end_sec, &end_nsec, &newTypenum, &method)) {
-        // Check validity of the start and end times.
-        if (start_sec < self->start_sec) {
-            start_sec = self->start_sec;
-            start_nsec = self->start_nsec;
-        } else if (start_sec == self->start_sec && start_nsec < self->start_nsec) {
-            start_nsec = self->start_nsec;
-        }
-        if (end_sec > end_t.tv_sec) {
-            end_sec = end_t.tv_sec;
-            end_nsec = end_t.tv_nsec;
-        } else if (end_sec == end_t.tv_sec && end_nsec > end_t.tv_nsec) {
-            end_nsec = end_t.tv_nsec;
-        }
-        if (end_sec < start_sec || (end_sec == start_sec && end_nsec < start_nsec)) {
-            tmpvar = start_sec;
-            start_sec = end_sec;
-            end_sec = tmpvar;
-            tmpvar = start_nsec;
-            start_nsec = end_nsec;
-            end_nsec = tmpvar;
-            step = PyLong_FromSsize_t(-1);  // new
+        times = PyObject_CallMethod((PyObject *)self, "validateTimes", "LlLl",
+                                    start_sec, start_nsec, end_sec, end_nsec);  // new
+        if (times) {
+            if (times != Py_None) {
+                PyArg_ParseTuple(times, "LlLlO", &start_sec, &start_nsec, &end_sec, &end_nsec, &step);
+            } else {
+                method = "empty";
+            }
+            Py_DECREF(times);
         } else {
-            step = PyLong_FromSsize_t(1);  // new
+            err = 1;
         }
-        
+    }
+
+    if (!err) {
         // Get references to necessary NumPy functions.
         numpy = PyImport_AddModule("numpy");  // borrowed
         linspace = PyObject_GetAttrString(numpy, "linspace");  // new
@@ -416,6 +516,9 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                     Py_DECREF(end);
                     tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
                 }
+            } else if (strcmp(method, "empty") == 0)  {
+                dims[0] = 0;
+                tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, newTypenum);
             } else {
                 PyErr_SetString(PyExc_AttributeError, "unknown resampling method");
             }
@@ -465,12 +568,12 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
 
 static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *newChannel = NULL;
-    PyObject *array, *tmpArray, *events, *iterator, *resampleArgs;
+    PyObject *tmpArray, *events, *iterator, *resampleArgs, *times, *array = NULL;
     Event *e, *eCopy;
     double samplerate, scale, offset, *data, max, min;
     long long start_sec, end_sec, eStart_sec, eEnd_sec;
     long start_nsec, end_nsec, eStart_nsec, eEnd_nsec;
-    int oldTypenum, newTypenum, tmpTypenum, resolution, copyEvents;
+    int oldTypenum, newTypenum, tmpTypenum, resolution, copyEvents, dir;
     PyArray_Descr *typeDescr;
     npy_intp size, i;
     struct timespec end_t;
@@ -491,19 +594,6 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
     newTypenum = oldTypenum;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "d|LlLlisi:resample", kwlist, &samplerate,
                                     &start_sec, &start_nsec, &end_sec, &end_nsec, &newTypenum, &method, &copyEvents)) {
-        // Check validity of the start and end times.
-        if (start_sec < self->start_sec) {
-            start_sec = self->start_sec;
-            start_nsec = self->start_nsec;
-        } else if (start_sec == self->start_sec && start_nsec < self->start_nsec) {
-            start_nsec = self->start_nsec;
-        }
-        if (end_sec > end_t.tv_sec) {
-            end_sec = end_t.tv_sec;
-            end_nsec = end_t.tv_nsec;
-        } else if (end_sec == end_t.tv_sec && end_nsec > end_t.tv_nsec) {
-            end_nsec = end_t.tv_nsec;
-        }
         // Check that the new channel type is compatible with the old type.
         if (PyArray_CanCastSafely(oldTypenum, newTypenum)) {
             tmpTypenum = newTypenum;
@@ -511,10 +601,19 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
             // Types are not compatible. Resample to double, and convert to new type later.
             tmpTypenum = NPY_DOUBLE;
         }
-        // Resample and create a new Channel object.
-        resampleArgs = Py_BuildValue("(dLlLlis)", samplerate, start_sec, start_nsec,
-                                     end_sec, end_nsec, tmpTypenum, method);  // new
-        array = Channel_resampledData(self, resampleArgs, NULL);  // new
+        // Check validity of the start and end times.
+        times = PyObject_CallMethod((PyObject *)self, "validateTimes", "LlLl",
+                                    start_sec, start_nsec, end_sec, end_nsec);  // new
+        if (times) {
+            if (times != Py_None) {
+                PyArg_ParseTuple(times, "LlLli", &start_sec, &start_nsec, &end_sec, &end_nsec, &dir);
+                // Resample and create a new Channel object.
+                resampleArgs = Py_BuildValue("dLlLlis", samplerate, start_sec, start_nsec,
+                                             end_sec, end_nsec, tmpTypenum, method);  // new
+                array = Channel_resampledData(self, resampleArgs, NULL);  // new
+            }
+            Py_DECREF(times);
+        }
         if (array) {
             if (tmpTypenum != newTypenum) {
                 typeDescr = PyArray_DescrFromType(newTypenum);
@@ -603,9 +702,11 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
                     Py_DECREF(iterator);
                 }
             }
-            PyObject_CallFunction((PyObject *)&ChannelType, "OOdddssLlssisO", array, Py_None,
-                                  samplerate, scale, offset, self->unit, self->type, start_sec, start_nsec,
-                                  self->device, self->serial_no, resolution, self->json, events);  // new
+            newChannel = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OOdddssLlssisO",
+                                                          array, Py_None, samplerate, scale, offset,
+                                                          self->unit, self->type, start_sec, start_nsec,
+                                                          self->device, self->serial_no, resolution,
+                                                          self->json, events);  // new
             Py_DECREF(array);
         }
     }
@@ -618,6 +719,8 @@ static PyMethodDef Channel_methods[] = {
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
     {"matches", (PyCFunction)Channel_matches, METH_VARARGS, "check whether channel type and time match those of another channel"},
+    {"validateTimes", (PyCFunction)Channel_validateTimes, METH_VARARGS, "validate start and end times"},
+    {"getEvents", (PyCFunction)Channel_getEvents, METH_VARARGS | METH_KEYWORDS, "get channel events"},
     {"resample", (PyCFunction)Channel_resample, METH_VARARGS | METH_KEYWORDS, "resample channel"},
     {"resampledData", (PyCFunction)Channel_resampledData, METH_VARARGS | METH_KEYWORDS, "resampled channel data as a NumPy array"},
     {NULL}  // sentinel
