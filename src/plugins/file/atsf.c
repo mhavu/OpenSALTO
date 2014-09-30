@@ -291,7 +291,7 @@ int readFile(const char *filename, const char *chTable) {
                 paddingLength -= channel[ch].pktlen;
                 if (channel[ch].pktlen > maxPktLength) {
                     maxPktLength = channel[ch].pktlen;
-                    maxSamplerate = channel[ch].samplerate;
+                    maxSamplerate = channel[ch].samplerate * channel[ch].nsubs;
                 }
             }
         }
@@ -334,7 +334,7 @@ int readFile(const char *filename, const char *chTable) {
         // Clean up.
         for (ch = 0; ch < nChannels; ch++) {
             if (channel[ch].type == 0x11) {
-                channel[ch].samplerate = maxSamplerate * channel[ch].pktlen / maxPktLength;
+                channel[ch].samplerate = maxSamplerate * channel[ch].subpktlen / maxPktLength;
                 // Convert channel[ch].sub[0] to events.
                 for (i = 0; i < channel[ch].length; i++) {
                     if (channel[ch].dset[0][i] & 0x00000001)
