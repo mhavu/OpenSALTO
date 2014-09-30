@@ -172,6 +172,16 @@ PyObject *saltoGuiTerminate(PyObject *pyself) {
     return Py_None;
 }
 
+static int interrupt(void *arg) {
+    PyErr_SetInterrupt();
+    return -1;
+}
+
+void saltoGuiInterrupt(void) {
+    Py_AddPendingCall(&interrupt, NULL);
+}
+
+
 static PyMethodDef saltoGuiMethods[] = {
     {"closed", returnFalse, METH_VARARGS, "returns False (the stream is not closed)"},
     {"encoding", consoleEncoding, METH_VARARGS, "returns 'utf-8'"},

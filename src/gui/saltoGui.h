@@ -12,4 +12,5 @@ PyMODINIT_FUNC PyInit_saltoGui(void);
 PyObject *saltoGuiAddChannel(PyObject *pyself, PyObject *args);
 PyObject *saltoGuiRemoveChannel(PyObject *pyself, PyObject *args);
 PyObject *saltoGuiTerminate(PyObject *pyself);
+void saltoGuiInterrupt(void);
 

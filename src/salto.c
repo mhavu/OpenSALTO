@@ -587,6 +587,9 @@ int addEvent(const char *chTable, const char *name, Event *event) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
             result = PySet_Add(events, (PyObject *)event);
+            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+                // TODO: Update GUI
+            }
             Py_DECREF(events);
         }
     }
@@ -607,6 +610,9 @@ int removeEvent(const char *chTable, const char *name, Event *event) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
             result = PySet_Discard(events, (PyObject *)event);
+            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+                // TODO: Update GUI
+            }
             Py_DECREF(events);
         }
     }
@@ -655,6 +661,9 @@ void clearEvents(const char *chTable, const char *name) {
         events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
         if (events) {
             PySet_Clear(events);
+            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+                // TODO: Update GUI
+            }
             Py_DECREF(events);
         }
     }
