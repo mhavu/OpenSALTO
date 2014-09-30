@@ -11,7 +11,7 @@
 
 @interface SaltoConsoleController : NSWindowController <NSTextViewDelegate>
 
-@property (readonly) IBOutlet NSTextView *textView;
+@property (retain) IBOutlet NSTextView *textView;
 @property (retain) SaltoConsole *console;
 @property (assign) NSUInteger insertionPoint;
 

@@ -12,37 +12,40 @@
 
 @implementation SaltoConsole
 
-@synthesize inputArray;
-@synthesize outputArray;
-@synthesize executing;
+@synthesize inputArray = _inputArray;
+@synthesize outputArray = _outputArray;
 
 - (instancetype)init {
     self = [super init];
     if (self) {
-        inputArray = [[NSMutableArray alloc] init];
-        outputArray = [[NSMutableArray alloc] init];
-        [outputArray addObject:[NSMutableString string]];
+        _inputArray = [[NSMutableArray alloc] init];
+        _outputArray = [[NSMutableArray alloc] init];
+        [_outputArray addObject:[NSMutableString string]];
     }
 
     return self;
 }
 
 - (void)dealloc {
-    [inputArray release];
-    [outputArray release];
+    [_inputArray release];
+    [_outputArray release];
     [super dealloc];
 }
 
 - (NSArray *)inputStrings {
-    return [NSArray arrayWithArray:inputArray];
+    return [NSArray arrayWithArray:_inputArray];
 }
 
 - (NSArray *)outputStrings {
-    return [NSArray arrayWithArray:outputArray];
+    return [NSArray arrayWithArray:_outputArray];
+}
+
+- (void)addInput:(NSString *)string {
+    [_inputArray addObject:string];
 }
 
 - (void)appendOutput:(NSString *)string {
-    NSMutableString *currentOutput = [outputArray objectAtIndex:outputArray.count - 1];
+    NSMutableString *currentOutput = [_outputArray lastObject];
     [currentOutput appendString:string];
 }
 
@@ -50,17 +53,17 @@
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
     dispatch_async(appDelegate.queue,
                    ^{
-                       executing = YES;
+                       _executing = YES;
                        PyObject *output = saltoEval([statement UTF8String]);
-                       executing = NO;
+                       _executing = NO;
                        if (output) {
-                           [outputArray addObject:[NSMutableString string]];
+                           [_outputArray addObject:[NSMutableString string]];
                            NSString *string = [NSString stringWithUTF8String:PyUnicode_AsUTF8(output)];
                            dispatch_async(dispatch_get_main_queue(),
                                           ^{ [appDelegate.consoleController insertOutput:string]; });
                        }
                    });
-    [inputArray addObject:statement];
+    [_inputArray addObject:statement];
     // TODO: handle output
 }
 
