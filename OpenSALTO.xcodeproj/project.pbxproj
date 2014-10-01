@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		272E1E2E19D4B63500BB6464 /* zoom.pdf in Resources */ = {isa = PBXBuildFile; fileRef = 272E1E2D19D4B63500BB6464 /* zoom.pdf */; };
+		272E1E3119D5542300BB6464 /* SaltoEventView.m in Sources */ = {isa = PBXBuildFile; fileRef = 272E1E3019D5542200BB6464 /* SaltoEventView.m */; };
 		276C5D1019AC83A8005B3024 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 276C5D0F19AC83A8005B3024 /* Cocoa.framework */; };
 		276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 276C5D1719AC83A8005B3024 /* InfoPlist.strings */; };
 		276C5D1B19AC83A8005B3024 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 276C5D1A19AC83A8005B3024 /* main.m */; };
@@ -147,6 +148,8 @@
 
 /* Begin PBXFileReference section */
 		272E1E2D19D4B63500BB6464 /* zoom.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = zoom.pdf; sourceTree = "<group>"; };
+		272E1E2F19D5542200BB6464 /* SaltoEventView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoEventView.h; sourceTree = "<group>"; };
+		272E1E3019D5542200BB6464 /* SaltoEventView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoEventView.m; sourceTree = "<group>"; };
 		276C5D02199DFF4A005B3024 /* Channel.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = Channel.c; sourceTree = "<group>"; };
 		276C5D04199DFF5A005B3024 /* Channel.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Channel.h; sourceTree = "<group>"; };
 		276C5D05199E15A2005B3024 /* Event.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Event.h; sourceTree = "<group>"; };
@@ -286,6 +289,8 @@
 				276C5D4519ACC83C005B3024 /* SaltoChannelView.m */,
 				276C5D4719ACC892005B3024 /* SaltoChannelWrapper.h */,
 				276C5D4819ACC892005B3024 /* SaltoChannelWrapper.m */,
+				272E1E2F19D5542200BB6464 /* SaltoEventView.h */,
+				272E1E3019D5542200BB6464 /* SaltoEventView.m */,
 				276C5D1519AC83A8005B3024 /* Supporting Files */,
 			);
 			path = gui;
@@ -690,6 +695,7 @@
 				276C5D9F19AE35C5005B3024 /* SaltoConsoleController.m in Sources */,
 				27B2183A19BEF3BE001A50AD /* saltoGui.m in Sources */,
 				27B2183D19BF31F7001A50AD /* SaltoConsole.m in Sources */,
+				272E1E3119D5542300BB6464 /* SaltoEventView.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

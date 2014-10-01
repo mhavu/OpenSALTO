@@ -10,24 +10,32 @@
 #include "Channel.h"
 
 @class SaltoChannelView;
+@class SaltoYScaleView;
 
 @interface SaltoChannelWrapper : NSObject
 
 @property (readonly) Channel *channel;
 @property (unsafe_unretained) SaltoChannelView *view;
-@property (assign) CGPoint *strokeSegments;
-@property (assign) size_t strokeCount;
+@property (unsafe_unretained) SaltoYScaleView *scaleView;
+@property (retain) NSMutableArray *eventViewArray;
+@property (readonly) NSRect frame;
+@property (readonly) NSTimeInterval visibleRange;
+@property (readonly) double pixelsPerSecond;
+@property (readonly) CGLayerRef layer;
+@property (retain) NSOperation *operation;
 @property (retain) NSString *label;
-@property (retain) NSString *signalType;
-@property (retain) NSString *samplerate;
+@property (readonly) NSString *signalType;
+@property (readonly) NSString *samplerate;
 @property (assign) NSTimeInterval alignment;
-@property (assign) double yVisibleRangeMin;
-@property (assign) double yVisibleRangeMax;
+@property (readonly) double yVisibleRangeMin;
+@property (readonly) double yVisibleRangeMax;
 @property (assign, getter = isVisible) BOOL visible;
 
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
+- (void)drawLayerForContext:(CGContextRef)context frame:(NSRect)frame;
 - (void)drawInContext:(CGContextRef)context;
 - (void)drawScaleInContext:(CGContextRef)context;
+- (void)updateEventViews;
 
 @end

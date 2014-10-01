@@ -8,8 +8,16 @@
 
 #import <Cocoa/Cocoa.h>
 
-@class SaltoChannelWrapper;
-
 @interface SaltoChannelView : NSTableCellView
+
+@end
+
+
+@interface SaltoXScaleView : NSTableHeaderView
+
+@end
+
+
+@interface SaltoYScaleView : NSTableCellView
 
 @end
