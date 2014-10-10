@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href='https://fonts.googleapis.com/css?family=Architects+Daughter' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
+
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <title>Opensalto by mhavu</title>
+  </head>
+
+  <body>
+    <header>
+      <div class="inner">
+        <h1>Opensalto</h1>
+        <h2>Signal analysis tool</h2>
+        <a href="https://github.com/mhavu/OpenSALTO" class="button"><small>View project on</small> GitHub</a>
+      </div>
+    </header>
+
+    <div id="content-wrapper">
+      <div class="inner clearfix">
+        <section id="main-content">
+          <h1>
+<a name="opensalto" class="anchor" href="#opensalto"><span class="octicon octicon-link"></span></a>OpenSALTO</h1>
+
+<p>OpenSALTO is an open source signal analysis tool. It is released under
+the GNU General Public License version 3 or later.</p>
+
+<p>OpenSALTO includes an extensible backend for reading in signals,
+exporting them in a different file format, performing computations on
+them, and reporting the results of the analysis. A GUI frontend is
+also being developed.</p>
+
+<h1>
+<a name="plugin-api" class="anchor" href="#plugin-api"><span class="octicon octicon-link"></span></a>Plugin API</h1>
+
+<p>OpenSALTO has plugin APIs for adding support for new file formats,
+filtering and performing calculations, and reporting the results of
+the analysis.</p>
+
+<h2>
+<a name="import-and-export-plugins" class="anchor" href="#import-and-export-plugins"><span class="octicon octicon-link"></span></a>Import and Export Plugins</h2>
+
+<p>Support for new file formats can be added via plugins. Support can be
+added for any kind of signal. Current and planned plugins add support
+for signals including accelerometry, actigraphy, audio, ECG, EEG, EMG,
+force, pressure, heartrate, and so on.</p>
+
+<p>Plugins read or write one or more channels with corresponding metadata.
+The metadata includes:</p>
+
+<ul>
+<li>channel names</li>
+<li>sample rates</li>
+<li>original resolution</li>
+<li>start time</li>
+<li>end time</li>
+<li>mark and model of the device that was used to acquire the data</li>
+<li>serial number of the device</li>
+<li>units (V, A, m, m/s, m/s/s, N, Pa, %, etc.)</li>
+<li>any other metadata as a JSON dictionary.</li>
+</ul>
+
+<p>A list of events with event types, start times and end times may also
+be included. Channels may have different sample rates, durations and
+start times.</p>
+
+<h2>
+<a name="computation-plugins" class="anchor" href="#computation-plugins"><span class="octicon octicon-link"></span></a>Computation Plugins</h2>
+
+<p>Filters and calculation and report plugins are modules that perform
+computations on one or more channels. Filters return one or more new
+channels as a result, whereas calculation and report plugins return
+descriptive values, graphs and so on.</p>
+
+<h2>
+<a name="api" class="anchor" href="#api"><span class="octicon octicon-link"></span></a>API</h2>
+
+<p>The plugins are expected to implement the following functions:</p>
+
+<div class="highlight highlight-C"><pre><span class="kt">int</span> <span class="nf">initPlugin</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">describeError</span><span class="p">(</span><span class="kt">int</span> <span class="n">err</span><span class="p">);</span>
+<span class="kt">size_t</span> <span class="nf">nOutputChannels</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span><span class="o">*</span> <span class="n">computation</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">nInputChannels</span><span class="p">);</span> <span class="c1">// Computation plugins only</span>
+</pre></div>
+
+<p>The plugins register themselves using the following functions:</p>
+
+<div class="highlight highlight-C"><pre><span class="kt">int</span> <span class="nf">registerFileFormat</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">format</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">**</span><span class="n">exts</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">n_exts</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">registerImportFunc</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">format</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">funcname</span><span class="p">);</span> <span class="c1">// funcname is of type ReadFileFunc</span>
+<span class="kt">int</span> <span class="nf">registerExportFunc</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">format</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">funcname</span><span class="p">);</span> <span class="c1">// funcname is of type WriteFileFunc</span>
+<span class="kt">int</span> <span class="nf">registerComputation</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">handle</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">funcname</span><span class="p">,</span>
+                        <span class="n">ComputationArgs</span> <span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="n">ComputationArgs</span> <span class="o">*</span><span class="n">outputs</span><span class="p">);</span> <span class="c1">// funcname is of type ComputeFunc</span>
+<span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">ReadFileFunc</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">filename</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">);</span>
+<span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">WriteFileFunc</span><span class="p">)(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">filename</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">);</span>
+<span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">ComputeFunc</span><span class="p">)(</span><span class="kt">void</span> <span class="o">*</span><span class="n">inputs</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">outputs</span><span class="p">);</span>
+</pre></div>
+
+<p>The following functions are available for the plugins:</p>
+
+<div class="highlight highlight-C"><pre><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">newChannelTable</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">);</span>
+<span class="kt">void</span> <span class="nf">deleteChannelTable</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">getUniqueName</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">**</span><span class="nf">getChannelNames</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="kt">size_t</span> <span class="o">*</span><span class="n">size</span><span class="p">);</span>
+
+<span class="kt">uint8_t</span> <span class="o">*</span><span class="nf">newUInt8Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">uint16_t</span> <span class="o">*</span><span class="nf">newUInt16Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">uint32_t</span> <span class="o">*</span><span class="nf">newUInt32Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">int8_t</span> <span class="o">*</span><span class="nf">newInt8Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">int16_t</span> <span class="o">*</span><span class="nf">newInt16Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">int32_t</span> <span class="o">*</span><span class="nf">newInt32Channel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">float</span> <span class="o">*</span><span class="nf">newFloatChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">double</span> <span class="o">*</span><span class="nf">newDoubleChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">newCollectionChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">fromChannelTable</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">fillValues</span><span class="p">);</span>
+<span class="kt">void</span> <span class="nf">deleteChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">moveChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">fromChannelTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">toChannelTable</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">copyChannel</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">fromChannelTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">toChannelTable</span><span class="p">);</span>
+
+<span class="kt">void</span> <span class="o">*</span><span class="nf">getChannelData</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span> <span class="kt">size_t</span> <span class="o">*</span><span class="n">length</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">getChannelName</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">dataPtr</span><span class="p">);</span>
+
+<span class="kt">int</span> <span class="nf">setScaleAndOffset</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="kt">double</span> <span class="n">scale</span><span class="p">,</span> <span class="kt">double</span> <span class="n">offset</span><span class="p">);</span>
+<span class="kt">double</span> <span class="nf">scale</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">double</span> <span class="nf">offset</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setUnit</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">unit</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">unit</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setSignalType</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">type</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">signalType</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setResolution</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="kt">int</span> <span class="n">resolution</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">resolution</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setSampleRate</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="kt">double</span> <span class="n">samplerate</span><span class="p">);</span>
+<span class="kt">double</span> <span class="nf">sampleRate</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setStartTime</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="n">start</span><span class="p">);</span>
+<span class="k">struct</span> <span class="n">timespec</span> <span class="nf">startTime</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="k">struct</span> <span class="n">timespec</span> <span class="nf">endTime</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">size_t</span> <span class="nf">length</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">double</span> <span class="nf">duration</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setDevice</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">device</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">serial</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">device</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">serial</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setMetadata</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">json</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">metadata</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="n">MetadataFields</span> <span class="n">fields</span><span class="p">);</span>
+
+<span class="kt">int</span> <span class="nf">addEvent</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">removeEvent</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
+<span class="n">Event</span> <span class="o">**</span><span class="nf">getEvents</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">,</span> <span class="kt">size_t</span> <span class="o">*</span><span class="n">size</span><span class="p">);</span>
+<span class="kt">void</span> <span class="nf">clearEvents</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">ch</span><span class="p">);</span>
+
+<span class="n">Event</span> <span class="o">*</span><span class="nf">newEvent</span><span class="p">(</span><span class="n">EventVariety</span> <span class="n">type</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">subtype</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="n">start</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="n">end</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">description</span><span class="p">);</span>
+<span class="kt">void</span> <span class="nf">discardEvent</span><span class="p">(</span><span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">);</span>
+<span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="nf">channelsWithEventType</span><span class="p">(</span><span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">chTable</span><span class="p">,</span> <span class="n">EventVariety</span> <span class="n">type</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">subtype</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setEventType</span><span class="p">(</span><span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">,</span> <span class="n">EventVariety</span> <span class="n">type</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">subtype</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">moveEvent</span><span class="p">(</span><span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="n">start</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="n">end</span><span class="p">);</span>
+<span class="kt">int</span> <span class="nf">setEventDescription</span><span class="p">(</span><span class="n">Event</span> <span class="o">*</span><span class="n">event</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">description</span><span class="p">);</span>
+</pre></div>
+        </section>
+
+        <aside id="sidebar">
+          <a href="https://github.com/mhavu/OpenSALTO/zipball/master" class="button">
+            <small>Download</small>
+            .zip file
+          </a>
+          <a href="https://github.com/mhavu/OpenSALTO/tarball/master" class="button">
+            <small>Download</small>
+            .tar.gz file
+          </a>
+
+          <p class="repo-owner"><a href="https://github.com/mhavu/OpenSALTO"></a> is maintained by <a href="https://github.com/mhavu">mhavu</a>.</p>
+
+          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+        </aside>
+      </div>
+    </div>
+
+  
+  </body>
+</html>
