@@ -8,34 +8,12 @@
 
 #import "SaltoChannelWrapper.h"
 #import "SaltoChannelView.h"
-#import "SaltoEventView.h"
 #import "SaltoGuiDelegate.h"
 #include "salto.h"
 
 static int typenum;
 
 @implementation SaltoChannelWrapper
-
-@synthesize operation = _operation;
-
-- (NSOperation *)operation {
-    @synchronized(self) {
-        return _operation;
-    }
-}
-
-- (void)setOperation:(NSOperation *)operation {
-    @synchronized(self) {
-        if (operation != _operation) {
-            [_operation cancel];
-            [[[NSApp delegate] opQueue] addOperation:operation];
-            [operation retain];
-            [_operation release];
-            _operation = operation;
-        }
-    }
-}
-
 
 + (void)initialize {
 	if (self == SaltoChannelWrapper.class) {
@@ -93,118 +71,26 @@ static int typenum;
 }
 
 - (void)dealloc {
+    [_graph release];
     [_eventViewArray release];
     [_label release];
     [_signalType release];
     [_samplerate release];
-    [_operation release];
-    CGLayerRelease(_layer);
     PyGILState_STATE state = PyGILState_Ensure();
 	Py_XDECREF(_channel);
 	PyGILState_Release(state);
     [super dealloc];
 }
 
-- (void)drawLayerForContext:(CGContextRef)context frame:(NSRect)frame {
-    SaltoGuiDelegate *appDelegate = [NSApp delegate];
-    if (!NSEqualSizes(_frame.size, frame.size) ||
-        _visibleRange != appDelegate.visibleRange ||
-        _pixelsPerSecond != appDelegate.pixelsPerSecond)
-    {
-        _frame = frame;
-        _visibleRange = appDelegate.visibleRange;
-        _pixelsPerSecond = appDelegate.pixelsPerSecond;
-        CGLayerRef layer = CGLayerCreateWithContext(context, _frame.size, NULL);
-        CGContextRef layerContext = CGLayerGetContext(layer);
-
-        // Determine start time, end time, and samplerate based on the shown area.
-        struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.visibleRangeStart);
-        struct timespec end_t = endTimeFromDuration(_channel->start_sec, _channel->start_nsec, _visibleRange);
-        NSTimeInterval xMin = MAX(-_alignment, 0);
-        NSTimeInterval xMax = MIN(channelDuration(_channel) - _alignment, _visibleRange);
-        double yScale = NSHeight(_frame) / (_yVisibleRangeMax - _yVisibleRangeMin);
-        CGContextTranslateCTM(layerContext, 0.0, yScale * -_yVisibleRangeMin);
-
-        PyGILState_STATE state = PyGILState_Ensure();
-        PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel, "resampledData",
-                                                                   "dLlLlis", appDelegate.pixelsPerSecond,
-                                                                   start_t.tv_sec, start_t.tv_nsec,
-                                                                   end_t.tv_sec, end_t.tv_nsec,
-                                                                   typenum, "VRA");
-        // TODO: If necessary, optimize.
-        // One in every three drawing calls is unnecessary when using VRA.
-        if (data) {
-            size_t count = PyArray_DIM(data, 0);
-            CGPoint *segments = calloc(2 * count - 2, sizeof(CGPoint));
-            if (segments) {
-                CGFloat *buffer = (CGFloat *)PyArray_DATA(data);
-                // TODO: Calculate correct x coordinates based on
-                // true start time, end time, and number of returned pixels.
-                CGFloat x = xMin * _pixelsPerSecond;
-                CGFloat xStep = (xMax - xMin) * _pixelsPerSecond / (count - 1);
-                segments[0] = CGPointMake(x, yScale * buffer[0]);
-                for (NSUInteger i = 1; i < count - 1; i++) {
-                    x += xStep;
-                    segments[2 * i - 1] = CGPointMake(x, yScale * buffer[i]);
-                    segments[2 * i] = CGPointMake(x, yScale * buffer[i]);
-                }
-                segments[2 * count - 3] = CGPointMake(x + xStep, yScale * buffer[count - 1]);
-
-                // Use blue stroke with width of 1.0, round caps, and miter joints.
-                CGContextSetRGBStrokeColor(layerContext, 0.0, 0.0, 0.7, 1.0);
-                CGContextSetLineWidth(layerContext, 1.0);
-                CGContextSetLineCap(layerContext, kCGLineCapRound);
-                CGContextSetLineJoin(layerContext, kCGLineJoinMiter);
-                CGContextStrokeLineSegments(layerContext, segments, 2 * count - 2);
-                @synchronized(self) {
-                    CGLayerRelease(_layer);
-                    _layer = layer;
-                }
-                free(segments);
-            } else {
-                NSLog(@"calloc failed in %s", __func__);
-            }
-        }
-        PyGILState_Release(state);
-    }
-
-    [_view setNeedsDisplay:YES];
-}
-
-- (void)drawInContext:(CGContextRef)context {
-    @synchronized(self) {
-        if (_layer)
-            CGContextDrawLayerAtPoint(context, CGPointMake(0.0, 0.0), _layer);
-    }
-}
-
-- (void)drawScaleInContext:(CGContextRef)context {
-    double yScale = NSHeight(_scaleView.frame) / (_yVisibleRangeMax - _yVisibleRangeMin);
-    CGContextSaveGState(context);
-    CGContextTranslateCTM(context, 11.0, yScale * -_yVisibleRangeMin);
-    CGContextSetRGBStrokeColor(context, 0.0, 0.0, 0.0, 1.0);
-    CGContextSetLineCap(context, kCGLineCapSquare);
-    CGContextSetLineWidth(context, 1.0);
-    CGContextBeginPath(context);
-    CGContextMoveToPoint(context, 0.0, yScale * _yVisibleRangeMin);
-    CGContextAddLineToPoint(context, 0.0, yScale * _yVisibleRangeMax);
-    CGContextMoveToPoint(context, -5.0, 0.0);
-    CGContextAddLineToPoint(context, 0.0, 0.0);
-    CGContextMoveToPoint(context, -5.0, yScale * _yVisibleRangeMin);
-    CGContextAddLineToPoint(context, 0.0, yScale * _yVisibleRangeMin);
-    CGContextMoveToPoint(context, -5.0, yScale * _yVisibleRangeMax);
-    CGContextAddLineToPoint(context, 0.0, yScale * _yVisibleRangeMax);
-    CGContextSetAllowsAntialiasing(context, NO);
-    CGContextDrawPath(context, kCGPathStroke);
-    CGContextSetAllowsAntialiasing(context, YES);
-    CGContextRestoreGState(context);
-}
-
 - (void)updateEventViews {
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
     NSTimeInterval visibleInterval = appDelegate.visibleRangeEnd - appDelegate.visibleRangeStart;
     struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.visibleRangeStart);
-    struct timespec end_t = endTimeFromDuration(_channel->start_sec, _channel->start_nsec, visibleInterval);
+    struct timespec end_t = endTimeFromDuration(self.channel->start_sec, self.channel->start_nsec, visibleInterval);
+    // Remove existing layers and tracking areas.
+    [self.view clearEventLayers];
+    [self.view clearTrackingAreas];
+
     PyGILState_STATE state = PyGILState_Ensure();
     PyObject *eventSet = PyObject_CallMethod((PyObject *)_channel, "getEvents", "LlLl",
                                              start_t.tv_sec, start_t.tv_nsec,
@@ -214,11 +100,15 @@ static int typenum;
         if (iterator) {
             Event *e = (Event *)PyIter_Next(iterator);
             while (e) {
-                // TODO: Create a SaltoEventView for each event.
-                NSRect eventRect = NSMakeRect(0, 0, 100, _view.frame.size.height);
-                SaltoEventView *eventView = [[SaltoEventView alloc] initWithFrame:eventRect];
-                [_view addSubview:(NSView *)eventView];
-                [eventView release];
+                // TODO: Create events.
+                // Draw the event as a Core Animation layer.
+                CALayer *eventLayer = [CALayer layer];
+                eventLayer.backgroundColor = CGColorCreateGenericRGB(1.0, 1.0, 0.0, 0.3);
+                eventLayer.borderWidth = 1.0;
+                eventLayer.borderColor = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.3);
+                eventLayer.frame = CGRectMake(NSMidX(self.view.frame) - 40, 0, 80, NSHeight(self.view.frame));
+                [self.view addEventLayer:eventLayer];
+                [self.view addTrackingAreasForEvent:eventLayer];
                 Py_DECREF(e);
                 e = (Event *)PyIter_Next(iterator);
             }
@@ -227,6 +117,161 @@ static int typenum;
         Py_DECREF(eventSet);
     }
     PyGILState_Release(state);
+}
+
+- (NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot {
+    double plotPoint[2];
+    
+    NSTimeInterval xMin = MAX(-self.alignment, 0);
+    NSTimeInterval xMax = MIN(channelDuration(self.channel) - self.alignment, self.visibleRange);
+    plotPoint[0] = xMin;
+    plotPoint[1] = 0.0;
+    CGPoint startPoint = [plot.plotSpace plotAreaViewPointForDoublePrecisionPlotPoint:plotPoint numberOfCoordinates:2];
+    plotPoint[0] = xMax;
+    CGPoint endPoint = [plot.plotSpace plotAreaViewPointForDoublePrecisionPlotPoint:plotPoint numberOfCoordinates:2];
+    NSUInteger nPixels = endPoint.x - startPoint.x + 1;
+    
+    return 3 * nPixels;
+}
+
+- (double *)doublesForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndexRange:(NSRange)range {
+    double *values = calloc(range.length, sizeof(double));
+    if (values) {
+        // Determine start time, end time, and samplerate based on the shown area.
+        SaltoGuiDelegate *appDelegate = [NSApp delegate];
+        struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.visibleRangeStart);
+        struct timespec end_t = endTimeFromDuration(self.channel->start_sec, self.channel->start_nsec, _visibleRange);
+        NSTimeInterval xMin = MAX(-self.alignment, 0);
+        NSTimeInterval xMax = MIN(channelDuration(self.channel) - self.alignment, self.visibleRange);
+        
+        if (fieldEnum == CPTScatterPlotFieldY) {
+            PyGILState_STATE state = PyGILState_Ensure();
+            PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel, "resampledData",
+                                                                       "dLlLlis", [self numberOfRecordsForPlot:plot] / 3 /(xMax - xMin),
+                                                                       start_t.tv_sec, start_t.tv_nsec,
+                                                                       end_t.tv_sec, end_t.tv_nsec,
+                                                                       typenum, "VRA");
+            memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
+            PyGILState_Release(state);
+        } else {
+            for (NSUInteger i = 0; i < range.length; i++) {
+                //values[i] = (range.location + i) * (xMax - xMin) / [self numberOfRecordsForPlot:plot];
+                values[i] = i;
+            }
+        }
+    }
+    
+    return values;
+}
+
+- (void)setupPlot {
+    if (self.view.hostingView != nil && !self.graph) {
+        // Create a graph object.
+        CGRect frame = NSRectToCGRect(self.view.frame);
+        self.graph = [[CPTXYGraph alloc] initWithFrame:frame];
+
+        // Add some padding to the graph.
+        self.graph.plotAreaFrame.paddingTop = 0.0;
+        if (self.yVisibleRangeMin == 0.0) {
+            self.graph.plotAreaFrame.paddingBottom = 12.0;
+        } else {
+            self.graph.plotAreaFrame.paddingBottom = 0.0;            
+        }
+        self.graph.plotAreaFrame.paddingLeft = 25.0;
+        self.graph.plotAreaFrame.paddingRight = 0.0;
+        self.graph.paddingTop = 0.0;
+        self.graph.paddingBottom = 0.0;
+        self.graph.paddingLeft = 0.0;
+        self.graph.paddingRight = 0.0;
+        
+        // Create a line style that we will apply to the axes.
+        CPTMutableLineStyle *axisLineStyle = [CPTMutableLineStyle lineStyle];
+        axisLineStyle.lineColor = [CPTColor blackColor];
+        axisLineStyle.lineWidth = 1.0;
+
+        // Create a line style that we will apply to the plot.
+        CPTMutableLineStyle *plotLineStyle = [CPTMutableLineStyle lineStyle];
+        plotLineStyle.lineColor = [CPTColor blueColor];
+        plotLineStyle.lineWidth = 1.0;
+        
+        // Create a text style that we will use for the axis labels.
+        CPTMutableTextStyle *textStyle = [CPTMutableTextStyle textStyle];
+        textStyle.fontName = @"Lucida Grande";
+        textStyle.fontSize = 8;
+        textStyle.color = [CPTColor blackColor];
+        
+        // We modify the graph's plot space to setup the axis' min / max values.
+        SaltoGuiDelegate *appDelegate = [NSApp delegate];
+        CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
+        plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(appDelegate.rangeStart) length:CPTDecimalFromDouble(appDelegate.range)];
+        plotSpace.xRange = [plotSpace.globalXRange copy];
+        CPTPlotRange *yVisibleRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.yVisibleRangeMin) length:CPTDecimalFromDouble(self.yVisibleRangeMax - self.yVisibleRangeMin)];
+        CPTMutablePlotRange *yRange =[yVisibleRange mutableCopy];
+        [yRange expandRangeByFactor:CPTDecimalFromDouble(1.1)];
+        plotSpace.yRange = yRange;
+        
+        // Modify the graph's axis with a label, line style, etc.
+        CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
+        CPTXYAxis *x = axisSet.xAxis;
+        CPTXYAxis *y = axisSet.yAxis;
+        
+        x.title = @"ms";
+        x.titleTextStyle = textStyle;
+        x.titleOffset = 10.0;
+        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+        x.axisLineStyle = axisLineStyle;
+        x.majorTickLineStyle = axisLineStyle;
+        x.minorTickLineStyle = axisLineStyle;
+        x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+        x.labelTextStyle = textStyle;
+        x.labelOffset = 1.0;
+        x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
+        x.minorTickLength = 1.0;
+        x.majorTickLength = 2.0;
+        x.visibleRange = [plotSpace.globalXRange copy];
+        
+        y.title = [NSString stringWithUTF8String:self.channel->unit];
+        y.titleTextStyle = textStyle;
+        y.titleOffset = 15.0;
+        y.titleLocation = CPTDecimalFromDouble([plotSpace.yRange midPointDouble] / 1.2);
+        y.axisLineStyle = axisLineStyle;
+        y.majorTickLineStyle = axisLineStyle;
+        y.minorTickLineStyle = axisLineStyle;
+        y.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+        y.labelTextStyle = textStyle;
+        y.labelOffset = 1.0;
+        y.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
+        y.minorTickLength = 1.0;
+        y.majorTickLength = 2.0;
+        y.visibleRange = yVisibleRange;
+        NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+        [formatter setMaximumFractionDigits:0];
+        y.labelFormatter = formatter;
+        [formatter release];
+        
+        // Add a plot to our graph and axis. We give it an identifier so that we
+        // could add multiple plots to the same graph if necessary.
+        CPTScatterPlot *plot = [[CPTScatterPlot alloc] init];
+        plot.dataSource = self;
+        plot.identifier = self.label;
+        plot.dataLineStyle = plotLineStyle;
+        [self.graph addPlot:plot];
+        plotSpace.delegate = self;
+    }
+}
+
+- (CPTPlotRange *)plotSpace:(CPTPlotSpace *)space
+      willChangePlotRangeTo:(CPTPlotRange *)newRange
+              forCoordinate:(CPTCoordinate)coordinate {
+    // Keep X axis at the left edge of the screen.
+    CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
+    if (coordinate == CPTCoordinateX) {
+        axisSet.yAxis.orthogonalCoordinateDecimal = newRange.location;
+        axisSet.xAxis.titleLocation = CPTDecimalFromFloat(newRange.locationDouble +
+                                                          (newRange.lengthDouble / 2.0));
+    }
+    
+    return newRange;
 }
 
 @end

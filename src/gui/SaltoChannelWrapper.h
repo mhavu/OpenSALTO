@@ -7,22 +7,20 @@
 //
 
 #import <Cocoa/Cocoa.h>
+#import <CorePlot/CorePlot.h>
 #include "Channel.h"
 
 @class SaltoChannelView;
-@class SaltoYScaleView;
 
-@interface SaltoChannelWrapper : NSObject
+@interface SaltoChannelWrapper : NSObject<CPTPlotDataSource, CPTPlotSpaceDelegate>
 
+@property (retain) CPTXYGraph *graph;
 @property (readonly) Channel *channel;
 @property (unsafe_unretained) SaltoChannelView *view;
-@property (unsafe_unretained) SaltoYScaleView *scaleView;
 @property (retain) NSMutableArray *eventViewArray;
 @property (readonly) NSRect frame;
 @property (readonly) NSTimeInterval visibleRange;
 @property (readonly) double pixelsPerSecond;
-@property (readonly) CGLayerRef layer;
-@property (retain) NSOperation *operation;
 @property (retain) NSString *label;
 @property (readonly) NSString *signalType;
 @property (readonly) NSString *samplerate;
@@ -33,9 +31,7 @@
 
 + (instancetype)wrapperForChannel:(Channel *)ch;
 - (instancetype)initWithChannel:(Channel *)ch;
-- (void)drawLayerForContext:(CGContextRef)context frame:(NSRect)frame;
-- (void)drawInContext:(CGContextRef)context;
-- (void)drawScaleInContext:(CGContextRef)context;
 - (void)updateEventViews;
+- (void)setupPlot;
 
 @end

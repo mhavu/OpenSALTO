@@ -8,16 +8,20 @@
 
 #import <Cocoa/Cocoa.h>
 
+@class CPTGraphHostingView;
+
 @interface SaltoChannelView : NSTableCellView
 
-@end
+@property (unsafe_unretained) IBOutlet CPTGraphHostingView *hostingView;
+@property (readonly) NSMutableArray *eventLayerArray;
+@property (readonly) NSMutableArray *trackingAreaArray;
+@property (readonly) NSTrackingArea *activeTrackingArea;
+@property (readonly, getter = isResizing) BOOL resizing;
 
+- (void)clearEventLayers;
+- (void)addEventLayer:(CALayer *)eventLayer;
+- (void)clearTrackingAreas;
+- (void)addTrackingAreasForEvent:(CALayer *)eventLayer;
 
-@interface SaltoXScaleView : NSTableHeaderView
-
-@end
-
-
-@interface SaltoYScaleView : NSTableCellView
 
 @end
