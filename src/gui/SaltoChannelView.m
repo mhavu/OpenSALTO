@@ -84,6 +84,8 @@
     [rightEdge release];
 }
 
+#pragma mark - NSEvent handling
+
 - (void)updateTrackingAreas {
     [self clearTrackingAreas];
     for (CALayer *layer in self.eventLayerArray) {
@@ -125,6 +127,9 @@
 
 - (void)mouseDragged:(NSEvent *)event {
     if (self.isResizing) {
+        // Resize the event rectangle.
+        // TODO: If event duration is 0, move left or right edge based on the starting
+        // direction of dragging.
         CALayer *eventLayer = [self.activeTrackingArea.userInfo objectForKey:@"layer"];
         NSPoint hitPoint = [self convertPoint:event.locationInWindow fromView:nil];
         [CATransaction begin];
@@ -143,6 +148,8 @@
             }
         }
         [CATransaction commit];
+        // Restrict mouse cursor movement to channel boundaries.
+        // TODO: Scroll when cursor is near the edge.
         NSRect visibleRect = [self convertRect:self.visibleRect toView:nil];
         if (!NSPointInRect(event.locationInWindow, visibleRect)) {
             CGAssociateMouseAndMouseCursorPosition(false);
@@ -161,8 +168,9 @@
             screenLocation.origin.y = NSHeight([[NSScreen mainScreen] frame]) - screenLocation.origin.y;
             CGWarpMouseCursorPosition(NSPointToCGPoint(screenLocation.origin));
             CGAssociateMouseAndMouseCursorPosition(true);
-            [[NSCursor resizeLeftRightCursor] set];
         }
+        // Make sure the cursor doesn't change until dragging ends.
+        [[NSCursor resizeLeftRightCursor] set];
     } else {
         [self.nextResponder mouseDragged:event];
     }
