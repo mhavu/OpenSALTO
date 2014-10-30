@@ -66,6 +66,7 @@
     CGFloat width = 4.0;
     NSRect lRect = NSMakeRect(NSMinX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
     NSRect rRect = NSMakeRect(NSMaxX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
+    // TODO: If rectangles overlap, create a single tracking area.
     NSMutableDictionary *userInfoDict = [NSMutableDictionary dictionaryWithObject:eventLayer
                                                                            forKey:@"layer"];
     [userInfoDict setObject:@"left" forKey:@"edge"];
@@ -128,7 +129,7 @@
 - (void)mouseDragged:(NSEvent *)event {
     if (self.isResizing) {
         // Resize the event rectangle.
-        // TODO: If event duration is 0, move left or right edge based on the starting
+        // TODO: If value for the key edge is @"both", move left or right edge based on the initial
         // direction of dragging.
         CALayer *eventLayer = [self.activeTrackingArea.userInfo objectForKey:@"layer"];
         NSPoint hitPoint = [self convertPoint:event.locationInWindow fromView:nil];
