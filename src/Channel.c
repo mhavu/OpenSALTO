@@ -645,7 +645,7 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
                             min = data[i];
                     }
                     max = (fabs(max) > fabs(min)) ? fabs(max) : fabs(min);
-                    scale = max / ((1ULL << typeDescr->elsize - 1) - 1);
+                    scale = max / ((1ULL << (typeDescr->elsize - 1)) - 1);
                     offset = 0.0;
                     for (i = 0; i < size; i++) {
                         data[i] = rint(data[i] / scale);

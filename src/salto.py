@@ -272,9 +272,7 @@ def open(filename, format = None):
 
 def setquit():
     """Define new built-ins 'quit' and 'exit'.
-        These are simply strings that display a hint on how to exit.
-
-        """
+        These are simply strings that display a hint on how to exit."""
     class Quitter(object):
         def __repr__(self):
             return "Close the OpenSALTO application to exit"
@@ -283,6 +281,7 @@ def setquit():
     __builtins__.exit = Quitter()
     __builtins__.quit = __builtins__.exit
 
+# Move everything from the global namespace to salto.
 for o in [makeUniqueKey, ChannelTable, Plugin, PluginManager, open, setquit]:
     setattr(salto, o.__name__, o)
 del [o, makeUniqueKey, ChannelTable, Plugin, PluginManager, open, setquit]
