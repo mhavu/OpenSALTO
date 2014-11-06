@@ -43,20 +43,51 @@ static int typenum;
         BOOL isSigned = (!ch->collection) ?
                         PyArray_ISSIGNED((PyArrayObject *)ch->data) :
                         PyArray_ISSIGNED((PyArrayObject *)ch->fill_values);
-        // TODO: PySetObject *events;
         PyGILState_Release(state);
         _channel = ch;
         _signalType = [[NSString stringWithUTF8String:_channel->type] retain];
-        _samplerate = [[NSString stringWithFormat:@"%lf Hz", _channel->samplerate] retain];
+        _samplerate = _channel->samplerate;
+        _startTime = _channel->start_sec + _channel->start_nsec / 1e9;
+        _duration = channelDuration(_channel);
+        _endTime = _startTime + _duration;
         SaltoGuiDelegate *appDelegate = [NSApp delegate];
-        NSTimeInterval duration = channelDuration(_channel);
-        if (duration > appDelegate.range) {
-            appDelegate.rangeStart = 0.0;
-            appDelegate.rangeEnd = duration;
-            [appDelegate setVisibleRangeStart:0.0 end:duration];
-        }
         if (appDelegate.alignment == SaltoAlignTimeOfDay) {
-            // TODO: alignment = ?
+            NSCalendar *calendar = [NSCalendar currentCalendar];
+            NSCalendarUnit fullDays = (NSDayCalendarUnit | NSMonthCalendarUnit | NSYearCalendarUnit);
+            
+            NSDate *date = [NSDate dateWithTimeIntervalSince1970:_endTime];
+            NSDateComponents *dateComponents = [calendar components:fullDays fromDate:date];
+            dateComponents.day++;
+            NSDate *midnightAfter = [calendar dateFromComponents:dateComponents];
+            NSTimeInterval toMidnight = [midnightAfter timeIntervalSinceDate:date];
+
+            date = [NSDate dateWithTimeIntervalSince1970:_startTime];
+            dateComponents = [calendar components:fullDays fromDate:date];
+            NSDate *midnightBefore = [calendar dateFromComponents:dateComponents];
+            NSTimeInterval sinceMidnight = [date timeIntervalSinceDate:midnightBefore];
+            
+            NSInteger days = [[calendar components:NSDayCalendarUnit
+                                          fromDate:midnightBefore
+                                            toDate:midnightAfter
+                                           options:0] day];
+            if (days <= 2) {
+                if (sinceMidnight < toMidnight) {
+                    _visibleRangeStart = [midnightBefore timeIntervalSince1970];
+                } else {
+                    dateComponents.day++;
+                    midnightAfter = [calendar dateFromComponents:dateComponents];
+                    _visibleRangeStart = [midnightAfter timeIntervalSince1970];
+                }
+            } else {
+                // TODO: Notify of channels longer than one day.
+                dateComponents.day++;
+                midnightAfter = [calendar dateFromComponents:dateComponents];
+                _visibleRangeStart = [midnightAfter timeIntervalSince1970];
+            }
+        } else if (appDelegate.alignment == SaltoAlignCalendarDate) {
+            _visibleRangeStart = appDelegate.rangeStart;
+        } else {
+            _visibleRangeStart = _startTime;
         }
         if (isSigned) {
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
@@ -65,6 +96,7 @@ static int typenum;
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
             _yVisibleRangeMin = _channel->offset;
         }
+        [self setupPlot];
     }
 
     return self;
@@ -75,18 +107,18 @@ static int typenum;
     [_eventViewArray release];
     [_label release];
     [_signalType release];
-    [_samplerate release];
     PyGILState_STATE state = PyGILState_Ensure();
 	Py_XDECREF(_channel);
 	PyGILState_Release(state);
     [super dealloc];
 }
 
+#pragma mark - Drawing the plot
+
 - (void)updateEventViews {
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
-    NSTimeInterval visibleInterval = appDelegate.visibleRangeEnd - appDelegate.visibleRangeStart;
-    struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.visibleRangeStart);
-    struct timespec end_t = endTimeFromDuration(self.channel->start_sec, self.channel->start_nsec, visibleInterval);
+    struct timespec start_t = endTimeFromDuration(0, 0, self.visibleRangeStart);
+    struct timespec end_t = endTimeFromDuration(0, 0, self.visibleRangeStart + appDelegate.visibleRange);
     // Remove existing layers and tracking areas.
     [self.view clearEventLayers];
     [self.view clearTrackingAreas];
@@ -100,12 +132,13 @@ static int typenum;
         if (iterator) {
             Event *e = (Event *)PyIter_Next(iterator);
             while (e) {
-                // TODO: Create events.
                 // Draw the event as a Core Animation layer.
                 CALayer *eventLayer = [CALayer layer];
+                // TODO: Assign event colours.
                 eventLayer.backgroundColor = CGColorCreateGenericRGB(1.0, 1.0, 0.0, 0.3);
                 eventLayer.borderWidth = 1.0;
                 eventLayer.borderColor = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.3);
+
                 eventLayer.frame = CGRectMake(NSMidX(self.view.frame) - 40, 0, 80, NSHeight(self.view.frame));
                 [self.view addEventLayer:eventLayer];
                 [self.view addTrackingAreasForEvent:eventLayer];
@@ -120,43 +153,59 @@ static int typenum;
 }
 
 - (NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot {
-    double plotPoint[2];
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
+    NSTimeInterval start = MAX(self.visibleRangeStart, self.startTime);
+    NSTimeInterval end = MIN(self.visibleRangeStart + appDelegate.visibleRange, self.endTime);
+    NSInteger nPoints = (end > start) ? (end - start) * self.samplerate : 0;
+    if (nPoints > 0) {
+        CGFloat xMin = [self xForTimeInterval:start];
+        CGFloat xMax = [self xForTimeInterval:end];
+        NSUInteger nPixels = xMax - xMin + 1;
+        if (nPoints > 3 * nPixels) {
+            // Aggregate data points.
+            double pixelsPerSecond = (xMax - xMin) / (end - start);
+            nPoints = nPoints * pixelsPerSecond / self.samplerate;
+            if (nPoints < 2)
+                nPoints = 2;
+            nPoints = 3 * nPoints - 2;
+        }
+    }
     
-    NSTimeInterval xMin = MAX(-self.alignment, 0);
-    NSTimeInterval xMax = MIN(channelDuration(self.channel) - self.alignment, self.visibleRange);
-    plotPoint[0] = xMin;
-    plotPoint[1] = 0.0;
-    CGPoint startPoint = [plot.plotSpace plotAreaViewPointForDoublePrecisionPlotPoint:plotPoint numberOfCoordinates:2];
-    plotPoint[0] = xMax;
-    CGPoint endPoint = [plot.plotSpace plotAreaViewPointForDoublePrecisionPlotPoint:plotPoint numberOfCoordinates:2];
-    NSUInteger nPixels = endPoint.x - startPoint.x + 1;
-    
-    return 3 * nPixels;
+    return nPoints;
 }
 
 - (double *)doublesForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndexRange:(NSRange)range {
     double *values = calloc(range.length, sizeof(double));
     if (values) {
-        // Determine start time, end time, and samplerate based on the shown area.
         SaltoGuiDelegate *appDelegate = [NSApp delegate];
-        struct timespec start_t = endTimeFromDuration(0, 0, appDelegate.visibleRangeStart);
-        struct timespec end_t = endTimeFromDuration(self.channel->start_sec, self.channel->start_nsec, _visibleRange);
-        NSTimeInterval xMin = MAX(-self.alignment, 0);
-        NSTimeInterval xMax = MIN(channelDuration(self.channel) - self.alignment, self.visibleRange);
+        NSTimeInterval start = MAX(self.visibleRangeStart, self.startTime);
+        NSTimeInterval end = MIN(self.visibleRangeStart + appDelegate.visibleRange, self.endTime);
+        struct timespec start_t = endTimeFromDuration(0, 0, start);
+        struct timespec end_t = endTimeFromDuration(0, 0, end);
+        CGFloat xMin = [self xForTimeInterval:start];
+        CGFloat xMax = [self xForTimeInterval:end];
+        double pixelsPerSecond = (xMax - xMin) / (end - start);
         
         if (fieldEnum == CPTScatterPlotFieldY) {
             PyGILState_STATE state = PyGILState_Ensure();
-            PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel, "resampledData",
-                                                                       "dLlLlis", [self numberOfRecordsForPlot:plot] / 3 /(xMax - xMin),
+            PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel,
+                                                                       "resampledData", "dLlLlis",
+                                                                       pixelsPerSecond,
                                                                        start_t.tv_sec, start_t.tv_nsec,
                                                                        end_t.tv_sec, end_t.tv_nsec,
                                                                        typenum, "VRA");
             memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
             PyGILState_Release(state);
         } else {
-            for (NSUInteger i = 0; i < range.length; i++) {
-                //values[i] = (range.location + i) * (xMax - xMin) / [self numberOfRecordsForPlot:plot];
-                values[i] = i;
+            NSUInteger nPoints = [self numberOfRecordsForPlot:plot];
+            if (appDelegate.alignment == SaltoAlignMarkers) {
+                for (NSUInteger i = 0; i < range.length; i++) {
+                    values[i] = (range.location + i) * (end - start) / (nPoints - 1);
+                }
+            } else {
+                for (NSUInteger i = 0; i < range.length; i++) {
+                    values[i] = start + (range.location + i) * (end - start) / (nPoints - 1);
+                }
             }
         }
     }
@@ -165,7 +214,7 @@ static int typenum;
 }
 
 - (void)setupPlot {
-    if (self.view.hostingView != nil && !self.graph) {
+    if (!self.graph) {
         // Create a graph object.
         CGRect frame = NSRectToCGRect(self.view.frame);
         self.graph = [[CPTXYGraph alloc] initWithFrame:frame];
@@ -184,51 +233,40 @@ static int typenum;
         self.graph.paddingLeft = 0.0;
         self.graph.paddingRight = 0.0;
         
-        // Create a line style that we will apply to the axes.
+        // Create a line style for the axes.
         CPTMutableLineStyle *axisLineStyle = [CPTMutableLineStyle lineStyle];
         axisLineStyle.lineColor = [CPTColor blackColor];
         axisLineStyle.lineWidth = 1.0;
 
-        // Create a line style that we will apply to the plot.
+        // Create a line style for the plot.
         CPTMutableLineStyle *plotLineStyle = [CPTMutableLineStyle lineStyle];
         plotLineStyle.lineColor = [CPTColor blueColor];
         plotLineStyle.lineWidth = 1.0;
         
-        // Create a text style that we will use for the axis labels.
+        // Create a text style for the axis labels.
         CPTMutableTextStyle *textStyle = [CPTMutableTextStyle textStyle];
         textStyle.fontName = @"Lucida Grande";
         textStyle.fontSize = 8;
         textStyle.color = [CPTColor blackColor];
         
-        // We modify the graph's plot space to setup the axis' min / max values.
-        SaltoGuiDelegate *appDelegate = [NSApp delegate];
+        // Modify plot space to accommodate the range of y values.
         CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
-        plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(appDelegate.rangeStart) length:CPTDecimalFromDouble(appDelegate.range)];
-        plotSpace.xRange = [plotSpace.globalXRange copy];
         CPTPlotRange *yVisibleRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.yVisibleRangeMin) length:CPTDecimalFromDouble(self.yVisibleRangeMax - self.yVisibleRangeMin)];
         CPTMutablePlotRange *yRange =[yVisibleRange mutableCopy];
         [yRange expandRangeByFactor:CPTDecimalFromDouble(1.1)];
         plotSpace.yRange = yRange;
         
-        // Modify the graph's axis with a label, line style, etc.
+        // Set the axis labels, line styles, etc.
         CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
         CPTXYAxis *x = axisSet.xAxis;
         CPTXYAxis *y = axisSet.yAxis;
         
-        x.title = @"ms";
         x.titleTextStyle = textStyle;
-        x.titleOffset = 10.0;
-        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
         x.axisLineStyle = axisLineStyle;
         x.majorTickLineStyle = axisLineStyle;
         x.minorTickLineStyle = axisLineStyle;
-        x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
         x.labelTextStyle = textStyle;
-        x.labelOffset = 1.0;
-        x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
-        x.minorTickLength = 1.0;
-        x.majorTickLength = 2.0;
-        x.visibleRange = [plotSpace.globalXRange copy];
+        [self setupTimeAxis];
         
         y.title = [NSString stringWithUTF8String:self.channel->unit];
         y.titleTextStyle = textStyle;
@@ -260,6 +298,26 @@ static int typenum;
     }
 }
 
+- (void)setupTimeAxis {
+    // Modify plot space to accommodate the range of x values.
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
+    CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
+    plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(appDelegate.rangeStart) length:CPTDecimalFromDouble(appDelegate.range)];
+    plotSpace.xRange = [plotSpace.globalXRange copy];
+    CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
+    CPTXYAxis *x = axisSet.xAxis;
+    x.title = @"ms";
+    x.titleOffset = 10.0;
+    x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+    x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+    x.labelOffset = 1.0;
+    x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
+    x.minorTickLength = 1.0;
+    x.majorTickLength = 2.0;
+    x.visibleRange = [plotSpace.globalXRange copy];
+}
+
+
 - (CPTPlotRange *)plotSpace:(CPTPlotSpace *)space
       willChangePlotRangeTo:(CPTPlotRange *)newRange
               forCoordinate:(CPTCoordinate)coordinate {
@@ -272,6 +330,28 @@ static int typenum;
     }
     
     return newRange;
+}
+
+
+#pragma mark - Conversions
+
+- (CGFloat)xForTimeInterval:(NSTimeInterval)time {
+    double plotPoint[2] = {time, 0.0};
+    // Convert from data coordinates to plot area coordinates.
+    CPTPlotSpace *plotSpace = self.graph.defaultPlotSpace;
+    CGPoint areaPoint = [plotSpace plotAreaViewPointForDoublePrecisionPlotPoint:plotPoint
+                                                            numberOfCoordinates:2];
+    // Convert from plot area coordinates to view coordinates.
+    CGPoint graphPoint = [self.graph convertPoint:areaPoint
+                                        fromLayer:self.graph.plotAreaFrame.plotArea];
+
+
+    return graphPoint.x;
+}
+
+- (CGFloat)xForTimespec:(struct timespec)t {
+    NSTimeInterval time = t.tv_sec + t.tv_nsec / 1e9;
+    return [self xForTimeInterval:time];
 }
 
 @end

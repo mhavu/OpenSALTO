@@ -19,12 +19,13 @@
 @property (unsafe_unretained) SaltoChannelView *view;
 @property (retain) NSMutableArray *eventViewArray;
 @property (readonly) NSRect frame;
-@property (readonly) NSTimeInterval visibleRange;
-@property (readonly) double pixelsPerSecond;
 @property (retain) NSString *label;
 @property (readonly) NSString *signalType;
-@property (readonly) NSString *samplerate;
-@property (assign) NSTimeInterval alignment;
+@property (readonly) double samplerate;
+@property (assign) NSTimeInterval visibleRangeStart;
+@property (readonly) NSTimeInterval startTime;
+@property (readonly) NSTimeInterval endTime;
+@property (readonly) NSTimeInterval duration;
 @property (readonly) double yVisibleRangeMin;
 @property (readonly) double yVisibleRangeMax;
 @property (assign, getter = isVisible) BOOL visible;
@@ -33,5 +34,8 @@
 - (instancetype)initWithChannel:(Channel *)ch;
 - (void)updateEventViews;
 - (void)setupPlot;
+- (void)setupTimeAxis;
+- (CGFloat)xForTimeInterval:(NSTimeInterval)time;
+- (CGFloat)xForTimespec:(struct timespec)t;
 
 @end

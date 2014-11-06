@@ -372,7 +372,7 @@ static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
     Channel *part;
     PyArrayObject *newArray = NULL, *tmpArray = NULL;
-    PyObject *numpy, *linspace, *slice, *start, *end, *step, *times;
+    PyObject *numpy, *linspace, *slice, *start, *end, *step = NULL, *times;
     double samplerate, *sliceData;
     long long start_sec, end_sec, k;
     long start_nsec, end_nsec;
@@ -442,7 +442,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
                         sliceData = PyArray_DATA((PyArrayObject *)slice);
                         index = calloc(size, sizeof(npy_intp));
                         if (sliceData && index) {
-                            for (i = 0; i< size; i++) {
+                            for (i = 0; i < size; i++) {
                                 index[i] = rint(sliceData[i]);
                             }
                         }

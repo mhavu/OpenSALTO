@@ -213,11 +213,30 @@
                 <menuItem title="View" id="295">
                     <menu key="submenu" title="View" id="296">
                         <items>
-                            <menuItem title="Align by Time of Day" id="687">
+                            <menuItem title="Alignment" id="lfT-oT-Jxi" userLabel="Alignment">
                                 <modifierMask key="keyEquivalentModifierMask"/>
-                                <connections>
-                                    <action selector="toggleAlignment:" target="-1" id="689"/>
-                                </connections>
+                                <menu key="submenu" title="Alignment" id="6Kl-Pn-XqB">
+                                    <items>
+                                        <menuItem title="Start Time" tag="1" id="iOF-o0-y1G" userLabel="Start Time">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="setAlignmentMode:" target="-1" id="2Fw-FQ-L3Q"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Calendar Date" tag="2" id="5Uu-95-Eqf" userLabel="Calendar Date">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="setAlignmentMode:" target="-1" id="Igk-pP-tDh"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Time of Day" tag="4" id="687" userLabel="Time of Day">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="setAlignmentMode:" target="-1" id="k9w-BM-RrS"/>
+                                            </connections>
+                                        </menuItem>
+                                    </items>
+                                </menu>
                             </menuItem>
                             <menuItem isSeparatorItem="YES" id="686"/>
                             <menuItem title="Zoom In" keyEquivalent="+" id="1099">
@@ -474,6 +493,7 @@
         </window>
         <customObject id="690" customClass="SaltoGuiDelegate">
             <connections>
+                <outlet property="alignmentMenu" destination="6Kl-Pn-XqB" id="fc2-nQ-ykf"/>
                 <outlet property="scrollView" destination="754" id="1107"/>
             </connections>
         </customObject>

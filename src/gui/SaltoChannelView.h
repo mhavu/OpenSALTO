@@ -23,5 +23,4 @@
 - (void)clearTrackingAreas;
 - (void)addTrackingAreasForEvent:(CALayer *)eventLayer;
 
-
 @end

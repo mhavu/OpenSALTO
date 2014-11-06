@@ -29,6 +29,7 @@
     if (linkedView) {
         [self.objectValue setupPlot];
         self.hostingView.hostedGraph = [self.objectValue graph];
+        [self.hostingView setNeedsDisplay:YES];
         [self.objectValue updateEventViews];
     } else {
         [self clearEventLayers];

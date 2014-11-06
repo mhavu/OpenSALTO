@@ -16,33 +16,30 @@
 #endif
 
 typedef NS_OPTIONS(NSInteger, SaltoChannelAlignment) {
-    SaltoAlignStartTimes = 1 << 0,
+    SaltoAlignStartTime = 1 << 0,
+    SaltoAlignMarkers = SaltoAlignStartTime,
     SaltoAlignCalendarDate = 1 << 1,
     SaltoAlignTimeOfDay = 1 << 2,
-    SaltoAlignArbitrary = 1 << 3
 };
 
 @interface SaltoGuiDelegate : NSObject
 
 @property (nonatomic, readonly) SaltoConsoleController *consoleController;
 @property (nonatomic, retain) IBOutlet NSScrollView *scrollView;
+@property (nonatomic, retain) IBOutlet NSMenu *alignmentMenu;
 @property (nonatomic, readonly) NSMutableArray *channelArray;
 @property (nonatomic, assign) dispatch_queue_t queue;
-@property (readonly) NSOperationQueue *opQueue;
 @property (nonatomic, assign) NSTimeInterval rangeStart;
 @property (nonatomic, assign) NSTimeInterval rangeEnd;
-@property (nonatomic, assign) NSTimeInterval visibleRangeStart;
-@property (nonatomic, assign) NSTimeInterval visibleRangeEnd;
-@property (nonatomic, assign) double pixelsPerSecond;
+@property (nonatomic, assign) NSTimeInterval visibleRange;
 @property (nonatomic, assign) SaltoChannelAlignment alignment;
+@property (nonatomic, assign, getter = isZoomedIn) BOOL zoomedIn;
 
 - (NSTimeInterval)range;
 - (void)setRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end;
-- (NSTimeInterval)visibleRange;
-- (void)setVisibleRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end;
 
 - (IBAction)showConsoleWindow:(id)sender;
-- (IBAction)toggleAlignment:(id)sender;
+- (IBAction)setAlignmentMode:(id)sender;
 - (void)addChannel:(SaltoChannelWrapper *)channel;
 - (void)removeChannel:(SaltoChannelWrapper *)channel;
 - (IBAction)zoomIn:(id)sender;

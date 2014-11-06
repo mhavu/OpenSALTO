@@ -15,11 +15,6 @@
 
 static const float zoomFactor = 1.3;
 
-@synthesize rangeStart = _rangeStart;
-@synthesize rangeEnd = _rangeEnd;
-@synthesize visibleRangeStart = _visibleRangeStart;
-@synthesize visibleRangeEnd = _visibleRangeEnd;
-
 - (void)setRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end {
     if (end > start) {
         _rangeStart = start;
@@ -28,8 +23,8 @@ static const float zoomFactor = 1.3;
         _rangeStart = end;
         _rangeEnd = start;
     }
-    if (_visibleRangeStart < start || _visibleRangeEnd > end)
-        [self setVisibleRangeStart:_visibleRangeStart end:_visibleRangeEnd];
+    if (!self.isZoomedIn)
+        self.visibleRange = self.range;
 }
 
 - (NSTimeInterval)rangeStart {
@@ -44,34 +39,16 @@ static const float zoomFactor = 1.3;
     return _rangeEnd - _rangeStart;
 }
 
-- (void)setVisibleRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end {
-    if (self.range > 0 && end > start) {
-        _visibleRangeStart = (start >= _rangeStart) ? start : _rangeStart;
-        _visibleRangeEnd = (end <= _rangeEnd) ? end : _rangeEnd;
-        NSTableColumn *column = [_scrollView.documentView tableColumnWithIdentifier:@"Channel"];
-        _pixelsPerSecond = column.width / (end - start);
-        // Adjust column width.
-        [column setWidth:self.range * _pixelsPerSecond];
-        // TODO: Set scrollers
-
-        [_scrollView.documentView setNeedsDisplay:YES];
+- (void)setVisibleRange:(NSTimeInterval)newRange {
+    if (newRange > self.range)
+        newRange = self.range;
+    if (newRange >= 0.0) {
+        _visibleRange = newRange;
+        _zoomedIn = (_visibleRange < self.range);
+        [self.scrollView.documentView setNeedsDisplay:YES];
+    } else {
+        // TODO: log this
     }
-}
-
-- (double)pixelsPerSecond {
-    return _pixelsPerSecond;
-}
-
-- (NSTimeInterval)visibleRangeStart {
-    return _visibleRangeStart;
-}
-
-- (NSTimeInterval)visibleRangeEnd {
-    return _visibleRangeEnd;
-}
-
-- (NSTimeInterval)visibleRange {
-    return _visibleRangeEnd - _visibleRangeStart;
 }
 
 
@@ -80,8 +57,7 @@ static const float zoomFactor = 1.3;
     if (self) {
         _consoleController = [[SaltoConsoleController alloc] init];
         _channelArray = [[NSMutableArray alloc] init];
-        _opQueue = [[NSOperationQueue alloc] init];
-        _opQueue.name = @"Channel drawing queue";
+        _alignment = SaltoAlignStartTime;
     }
 
     return self;
@@ -91,7 +67,6 @@ static const float zoomFactor = 1.3;
     [_consoleController release];
     [_channelArray release];
     [_scrollView release];
-    [_opQueue release];
     [super dealloc];
 }
 
@@ -109,6 +84,9 @@ static const float zoomFactor = 1.3;
     if ([[edit itemAtIndex:edit.numberOfItems - 1] isSeparatorItem])
         [edit removeItemAtIndex:edit.numberOfItems - 1];
 
+    // Toggle the correct alignment mode in the Alignment menu.
+    [[self.alignmentMenu itemWithTag:self.alignment] setState:NSOnState];
+    
     // TODO: Snap to channels in vertical scroll.
     // Post notifications when the clip view's bounds change.
     // [_scrollView.contentView setPostsBoundsChangedNotifications:YES];
@@ -159,11 +137,8 @@ static const float zoomFactor = 1.3;
     }
 }
 
-- (void)tableViewColumnDidResize:(NSNotification *)notification {
-    [self setVisibleRangeStart:_rangeStart end:_rangeEnd];
-}
-
 - (void)boundsDidChange:(NSNotification *)notification {
+    // Snap to channels in vertical scroll.
     CGFloat y = _scrollView.contentView.bounds.origin.y;
     NSInteger row = [_scrollView.documentView rowAtPoint:_scrollView.contentView.bounds.origin];
     NSRect frame = [[_scrollView.documentView rowViewAtRow:row makeIfNecessary:NO] frame];
@@ -176,16 +151,38 @@ static const float zoomFactor = 1.3;
     [_consoleController showWindow:sender];
 }
 
-- (IBAction)toggleAlignment:(id)sender {
-    if ([sender state] == NSOnState) {
-        // TODO: fix
-        // [channelView.delegate alignByTimeOfDay:NO];
-        [sender setState:NSOffState];
-    } else {
-        // TODO: fix
-        // [channelView.delegate alignByTimeOfDay:YES];
-        [sender setState:NSOnState];
+- (IBAction)setAlignmentMode:(id)sender {
+    [[[sender menu] itemWithTag:self.alignment] setState:NSOffState];
+    switch ([sender tag]) {
+        case SaltoAlignStartTime:
+            self.alignment = SaltoAlignStartTime;
+            self.visibleRange = 0.0;
+            for (SaltoChannelWrapper *channel in self.channelArray) {
+                if (channel.duration > self.visibleRange) {
+                    self.visibleRange = channel.duration;
+                }
+                channel.visibleRangeStart = 0.0;
+            }
+            break;
+        case SaltoAlignCalendarDate:
+            self.alignment = SaltoAlignCalendarDate;
+            self.visibleRange = self.range;
+            for (SaltoChannelWrapper *channel in self.channelArray) {
+                channel.visibleRangeStart = self.rangeStart;
+            }
+            break;
+        case SaltoAlignTimeOfDay:
+            self.alignment = SaltoAlignTimeOfDay;
+            self.visibleRange = 86400.0;
+            for (SaltoChannelWrapper *channel in self.channelArray) {
+                channel.visibleRangeStart = 0.0;
+            }
+            break;
+        default:
+            NSLog(@"Unknown alignment mode %ld", (long)[sender tag]);
     }
+    [sender setState:NSOnState];
+    [[self.scrollView documentView] reloadData];
 }
 
 - (IBAction)openDocument:(id)sender {
@@ -210,52 +207,58 @@ static const float zoomFactor = 1.3;
     [_consoleController insertInput:command];
     [_consoleController.console execute:command];
 
-    return YES;  // TODO: Return no, if there is an error.
+    return YES;  // TODO: Return no if there is an error.
 }
 
 - (void)addChannel:(SaltoChannelWrapper *)channel {
-    // TODO: Set the NSDate objects.
     // TODO: Set SaltoChannelView heights.
     [self willChangeValueForKey:@"channelArray"];
     [_channelArray addObject:channel];
     [self didChangeValueForKey:@"channelArray"];
+    if (channel.startTime < self.rangeStart)
+        self.rangeStart = channel.startTime;
+    if (channel.endTime > self.rangeEnd)
+        self.rangeEnd = channel.endTime;
+    [[self.scrollView documentView] reloadData];
 }
 
 - (void)removeChannel:(SaltoChannelWrapper *)channel {
+    NSTimeInterval __block startTime = INFINITY;
+    NSTimeInterval __block endTime = -INFINITY;
     [_channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
         if (obj.channel == channel.channel) {
             [self willChangeValueForKey:@"channelArray"];
             [_channelArray removeObjectAtIndex:idx];
             [self didChangeValueForKey:@"channelArray"];
-            *stop = YES;
+        } else {
+            if (obj.startTime < startTime)
+                startTime = channel.startTime;
+            if (obj.endTime > endTime)
+                endTime = channel.endTime;
         }
     }];
+    self.rangeStart = startTime;
+    self.rangeEnd = endTime;
+    if (self.visibleRange > self.range)
+        self.visibleRange = self.range;
+    [[self.scrollView documentView] reloadData];
 }
 
 - (IBAction)zoomIn:(id)sender {
     // Keep the beginning of the visible range stationary when zooming in.
-    NSTimeInterval interval = self.visibleRange / zoomFactor;
-    [self setVisibleRangeStart:_visibleRangeStart end:_visibleRangeStart + interval];
+    self.visibleRange /= zoomFactor;
+    [[self.scrollView documentView] reloadData];
 }
 
 - (IBAction)zoomOut:(id)sender {
-    // Keep the middle of the visible range stationary when zooming out,
-    // except when in the beginning or end of time range.
-    NSTimeInterval delta = self.visibleRange * (zoomFactor - 1.0) / 2.0;
-    NSTimeInterval start = _visibleRangeStart - delta;
-    NSTimeInterval end = _visibleRangeEnd + delta;
-    if (start < _rangeStart) {
-        end += _rangeStart - start;
-        start = _rangeStart;
-    } else if (end > _rangeEnd) {
-        start -= end - _rangeEnd;
-        end = _rangeEnd;
-    }
-    [self setVisibleRangeStart:start end:end];
+    // Keep the beginning of the visible range stationary when zooming out.
+    self.visibleRange *= zoomFactor;
+    [[self.scrollView documentView] reloadData];
 }
 
 - (IBAction)showAll:(id)sender {
-    [self setVisibleRangeStart:_rangeStart end:_rangeEnd];
+    self.visibleRange = self.range;
+    [[self.scrollView documentView] reloadData];
 }
 
 - (IBAction)interruptExecution:(id)sender {
