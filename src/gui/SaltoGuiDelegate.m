@@ -11,43 +11,31 @@
 #import "SaltoChannelWrapper.h"
 #import "saltoGui.h"
 
+@interface SaltoGuiDelegate() {
+    NSTimeInterval _maxVisibleRange;
+}
+
+@end
+
+
 @implementation SaltoGuiDelegate
 
 static const float zoomFactor = 1.3;
-
-- (void)setRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end {
-    if (end > start) {
-        _rangeStart = start;
-        _rangeEnd = end;
-    } else {
-        _rangeStart = end;
-        _rangeEnd = start;
-    }
-    if (!self.isZoomedIn)
-        self.visibleRange = self.range;
-}
-
-- (NSTimeInterval)rangeStart {
-    return _rangeStart;
-}
-
-- (NSTimeInterval)rangeEnd {
-    return _rangeEnd;
-}
 
 - (NSTimeInterval)range {
     return _rangeEnd - _rangeStart;
 }
 
 - (void)setVisibleRange:(NSTimeInterval)newRange {
-    if (newRange > self.range)
-        newRange = self.range;
+    if (newRange > _maxVisibleRange)
+        newRange = _maxVisibleRange;
     if (newRange >= 0.0) {
         _visibleRange = newRange;
-        _zoomedIn = (_visibleRange < self.range);
-        [self.scrollView.documentView setNeedsDisplay:YES];
+        _zoomedIn = (_visibleRange < _maxVisibleRange);
+        [self.scrollView.documentView setNeedsDisplay];
     } else {
-        // TODO: log this
+        _visibleRange = 0.0;
+        NSLog(@"Visible range %f is negative", newRange);
     }
 }
 
@@ -58,6 +46,8 @@ static const float zoomFactor = 1.3;
         _consoleController = [[SaltoConsoleController alloc] init];
         _channelArray = [[NSMutableArray alloc] init];
         _alignment = SaltoAlignStartTime;
+        _rangeStart = INFINITY;
+        _rangeEnd = -INFINITY;
     }
 
     return self;
@@ -134,6 +124,10 @@ static const float zoomFactor = 1.3;
 - (void)tableView:(NSTableView *)view didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
     if (view.numberOfRows == 0) {
         [view setBackgroundColor:[NSColor gridColor]];
+        _rangeStart = INFINITY;
+        _rangeEnd = -INFINITY;
+        _maxVisibleRange = 0.0;
+        _visibleRange = 0.0;
     }
 }
 
@@ -152,29 +146,33 @@ static const float zoomFactor = 1.3;
 }
 
 - (IBAction)setAlignmentMode:(id)sender {
-    [[[sender menu] itemWithTag:self.alignment] setState:NSOffState];
+    [[[sender menu] itemWithTag:_alignment] setState:NSOffState];
     switch ([sender tag]) {
         case SaltoAlignStartTime:
-            self.alignment = SaltoAlignStartTime;
-            self.visibleRange = 0.0;
-            for (SaltoChannelWrapper *channel in self.channelArray) {
-                if (channel.duration > self.visibleRange) {
-                    self.visibleRange = channel.duration;
+            _alignment = SaltoAlignStartTime;
+            _maxVisibleRange = 0.0;
+            _visibleRange = 0.0;
+            for (SaltoChannelWrapper *channel in _channelArray) {
+                if (channel.duration > _maxVisibleRange) {
+                    _maxVisibleRange = channel.duration;
+                    _visibleRange = _maxVisibleRange;
                 }
                 channel.visibleRangeStart = 0.0;
             }
             break;
         case SaltoAlignCalendarDate:
-            self.alignment = SaltoAlignCalendarDate;
-            self.visibleRange = self.range;
-            for (SaltoChannelWrapper *channel in self.channelArray) {
-                channel.visibleRangeStart = self.rangeStart;
+            _alignment = SaltoAlignCalendarDate;
+            _maxVisibleRange = self.range;
+            _visibleRange = _maxVisibleRange;
+            for (SaltoChannelWrapper *channel in _channelArray) {
+                channel.visibleRangeStart = _rangeStart;
             }
             break;
         case SaltoAlignTimeOfDay:
-            self.alignment = SaltoAlignTimeOfDay;
-            self.visibleRange = 86400.0;
-            for (SaltoChannelWrapper *channel in self.channelArray) {
+            _alignment = SaltoAlignTimeOfDay;
+            _maxVisibleRange = 86400.0;
+            _visibleRange = _maxVisibleRange;
+            for (SaltoChannelWrapper *channel in _channelArray) {
                 channel.visibleRangeStart = 0.0;
             }
             break;
@@ -182,7 +180,7 @@ static const float zoomFactor = 1.3;
             NSLog(@"Unknown alignment mode %ld", (long)[sender tag]);
     }
     [sender setState:NSOnState];
-    [[self.scrollView documentView] reloadData];
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)openDocument:(id)sender {
@@ -215,50 +213,74 @@ static const float zoomFactor = 1.3;
     [self willChangeValueForKey:@"channelArray"];
     [_channelArray addObject:channel];
     [self didChangeValueForKey:@"channelArray"];
-    if (channel.startTime < self.rangeStart)
-        self.rangeStart = channel.startTime;
-    if (channel.endTime > self.rangeEnd)
-        self.rangeEnd = channel.endTime;
-    [[self.scrollView documentView] reloadData];
+    if (channel.startTime < _rangeStart || channel.endTime > _rangeEnd) {
+        _rangeStart = channel.startTime;
+        _rangeEnd = channel.endTime;
+        if (_alignment == SaltoAlignCalendarDate) {
+            _maxVisibleRange = self.range;
+        } else if (_alignment == SaltoAlignStartTime && channel.duration > _maxVisibleRange) {
+            _maxVisibleRange = channel.duration;
+            if (!_zoomedIn) {
+                _visibleRange = _maxVisibleRange;
+            }
+        }
+    }
+    
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (void)removeChannel:(SaltoChannelWrapper *)channel {
     NSTimeInterval __block startTime = INFINITY;
     NSTimeInterval __block endTime = -INFINITY;
+    double __block maxDuration = 0.0;
     [_channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
         if (obj.channel == channel.channel) {
             [self willChangeValueForKey:@"channelArray"];
             [_channelArray removeObjectAtIndex:idx];
             [self didChangeValueForKey:@"channelArray"];
         } else {
-            if (obj.startTime < startTime)
-                startTime = channel.startTime;
-            if (obj.endTime > endTime)
-                endTime = channel.endTime;
+            if (obj.startTime < startTime) {
+                startTime = obj.startTime;
+            }
+            if (obj.endTime > endTime) {
+                endTime = obj.endTime;
+            }
+            if (obj.duration > maxDuration) {
+                maxDuration = obj.duration;
+            }
         }
     }];
-    self.rangeStart = startTime;
-    self.rangeEnd = endTime;
-    if (self.visibleRange > self.range)
-        self.visibleRange = self.range;
-    [[self.scrollView documentView] reloadData];
+    if (_rangeStart != startTime || _rangeEnd != endTime) {
+        _rangeStart = startTime;
+        _rangeEnd = endTime;
+        if (_alignment == SaltoAlignCalendarDate) {
+            _maxVisibleRange = self.range;
+        }
+    }
+    if (_alignment == SaltoAlignStartTime && _maxVisibleRange != maxDuration) {
+        _maxVisibleRange = maxDuration;
+    }
+    if (!_zoomedIn) {
+        _visibleRange = _maxVisibleRange;
+    }
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)zoomIn:(id)sender {
     // Keep the beginning of the visible range stationary when zooming in.
     self.visibleRange /= zoomFactor;
-    [[self.scrollView documentView] reloadData];
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)zoomOut:(id)sender {
     // Keep the beginning of the visible range stationary when zooming out.
     self.visibleRange *= zoomFactor;
-    [[self.scrollView documentView] reloadData];
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)showAll:(id)sender {
-    self.visibleRange = self.range;
-    [[self.scrollView documentView] reloadData];
+    self.visibleRange = _maxVisibleRange;
+    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)interruptExecution:(id)sender {

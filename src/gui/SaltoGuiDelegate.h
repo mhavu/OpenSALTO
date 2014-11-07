@@ -29,14 +29,13 @@ typedef NS_OPTIONS(NSInteger, SaltoChannelAlignment) {
 @property (nonatomic, retain) IBOutlet NSMenu *alignmentMenu;
 @property (nonatomic, readonly) NSMutableArray *channelArray;
 @property (nonatomic, assign) dispatch_queue_t queue;
-@property (nonatomic, assign) NSTimeInterval rangeStart;
-@property (nonatomic, assign) NSTimeInterval rangeEnd;
+@property (nonatomic, readonly) NSTimeInterval rangeStart;
+@property (nonatomic, readonly) NSTimeInterval rangeEnd;
 @property (nonatomic, assign) NSTimeInterval visibleRange;
 @property (nonatomic, assign) SaltoChannelAlignment alignment;
 @property (nonatomic, assign, getter = isZoomedIn) BOOL zoomedIn;
 
 - (NSTimeInterval)range;
-- (void)setRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end;
 
 - (IBAction)showConsoleWindow:(id)sender;
 - (IBAction)setAlignmentMode:(id)sender;

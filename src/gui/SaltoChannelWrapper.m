@@ -96,7 +96,6 @@ static int typenum;
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
             _yVisibleRangeMin = _channel->offset;
         }
-        [self setupPlot];
     }
 
     return self;
@@ -138,8 +137,15 @@ static int typenum;
                 eventLayer.backgroundColor = CGColorCreateGenericRGB(1.0, 1.0, 0.0, 0.3);
                 eventLayer.borderWidth = 1.0;
                 eventLayer.borderColor = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.3);
-
-                eventLayer.frame = CGRectMake(NSMidX(self.view.frame) - 40, 0, 80, NSHeight(self.view.frame));
+                struct timespec eventStart = {e->start_sec, e->start_nsec};
+                struct timespec eventEnd = {e->end_sec, e->end_nsec};
+                if (appDelegate.alignment != SaltoAlignCalendarDate) {
+                    eventStart = endTimeFromDuration(e->end_sec, e->end_nsec, -self.visibleRangeStart);
+                    eventEnd = endTimeFromDuration(e->end_sec, e->end_nsec, -self.visibleRangeStart);
+                }
+                CGFloat xMin = [self xForTimespec:eventStart];
+                CGFloat xMax = [self xForTimespec:eventEnd];
+                eventLayer.frame = CGRectMake(xMin, 0, xMax - xMin, NSHeight(self.view.frame));
                 [self.view addEventLayer:eventLayer];
                 [self.view addTrackingAreasForEvent:eventLayer];
                 Py_DECREF(e);
@@ -248,7 +254,7 @@ static int typenum;
         textStyle.fontName = @"Lucida Grande";
         textStyle.fontSize = 8;
         textStyle.color = [CPTColor blackColor];
-        
+    
         // Modify plot space to accommodate the range of y values.
         CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
         CPTPlotRange *yVisibleRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.yVisibleRangeMin) length:CPTDecimalFromDouble(self.yVisibleRangeMax - self.yVisibleRangeMin)];
@@ -265,8 +271,9 @@ static int typenum;
         x.axisLineStyle = axisLineStyle;
         x.majorTickLineStyle = axisLineStyle;
         x.minorTickLineStyle = axisLineStyle;
+        x.minorTickLength = 1.0;
+        x.majorTickLength = 2.0;
         x.labelTextStyle = textStyle;
-        [self setupTimeAxis];
         
         y.title = [NSString stringWithUTF8String:self.channel->unit];
         y.titleTextStyle = textStyle;
@@ -296,27 +303,31 @@ static int typenum;
         [self.graph addPlot:plot];
         plotSpace.delegate = self;
     }
-}
-
-- (void)setupTimeAxis {
     // Modify plot space to accommodate the range of x values.
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
-    plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(appDelegate.rangeStart) length:CPTDecimalFromDouble(appDelegate.range)];
-    plotSpace.xRange = [plotSpace.globalXRange copy];
     CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
     CPTXYAxis *x = axisSet.xAxis;
-    x.title = @"ms";
-    x.titleOffset = 10.0;
-    x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
-    x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
-    x.labelOffset = 1.0;
-    x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
-    x.minorTickLength = 1.0;
-    x.majorTickLength = 2.0;
+    NSDecimal origin = CPTDecimalFromDouble(0.0);
+    if (appDelegate.alignment == SaltoAlignCalendarDate) {
+        origin = CPTDecimalFromDouble(self.visibleRangeStart);
+        x.title = @"";
+        x.titleOffset = 10.0;
+        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+        x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+        x.labelOffset = 1.0;
+    } else {
+        x.title = @"ms";
+        x.titleOffset = 10.0;
+        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+        x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+        x.labelOffset = 1.0;
+    }
+    plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:origin length:CPTDecimalFromDouble(appDelegate.visibleRange)];
+    x.orthogonalCoordinateDecimal = origin;
+    plotSpace.xRange = [plotSpace.globalXRange copy];
     x.visibleRange = [plotSpace.globalXRange copy];
 }
-
 
 - (CPTPlotRange *)plotSpace:(CPTPlotSpace *)space
       willChangePlotRangeTo:(CPTPlotRange *)newRange
