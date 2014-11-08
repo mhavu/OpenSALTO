@@ -45,7 +45,7 @@ static const float zoomFactor = 1.3;
     if (self) {
         _consoleController = [[SaltoConsoleController alloc] init];
         _channelArray = [[NSMutableArray alloc] init];
-        _alignment = SaltoAlignStartTime;
+        _alignment = SaltoAlignCalendarDate;
         _rangeStart = INFINITY;
         _rangeEnd = -INFINITY;
     }
@@ -77,14 +77,6 @@ static const float zoomFactor = 1.3;
     // Toggle the correct alignment mode in the Alignment menu.
     [[self.alignmentMenu itemWithTag:self.alignment] setState:NSOnState];
     
-    // TODO: Snap to channels in vertical scroll.
-    // Post notifications when the clip view's bounds change.
-    // [_scrollView.contentView setPostsBoundsChangedNotifications:YES];
-    // [NSNotificationCenter.defaultCenter addObserver:self
-    //                                        selector:@selector(boundsDidChange:)
-    //                                            name:NSViewBoundsDidChangeNotification
-    //                                          object:scrollView.contentView];
-
     // Start the Python backend.
     // TODO: Use a dedicated thread instead of a GCD queue. Otherwise interrupts may not work.
     // (Use NSThread and performSelector:onThread:withObject:waitUntilDone:)
@@ -124,21 +116,7 @@ static const float zoomFactor = 1.3;
 - (void)tableView:(NSTableView *)view didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
     if (view.numberOfRows == 0) {
         [view setBackgroundColor:[NSColor gridColor]];
-        _rangeStart = INFINITY;
-        _rangeEnd = -INFINITY;
-        _maxVisibleRange = 0.0;
-        _visibleRange = 0.0;
     }
-}
-
-- (void)boundsDidChange:(NSNotification *)notification {
-    // Snap to channels in vertical scroll.
-    CGFloat y = _scrollView.contentView.bounds.origin.y;
-    NSInteger row = [_scrollView.documentView rowAtPoint:_scrollView.contentView.bounds.origin];
-    NSRect frame = [[_scrollView.documentView rowViewAtRow:row makeIfNecessary:NO] frame];
-    CGFloat snap = (y - NSMinY(frame) > NSMaxY(frame) - y) ? NSMaxY(frame) : NSMinY(frame);
-    NSLog(@"bounds changed: y = %0.0lf, (%0.0lf ... %0.0lf)", y, NSMinY(frame), NSMaxY(frame));
-    [_scrollView.contentView scrollToPoint:NSMakePoint(0, snap)];
 }
 
 - (IBAction)showConsoleWindow:(id)sender {
@@ -212,7 +190,6 @@ static const float zoomFactor = 1.3;
     // TODO: Set SaltoChannelView heights.
     [self willChangeValueForKey:@"channelArray"];
     [_channelArray addObject:channel];
-    [self didChangeValueForKey:@"channelArray"];
     if (channel.startTime < _rangeStart || channel.endTime > _rangeEnd) {
         _rangeStart = channel.startTime;
         _rangeEnd = channel.endTime;
@@ -220,50 +197,56 @@ static const float zoomFactor = 1.3;
             _maxVisibleRange = self.range;
         } else if (_alignment == SaltoAlignStartTime && channel.duration > _maxVisibleRange) {
             _maxVisibleRange = channel.duration;
-            if (!_zoomedIn) {
-                _visibleRange = _maxVisibleRange;
-            }
+        }
+        if (!_zoomedIn) {
+            _visibleRange = _maxVisibleRange;
         }
     }
-    
-    [self.scrollView.documentView setNeedsDisplay];
+    [self didChangeValueForKey:@"channelArray"];
 }
 
 - (void)removeChannel:(SaltoChannelWrapper *)channel {
-    NSTimeInterval __block startTime = INFINITY;
-    NSTimeInterval __block endTime = -INFINITY;
-    double __block maxDuration = 0.0;
-    [_channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
-        if (obj.channel == channel.channel) {
-            [self willChangeValueForKey:@"channelArray"];
-            [_channelArray removeObjectAtIndex:idx];
-            [self didChangeValueForKey:@"channelArray"];
-        } else {
-            if (obj.startTime < startTime) {
-                startTime = obj.startTime;
+    [self willChangeValueForKey:@"channelArray"];
+    if ([_channelArray count] == 1) {
+        [_channelArray removeAllObjects];
+        _rangeStart = INFINITY;
+        _rangeEnd = -INFINITY;
+        _maxVisibleRange = 0.0;
+        _visibleRange = 0.0;
+    } else {
+        NSTimeInterval __block startTime = INFINITY;
+        NSTimeInterval __block endTime = -INFINITY;
+        double __block maxDuration = 0.0;
+        [_channelArray enumerateObjectsUsingBlock:^(SaltoChannelWrapper *obj, NSUInteger idx, BOOL *stop) {
+            if (obj.channel == channel.channel) {
+                [_channelArray removeObjectAtIndex:idx];
+            } else {
+                if (obj.startTime < startTime) {
+                    startTime = obj.startTime;
+                }
+                if (obj.endTime > endTime) {
+                    endTime = obj.endTime;
+                }
+                if (obj.duration > maxDuration) {
+                    maxDuration = obj.duration;
+                }
             }
-            if (obj.endTime > endTime) {
-                endTime = obj.endTime;
-            }
-            if (obj.duration > maxDuration) {
-                maxDuration = obj.duration;
+        }];
+        if (_rangeStart != startTime || _rangeEnd != endTime) {
+            _rangeStart = startTime;
+            _rangeEnd = endTime;
+            if (_alignment == SaltoAlignCalendarDate) {
+                _maxVisibleRange = self.range;
             }
         }
-    }];
-    if (_rangeStart != startTime || _rangeEnd != endTime) {
-        _rangeStart = startTime;
-        _rangeEnd = endTime;
-        if (_alignment == SaltoAlignCalendarDate) {
-            _maxVisibleRange = self.range;
+        if (_alignment == SaltoAlignStartTime && _maxVisibleRange != maxDuration) {
+            _maxVisibleRange = maxDuration;
+        }
+        if (!_zoomedIn) {
+            _visibleRange = _maxVisibleRange;
         }
     }
-    if (_alignment == SaltoAlignStartTime && _maxVisibleRange != maxDuration) {
-        _maxVisibleRange = maxDuration;
-    }
-    if (!_zoomedIn) {
-        _visibleRange = _maxVisibleRange;
-    }
-    [self.scrollView.documentView setNeedsDisplay];
+    [self didChangeValueForKey:@"channelArray"];
 }
 
 - (IBAction)zoomIn:(id)sender {

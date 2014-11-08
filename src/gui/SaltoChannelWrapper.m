@@ -85,7 +85,7 @@ static int typenum;
                 _visibleRangeStart = [midnightAfter timeIntervalSince1970];
             }
         } else if (appDelegate.alignment == SaltoAlignCalendarDate) {
-            _visibleRangeStart = appDelegate.rangeStart;
+            _visibleRangeStart = ([appDelegate.channelArray count]) ? appDelegate.rangeStart : _startTime;
         } else {
             _visibleRangeStart = _startTime;
         }
@@ -204,13 +204,13 @@ static int typenum;
             PyGILState_Release(state);
         } else {
             NSUInteger nPoints = [self numberOfRecordsForPlot:plot];
-            if (appDelegate.alignment == SaltoAlignMarkers) {
+            if (appDelegate.alignment == SaltoAlignCalendarDate) {
                 for (NSUInteger i = 0; i < range.length; i++) {
-                    values[i] = (range.location + i) * (end - start) / (nPoints - 1);
+                    values[i] = start + (range.location + i) * (end - start) / (nPoints - 1);
                 }
             } else {
                 for (NSUInteger i = 0; i < range.length; i++) {
-                    values[i] = start + (range.location + i) * (end - start) / (nPoints - 1);
+                    values[i] = (range.location + i) * (end - start) / (nPoints - 1);
                 }
             }
         }
@@ -308,25 +308,26 @@ static int typenum;
     CPTXYPlotSpace *plotSpace = (CPTXYPlotSpace *)self.graph.defaultPlotSpace;
     CPTXYAxisSet *axisSet = (CPTXYAxisSet *)self.graph.axisSet;
     CPTXYAxis *x = axisSet.xAxis;
-    NSDecimal origin = CPTDecimalFromDouble(0.0);
     if (appDelegate.alignment == SaltoAlignCalendarDate) {
-        origin = CPTDecimalFromDouble(self.visibleRangeStart);
-        x.title = @"";
-        x.titleOffset = 10.0;
-        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+        plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(appDelegate.rangeStart) length:CPTDecimalFromDouble(appDelegate.range)];
+        plotSpace.xRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(self.startTime) length:CPTDecimalFromDouble(self.duration)];
+        x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(appDelegate.rangeStart);
+        x.axisTitle = nil;
         x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
         x.labelOffset = 1.0;
     } else {
+        plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(appDelegate.visibleRange)];
+        plotSpace.xRange = [plotSpace.globalXRange copy];
+        x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
         x.title = @"ms";
         x.titleOffset = 10.0;
-        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
         x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
         x.labelOffset = 1.0;
     }
-    plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:origin length:CPTDecimalFromDouble(appDelegate.visibleRange)];
-    x.orthogonalCoordinateDecimal = origin;
-    plotSpace.xRange = [plotSpace.globalXRange copy];
-    x.visibleRange = [plotSpace.globalXRange copy];
+    x.visibleRange = [plotSpace.xRange copy];
+    if (x.axisTitle) {
+        x.titleLocation = CPTDecimalFromDouble([plotSpace.xRange midPointDouble]);
+    }
 }
 
 - (CPTPlotRange *)plotSpace:(CPTPlotSpace *)space
