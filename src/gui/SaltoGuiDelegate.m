@@ -13,6 +13,7 @@
 
 @interface SaltoGuiDelegate() {
     NSTimeInterval _maxVisibleRange;
+    double _visibleRangePosition;
 }
 
 @end
@@ -20,7 +21,7 @@
 
 @implementation SaltoGuiDelegate
 
-static const float zoomFactor = 1.3;
+static const double zoomFactor = 1.3;
 
 - (NSTimeInterval)range {
     return _rangeEnd - _rangeStart;
@@ -32,11 +33,19 @@ static const float zoomFactor = 1.3;
     if (newRange >= 0.0) {
         _visibleRange = newRange;
         _zoomedIn = (_visibleRange < _maxVisibleRange);
-        [self.scrollView.documentView setNeedsDisplay];
     } else {
         _visibleRange = 0.0;
         NSLog(@"Visible range %f is negative", newRange);
     }
+    if (_zoomedIn) {
+        _scrollerHeightConstraint.constant = [NSScroller scrollerWidthForControlSize:NSRegularControlSize scrollerStyle:NSScrollerStyleOverlay];
+        [_scroller setKnobProportion:(_visibleRange / _maxVisibleRange)];
+        [_scroller setDoubleValue:_visibleRangePosition];
+        [_scroller setEnabled:YES];
+    } else {
+        _scrollerHeightConstraint.constant = 0.0;
+    }
+    [self updateGraphs];
 }
 
 
@@ -57,6 +66,7 @@ static const float zoomFactor = 1.3;
     [_consoleController release];
     [_channelArray release];
     [_scrollView release];
+    [_scroller release];
     [super dealloc];
 }
 
@@ -76,6 +86,9 @@ static const float zoomFactor = 1.3;
 
     // Toggle the correct alignment mode in the Alignment menu.
     [[self.alignmentMenu itemWithTag:self.alignment] setState:NSOnState];
+    
+    // Hide the horizontal scroller.
+    self.scrollerHeightConstraint.constant = 0.0;
     
     // Start the Python backend.
     // TODO: Use a dedicated thread instead of a GCD queue. Otherwise interrupts may not work.
@@ -97,6 +110,14 @@ static const float zoomFactor = 1.3;
     }
 }
 
+- (void)updateGraphs {
+    for (SaltoChannelWrapper *channel in _channelArray) {
+        if (channel.view) {
+            [channel setupPlot];
+        }
+    }
+}
+
 - (void)quitWithInitializationError:(NSString *)string {
     NSLog(@"Failed to initialize %@", string);
     NSAlert *alert = [[NSAlert alloc] init];
@@ -107,83 +128,6 @@ static const float zoomFactor = 1.3;
     [alert runModal];
     [alert release];
     [NSApp terminate:self];
-}
-
-- (void)tableView:(NSTableView *)view didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
-    [view setBackgroundColor:[NSColor whiteColor]];
-}
-
-- (void)tableView:(NSTableView *)view didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
-    if (view.numberOfRows == 0) {
-        [view setBackgroundColor:[NSColor gridColor]];
-    }
-}
-
-- (IBAction)showConsoleWindow:(id)sender {
-    [_consoleController showWindow:sender];
-}
-
-- (IBAction)setAlignmentMode:(id)sender {
-    [[[sender menu] itemWithTag:_alignment] setState:NSOffState];
-    switch ([sender tag]) {
-        case SaltoAlignStartTime:
-            _alignment = SaltoAlignStartTime;
-            _maxVisibleRange = 0.0;
-            _visibleRange = 0.0;
-            for (SaltoChannelWrapper *channel in _channelArray) {
-                if (channel.duration > _maxVisibleRange) {
-                    _maxVisibleRange = channel.duration;
-                    _visibleRange = _maxVisibleRange;
-                }
-                channel.visibleRangeStart = 0.0;
-            }
-            break;
-        case SaltoAlignCalendarDate:
-            _alignment = SaltoAlignCalendarDate;
-            _maxVisibleRange = self.range;
-            _visibleRange = _maxVisibleRange;
-            for (SaltoChannelWrapper *channel in _channelArray) {
-                channel.visibleRangeStart = _rangeStart;
-            }
-            break;
-        case SaltoAlignTimeOfDay:
-            _alignment = SaltoAlignTimeOfDay;
-            _maxVisibleRange = 86400.0;
-            _visibleRange = _maxVisibleRange;
-            for (SaltoChannelWrapper *channel in _channelArray) {
-                channel.visibleRangeStart = 0.0;
-            }
-            break;
-        default:
-            NSLog(@"Unknown alignment mode %ld", (long)[sender tag]);
-    }
-    [sender setState:NSOnState];
-    [self.scrollView.documentView setNeedsDisplay];
-}
-
-- (IBAction)openDocument:(id)sender {
-    NSOpenPanel *panel = [NSOpenPanel openPanel];
-    // TODO: [panel setCanChooseDirectories:YES];
-    // TODO: [panel setAllowedFileTypes:(NSArray *)types];
-    [panel setDelegate:(id)self];
-    [panel beginSheetModalForWindow:[NSApp mainWindow] completionHandler:^(NSInteger result) {
-        if (result == NSFileHandlingPanelOKButton) {
-            for (NSURL *file in [panel URLs]) {
-                NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", file.path];
-                [_consoleController insertInput:command];
-                [_consoleController.console execute:command];
-                // TODO: [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file];
-            }
-        }
-    }];
-}
-
-- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename {
-    NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", filename];
-    [_consoleController insertInput:command];
-    [_consoleController.console execute:command];
-
-    return YES;  // TODO: Return no if there is an error.
 }
 
 - (void)addChannel:(SaltoChannelWrapper *)channel {
@@ -249,25 +193,128 @@ static const float zoomFactor = 1.3;
     [self didChangeValueForKey:@"channelArray"];
 }
 
+#pragma mark - Menu actions
+
+- (IBAction)showConsoleWindow:(id)sender {
+    [_consoleController showWindow:sender];
+}
+
+- (IBAction)setAlignmentMode:(id)sender {
+    [[[sender menu] itemWithTag:_alignment] setState:NSOffState];
+    switch ([sender tag]) {
+        case SaltoAlignStartTime:
+            _alignment = SaltoAlignStartTime;
+            _maxVisibleRange = 0.0;
+            _visibleRange = 0.0;
+            for (SaltoChannelWrapper *channel in _channelArray) {
+                if (channel.duration > _maxVisibleRange) {
+                    _maxVisibleRange = channel.duration;
+                    _visibleRange = _maxVisibleRange;
+                }
+                channel.visibleRangeStart = channel.startTime;
+            }
+            break;
+        case SaltoAlignCalendarDate:
+            _alignment = SaltoAlignCalendarDate;
+            _maxVisibleRange = self.range;
+            _visibleRange = _maxVisibleRange;
+            for (SaltoChannelWrapper *channel in _channelArray) {
+                channel.visibleRangeStart = _rangeStart;
+            }
+            break;
+        case SaltoAlignTimeOfDay:
+            _alignment = SaltoAlignTimeOfDay;
+            _maxVisibleRange = 86400.0;
+            _visibleRange = _maxVisibleRange;
+            for (SaltoChannelWrapper *channel in _channelArray) {
+                // TODO: fix
+                channel.visibleRangeStart = 0.0;
+            }
+            break;
+        default:
+            NSLog(@"Unknown alignment mode %ld", (long)[sender tag]);
+    }
+    _visibleRangePosition = 0.0;
+    [sender setState:NSOnState];
+    [self updateGraphs];
+}
+
+- (IBAction)openDocument:(id)sender {
+    NSOpenPanel *panel = [NSOpenPanel openPanel];
+    // TODO: [panel setCanChooseDirectories:YES];
+    // TODO: [panel setAllowedFileTypes:(NSArray *)types];
+    [panel setDelegate:(id)self];
+    [panel beginSheetModalForWindow:[NSApp mainWindow] completionHandler:^(NSInteger result) {
+        if (result == NSFileHandlingPanelOKButton) {
+            for (NSURL *file in [panel URLs]) {
+                NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", file.path];
+                [_consoleController insertInput:command];
+                [_consoleController.console execute:command];
+                // TODO: [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file];
+            }
+        }
+    }];
+}
+
 - (IBAction)zoomIn:(id)sender {
     // Keep the beginning of the visible range stationary when zooming in.
     self.visibleRange /= zoomFactor;
-    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)zoomOut:(id)sender {
     // Keep the beginning of the visible range stationary when zooming out.
     self.visibleRange *= zoomFactor;
-    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)showAll:(id)sender {
     self.visibleRange = _maxVisibleRange;
-    [self.scrollView.documentView setNeedsDisplay];
 }
 
 - (IBAction)interruptExecution:(id)sender {
     saltoGuiInterrupt();
+}
+
+- (IBAction)scrollAction:(id)sender {
+    switch (self.scroller.hitPart) {
+        case NSScrollerNoPart:
+            break;
+        case NSScrollerDecrementPage:
+            _visibleRangePosition = MAX(_visibleRangePosition - _visibleRange / _maxVisibleRange, 0.0);
+            self.scroller.doubleValue = _visibleRangePosition;
+            break;
+        case NSScrollerIncrementPage:
+            _visibleRangePosition = MIN(_visibleRangePosition + _visibleRange / _maxVisibleRange, 1.0);
+            self.scroller.doubleValue = _visibleRangePosition;
+            break;
+        case NSScrollerKnob:
+        case NSScrollerKnobSlot:
+            _visibleRangePosition = self.scroller.doubleValue;
+            break;
+        default:
+            NSLog(@"unsupported scroller part code %lu", (unsigned long)self.scroller.hitPart);
+    }
+    // TODO: Change plot range.
+}
+
+#pragma mark - Other delegate messages
+
+- (void)tableView:(NSTableView *)view didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+    [view setBackgroundColor:[NSColor whiteColor]];
+}
+
+- (void)tableView:(NSTableView *)view didRemoveRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {
+    if (view.numberOfRows == 0) {
+        [view setBackgroundColor:[NSColor gridColor]];
+        self.scrollerHeightConstraint.constant = 0.0;
+    }
+}
+
+- (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename {
+    NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", filename];
+    [_consoleController insertInput:command];
+    [_consoleController.console execute:command];
+    
+    return YES;  // TODO: Return NO if there is an error.
 }
 
 @end

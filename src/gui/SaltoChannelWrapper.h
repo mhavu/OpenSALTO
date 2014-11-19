@@ -34,6 +34,7 @@
 - (instancetype)initWithChannel:(Channel *)ch;
 - (void)updateEventViews;
 - (void)setupPlot;
+- (NSTimeInterval)timeForPoint:(CGPoint)point;
 - (CGFloat)xForTimeInterval:(NSTimeInterval)time;
 - (CGFloat)xForTimespec:(struct timespec)t;
 

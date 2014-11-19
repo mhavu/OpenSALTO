@@ -204,14 +204,13 @@ static int typenum;
             PyGILState_Release(state);
         } else {
             NSUInteger nPoints = [self numberOfRecordsForPlot:plot];
+            double step = (end - start) / (nPoints - 1);
+            double origin = 0.0;
             if (appDelegate.alignment == SaltoAlignCalendarDate) {
-                for (NSUInteger i = 0; i < range.length; i++) {
-                    values[i] = start + (range.location + i) * (end - start) / (nPoints - 1);
-                }
-            } else {
-                for (NSUInteger i = 0; i < range.length; i++) {
-                    values[i] = (range.location + i) * (end - start) / (nPoints - 1);
-                }
+                origin = start;
+            }
+            for (NSUInteger i = 0; i < range.length; i++) {
+                values[i] = origin + (range.location + i) * step;
             }
         }
     }
@@ -315,6 +314,13 @@ static int typenum;
         x.axisTitle = nil;
         x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
         x.labelOffset = 1.0;
+    } else if (appDelegate.alignment == SaltoAlignTimeOfDay) {
+        plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(appDelegate.visibleRange)];
+        plotSpace.xRange = [plotSpace.globalXRange copy];
+        x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
+        x.axisTitle = nil;
+        x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
+        x.labelOffset = 1.0;
     } else {
         plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(appDelegate.visibleRange)];
         plotSpace.xRange = [plotSpace.globalXRange copy];
@@ -346,6 +352,19 @@ static int typenum;
 
 
 #pragma mark - Conversions
+
+- (NSTimeInterval)timeForPoint:(CGPoint)point {
+    NSDecimal plotPoint[2];
+    
+    CPTPlotSpace *plotSpace = self.graph.defaultPlotSpace;
+    // Convert from view coordinates to plot area coordinates.
+    CGPoint areaPoint = [self.graph convertPoint:point
+                                        toLayer:self.graph.plotAreaFrame.plotArea];
+    // Convert from plot area coordinates to data coordinates.
+    [plotSpace plotPoint:plotPoint numberOfCoordinates:2 forPlotAreaViewPoint:areaPoint];
+    
+    return [[NSDecimalNumber decimalNumberWithDecimal:plotPoint[0]] doubleValue];
+}
 
 - (CGFloat)xForTimeInterval:(NSTimeInterval)time {
     double plotPoint[2] = {time, 0.0};

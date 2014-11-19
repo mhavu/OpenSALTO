@@ -34,16 +34,18 @@ typedef NS_OPTIONS(NSInteger, SaltoChannelAlignment) {
 @property (nonatomic, assign) NSTimeInterval visibleRange;
 @property (nonatomic, assign) SaltoChannelAlignment alignment;
 @property (nonatomic, assign, getter = isZoomedIn) BOOL zoomedIn;
+@property (nonatomic, retain) IBOutlet NSScroller *scroller;
+@property (nonatomic, unsafe_unretained) IBOutlet NSLayoutConstraint *scrollerHeightConstraint;
 
 - (NSTimeInterval)range;
-
-- (IBAction)showConsoleWindow:(id)sender;
-- (IBAction)setAlignmentMode:(id)sender;
 - (void)addChannel:(SaltoChannelWrapper *)channel;
 - (void)removeChannel:(SaltoChannelWrapper *)channel;
+- (IBAction)showConsoleWindow:(id)sender;
+- (IBAction)setAlignmentMode:(id)sender;
 - (IBAction)zoomIn:(id)sender;
 - (IBAction)zoomOut:(id)sender;
 - (IBAction)showAll:(id)sender;
 - (IBAction)interruptExecution:(id)sender;
+- (IBAction)scrollAction:(id)sender;
 
 @end

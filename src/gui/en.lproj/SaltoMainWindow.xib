@@ -345,13 +345,13 @@
                 <rect key="frame" x="0.0" y="0.0" width="358" height="200"/>
                 <autoresizingMask key="autoresizingMask"/>
                 <subviews>
-                    <scrollView autohidesScrollers="YES" horizontalLineScroll="102" horizontalPageScroll="10" verticalLineScroll="102" verticalPageScroll="10" usesPredominantAxisScrolling="NO" scrollerKnobStyle="dark" translatesAutoresizingMaskIntoConstraints="NO" id="754">
-                        <rect key="frame" x="-1" y="-1" width="360" height="202"/>
-                        <clipView key="contentView" drawsBackground="NO" copiesOnScroll="NO" id="yQw-QJ-WXH">
-                            <rect key="frame" x="1" y="1" width="358" height="200"/>
+                    <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="102" horizontalPageScroll="10" verticalLineScroll="102" verticalPageScroll="10" hasHorizontalScroller="NO" translatesAutoresizingMaskIntoConstraints="NO" id="UCI-9R-5CY">
+                        <rect key="frame" x="-1" y="14" width="360" height="187"/>
+                        <clipView key="contentView" drawsBackground="NO" copiesOnScroll="NO" id="hSu-BW-che">
+                            <rect key="frame" x="1" y="17" width="238" height="117"/>
                             <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                             <subviews>
-                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" columnReordering="NO" columnSelection="YES" autosaveColumns="NO" rowHeight="100" rowSizeStyle="automatic" viewBased="YES" id="755">
+                                <tableView verticalHuggingPriority="750" allowsExpansionToolTips="YES" columnAutoresizingStyle="lastColumnOnly" columnReordering="NO" columnSelection="YES" autosaveColumns="NO" rowHeight="100" rowSizeStyle="automatic" viewBased="YES" id="MjK-p8-o5Z">
                                     <autoresizingMask key="autoresizingMask"/>
                                     <size key="intercellSpacing" width="3" height="2"/>
                                     <color key="backgroundColor" name="gridColor" catalog="System" colorSpace="catalog"/>
@@ -369,17 +369,16 @@
                                                 <color key="textColor" name="controlTextColor" catalog="System" colorSpace="catalog"/>
                                                 <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                                             </textFieldCell>
-                                            <tableColumnResizingMask key="resizingMask" resizeWithTable="YES" userResizable="YES"/>
                                             <prototypeCellViews>
                                                 <tableCellView id="vbe-Rq-5Go">
                                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                     <subviews>
                                                         <slider horizontalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="i0y-i2-8ei">
-                                                            <rect key="frame" x="2" y="4" width="17" height="92"/>
+                                                            <rect key="frame" x="-2.5" y="4" width="17" height="92"/>
                                                             <sliderCell key="cell" controlSize="mini" alignment="left" minValue="-5" maxValue="5" tickMarkPosition="right" numberOfTickMarks="11" sliderType="linear" id="qZs-CA-hgI"/>
                                                         </slider>
                                                         <slider horizontalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="6m9-DC-SdH">
-                                                            <rect key="frame" x="19" y="4" width="17" height="92"/>
+                                                            <rect key="frame" x="15.5" y="4" width="17" height="92"/>
                                                             <sliderCell key="cell" controlSize="mini" state="on" alignment="left" minValue="-1" maxValue="1" tickMarkPosition="right" numberOfTickMarks="3" sliderType="linear" id="12W-JP-RHj"/>
                                                         </slider>
                                                     </subviews>
@@ -389,7 +388,7 @@
                                                 <binding destination="784" name="value" keyPath="arrangedObjects" id="1120"/>
                                             </connections>
                                         </tableColumn>
-                                        <tableColumn identifier="Channel" width="355" minWidth="302" maxWidth="1000" id="759">
+                                        <tableColumn identifier="Channel" width="357" minWidth="302" maxWidth="1000" id="759">
                                             <tableHeaderCell key="headerCell" lineBreakMode="truncatingTail" borderStyle="border" alignment="left">
                                                 <font key="font" metaFont="smallSystem"/>
                                                 <color key="textColor" name="headerTextColor" catalog="System" colorSpace="catalog"/>
@@ -403,11 +402,11 @@
                                             <tableColumnResizingMask key="resizingMask" resizeWithTable="YES"/>
                                             <prototypeCellViews>
                                                 <tableCellView id="942" customClass="SaltoChannelView">
-                                                    <rect key="frame" x="1" y="1" width="355" height="100"/>
+                                                    <rect key="frame" x="1" y="1" width="357" height="100"/>
                                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                     <subviews>
                                                         <textField verticalHuggingPriority="750" horizontalCompressionResistancePriority="250" translatesAutoresizingMaskIntoConstraints="NO" id="944">
-                                                            <rect key="frame" x="28" y="80" width="326" height="17"/>
+                                                            <rect key="frame" x="28" y="80" width="328" height="17"/>
                                                             <constraints>
                                                                 <constraint firstAttribute="height" constant="17" id="961"/>
                                                             </constraints>
@@ -421,7 +420,7 @@
                                                             </connections>
                                                         </textField>
                                                         <customView translatesAutoresizingMaskIntoConstraints="NO" id="oV8-eo-s3F" customClass="CPTGraphHostingView">
-                                                            <rect key="frame" x="0.0" y="0.0" width="355" height="100"/>
+                                                            <rect key="frame" x="0.0" y="0.0" width="357" height="100"/>
                                                         </customView>
                                                     </subviews>
                                                     <constraints>
@@ -445,28 +444,40 @@
                                         </tableColumn>
                                     </tableColumns>
                                     <connections>
-                                        <binding destination="784" name="content" keyPath="arrangedObjects" id="789"/>
-                                        <outlet property="delegate" destination="690" id="795"/>
+                                        <binding destination="784" name="content" keyPath="arrangedObjects" id="bdI-ba-Lqp"/>
+                                        <outlet property="delegate" destination="690" id="bId-JW-jHC"/>
                                     </connections>
                                 </tableView>
                             </subviews>
                             <color key="backgroundColor" name="controlBackgroundColor" catalog="System" colorSpace="catalog"/>
                         </clipView>
-                        <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="YES" id="756">
-                            <rect key="frame" x="1" y="186" width="357" height="15"/>
+                        <scroller key="horizontalScroller" hidden="YES" verticalHuggingPriority="750" doubleValue="1" horizontal="YES" id="rTn-E2-9Kx">
+                            <rect key="frame" x="1" y="119" width="223" height="15"/>
                             <autoresizingMask key="autoresizingMask"/>
                         </scroller>
-                        <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="NO" id="758">
-                            <rect key="frame" x="464" y="1" width="15" height="254"/>
+                        <scroller key="verticalScroller" hidden="YES" verticalHuggingPriority="750" horizontal="NO" id="cFQ-av-9aT">
+                            <rect key="frame" x="224" y="17" width="15" height="102"/>
                             <autoresizingMask key="autoresizingMask"/>
                         </scroller>
                     </scrollView>
+                    <customView translatesAutoresizingMaskIntoConstraints="NO" id="Zor-Cm-HPB" customClass="NSScroller">
+                        <rect key="frame" x="0.0" y="0.0" width="358" height="15"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="15" id="bQO-tg-qua"/>
+                        </constraints>
+                        <connections>
+                            <action selector="scrollAction:" target="-1" id="gIy-Cj-V5b"/>
+                        </connections>
+                    </customView>
                 </subviews>
                 <constraints>
-                    <constraint firstItem="754" firstAttribute="leading" secondItem="745" secondAttribute="leading" constant="-1" id="920"/>
-                    <constraint firstItem="754" firstAttribute="top" secondItem="745" secondAttribute="top" constant="-1" id="927"/>
-                    <constraint firstAttribute="trailing" secondItem="754" secondAttribute="trailing" constant="-1" id="974"/>
-                    <constraint firstAttribute="bottom" secondItem="754" secondAttribute="bottom" constant="-1" id="975"/>
+                    <constraint firstItem="Zor-Cm-HPB" firstAttribute="leading" secondItem="745" secondAttribute="leading" id="5Et-4m-lbB"/>
+                    <constraint firstAttribute="trailing" secondItem="Zor-Cm-HPB" secondAttribute="trailing" id="6Fz-Ai-tIk"/>
+                    <constraint firstItem="UCI-9R-5CY" firstAttribute="top" secondItem="745" secondAttribute="top" constant="-1" id="9ae-s7-Tsv"/>
+                    <constraint firstAttribute="trailing" secondItem="UCI-9R-5CY" secondAttribute="trailing" constant="-1" id="Cfp-tV-cy3"/>
+                    <constraint firstItem="Zor-Cm-HPB" firstAttribute="top" secondItem="UCI-9R-5CY" secondAttribute="bottom" constant="-1" id="S3D-yF-DrD"/>
+                    <constraint firstAttribute="bottom" secondItem="Zor-Cm-HPB" secondAttribute="bottom" id="wgZ-lR-qN8"/>
+                    <constraint firstItem="UCI-9R-5CY" firstAttribute="leading" secondItem="745" secondAttribute="leading" constant="-1" id="zW7-CQ-NOm"/>
                 </constraints>
             </view>
             <toolbar key="toolbar" implicitIdentifier="2168E266-EB7B-400A-9418-93AB12B0F6CE" displayMode="iconOnly" sizeMode="small" id="746">
@@ -489,12 +500,17 @@
                     <toolbarItem reference="1025"/>
                 </defaultToolbarItems>
             </toolbar>
-            <point key="canvasLocation" x="159" y="132"/>
+            <connections>
+                <outlet property="delegate" destination="690" id="OpL-Wx-EDi"/>
+            </connections>
+            <point key="canvasLocation" x="175" y="241"/>
         </window>
         <customObject id="690" customClass="SaltoGuiDelegate">
             <connections>
                 <outlet property="alignmentMenu" destination="6Kl-Pn-XqB" id="fc2-nQ-ykf"/>
-                <outlet property="scrollView" destination="754" id="1107"/>
+                <outlet property="scrollView" destination="UCI-9R-5CY" id="wms-Jc-qNQ"/>
+                <outlet property="scroller" destination="Zor-Cm-HPB" id="omz-fj-mcf"/>
+                <outlet property="scrollerHeightConstraint" destination="bQO-tg-qua" id="zu6-92-ntx"/>
             </connections>
         </customObject>
         <arrayController objectClassName="SaltoChannelWrapper" id="784" userLabel="Channel Array Controller">
