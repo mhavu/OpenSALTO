@@ -374,11 +374,11 @@
                                                     <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                                                     <subviews>
                                                         <slider horizontalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="i0y-i2-8ei">
-                                                            <rect key="frame" x="-2.5" y="4" width="17" height="92"/>
+                                                            <rect key="frame" x="-3" y="4" width="17" height="92"/>
                                                             <sliderCell key="cell" controlSize="mini" alignment="left" minValue="-5" maxValue="5" tickMarkPosition="right" numberOfTickMarks="11" sliderType="linear" id="qZs-CA-hgI"/>
                                                         </slider>
                                                         <slider horizontalHuggingPriority="750" fixedFrame="YES" translatesAutoresizingMaskIntoConstraints="NO" id="6m9-DC-SdH">
-                                                            <rect key="frame" x="15.5" y="4" width="17" height="92"/>
+                                                            <rect key="frame" x="16" y="4" width="17" height="92"/>
                                                             <sliderCell key="cell" controlSize="mini" state="on" alignment="left" minValue="-1" maxValue="1" tickMarkPosition="right" numberOfTickMarks="3" sliderType="linear" id="12W-JP-RHj"/>
                                                         </slider>
                                                     </subviews>

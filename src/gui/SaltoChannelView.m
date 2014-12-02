@@ -67,23 +67,34 @@
     CGFloat width = 4.0;
     NSRect lRect = NSMakeRect(NSMinX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
     NSRect rRect = NSMakeRect(NSMaxX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
-    // TODO: If rectangles overlap, create a single tracking area.
     NSMutableDictionary *userInfoDict = [NSMutableDictionary dictionaryWithObject:eventLayer
                                                                            forKey:@"layer"];
-    [userInfoDict setObject:@"left" forKey:@"edge"];
-    NSTrackingArea *leftEdge = [[NSTrackingArea alloc] initWithRect:lRect
-                                                            options:(NSTrackingCursorUpdate | NSTrackingActiveInActiveApp)
-                                                              owner:self
-                                                           userInfo:[userInfoDict copy]];
-    [self addTrackingArea:leftEdge];
-    [leftEdge release];
-    [userInfoDict setObject:@"right" forKey:@"edge"];
-    NSTrackingArea *rightEdge = [[NSTrackingArea alloc] initWithRect:rRect
-                                                             options:(NSTrackingCursorUpdate | NSTrackingActiveInActiveApp)
-                                                               owner:self
-                                                            userInfo:userInfoDict];
-    [self addTrackingArea:rightEdge];
-    [rightEdge release];
+    if (!NSIntersectsRect(lRect, rRect)) {
+        [userInfoDict setObject:@"left" forKey:@"edge"];
+        NSTrackingArea *leftEdge = [[NSTrackingArea alloc] initWithRect:lRect
+                                                                options:(NSTrackingCursorUpdate | NSTrackingActiveInActiveApp)
+                                                                  owner:self
+                                                               userInfo:[userInfoDict copy]];
+        [self addTrackingArea:leftEdge];
+        [leftEdge release];
+        [userInfoDict setObject:@"right" forKey:@"edge"];
+        NSTrackingArea *rightEdge = [[NSTrackingArea alloc] initWithRect:rRect
+                                                                 options:(NSTrackingCursorUpdate | NSTrackingActiveInActiveApp)
+                                                                   owner:self
+                                                                userInfo:userInfoDict];
+        [self addTrackingArea:rightEdge];
+        [rightEdge release];
+    } else {
+        // Edges overlap. Add a single combined tracking area.
+        NSRect rect = NSIntersectionRect(lRect, rRect);
+        [userInfoDict setObject:@"both" forKey:@"edge"];
+        NSTrackingArea *area = [[NSTrackingArea alloc] initWithRect:rect
+                                                                options:(NSTrackingCursorUpdate | NSTrackingActiveInActiveApp)
+                                                                  owner:self
+                                                               userInfo:userInfoDict];
+        [self addTrackingArea:area];
+        [area release];
+    }
 }
 
 #pragma mark - NSEvent handling
@@ -119,6 +130,8 @@
 }
 
 - (void)mouseDown:(NSEvent *)event {
+    NSPoint hitPoint = [self convertPoint:event.locationInWindow fromView:nil];
+    NSLog(@"time: %f s", [self.objectValue timeForPoint:NSPointToCGPoint(hitPoint)]);
     if (_activeTrackingArea) {
         [self removeTrackingArea:_activeTrackingArea];
         _resizing = YES;
@@ -188,6 +201,21 @@
         // TODO: Edit event start and end times
     } else {
         [self.nextResponder mouseUp:event];
+    }
+}
+
+- (void)scrollWheel:(NSEvent *)event {
+    if (event.deltaX != 0.0) {
+        SaltoGuiDelegate *appDelegate = [NSApp delegate];
+        NSScroller *scroller = appDelegate.scroller;
+        if (scroller.isEnabled) {
+            double delta = event.deltaX / (NSWidth(scroller.bounds) * (1.0 - scroller.knobProportion));
+            scroller.doubleValue = MIN(MAX(scroller.doubleValue - delta, 0.0), 1.0);
+            [appDelegate moveVisibleRangeToScrollerPosition:scroller.doubleValue];
+        }
+    }
+    if (event.deltaY != 0.0) {
+        [self.nextResponder scrollWheel:event];
     }
 }
 

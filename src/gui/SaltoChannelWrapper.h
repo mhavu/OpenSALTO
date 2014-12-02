@@ -17,7 +17,6 @@
 @property (retain) CPTXYGraph *graph;
 @property (readonly) Channel *channel;
 @property (unsafe_unretained) SaltoChannelView *view;
-@property (retain) NSMutableArray *eventViewArray;
 @property (readonly) NSRect frame;
 @property (retain) NSString *label;
 @property (readonly) NSString *signalType;

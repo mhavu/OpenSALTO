@@ -12,11 +12,11 @@
 
 @interface SaltoChannelView : NSTableCellView
 
-@property (unsafe_unretained) IBOutlet CPTGraphHostingView *hostingView;
-@property (readonly) NSMutableArray *eventLayerArray;
-@property (readonly) NSMutableArray *trackingAreaArray;
-@property (readonly) NSTrackingArea *activeTrackingArea;
-@property (readonly, getter = isResizing) BOOL resizing;
+@property (nonatomic, unsafe_unretained) IBOutlet CPTGraphHostingView *hostingView;
+@property (nonatomic, readonly) NSMutableArray *eventLayerArray;
+@property (nonatomic, readonly) NSMutableArray *trackingAreaArray;
+@property (nonatomic, readonly) NSTrackingArea *activeTrackingArea;
+@property (nonatomic, readonly, getter = isResizing) BOOL resizing;
 
 - (void)clearEventLayers;
 - (void)addEventLayer:(CALayer *)eventLayer;

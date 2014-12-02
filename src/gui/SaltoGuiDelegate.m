@@ -11,15 +11,10 @@
 #import "SaltoChannelWrapper.h"
 #import "saltoGui.h"
 
-@interface SaltoGuiDelegate() {
-    NSTimeInterval _maxVisibleRange;
-    double _visibleRangePosition;
-}
-
-@end
-
-
 @implementation SaltoGuiDelegate
+
+@synthesize visibleRangeStart = _visibleRangeStart;
+@synthesize visibleRangeEnd = _visibleRangeEnd;
 
 static const double zoomFactor = 1.3;
 
@@ -27,25 +22,47 @@ static const double zoomFactor = 1.3;
     return _rangeEnd - _rangeStart;
 }
 
-- (void)setVisibleRange:(NSTimeInterval)newRange {
-    if (newRange > _maxVisibleRange)
-        newRange = _maxVisibleRange;
-    if (newRange >= 0.0) {
-        _visibleRange = newRange;
-        _zoomedIn = (_visibleRange < _maxVisibleRange);
+- (NSTimeInterval)visibleRange {
+    return _visibleRangeEnd - _visibleRangeStart;
+}
+
+- (void)setVisibleRangeStart:(NSTimeInterval)start {
+    [self setVisibleRangeStart:start end:(start + self.visibleRange)];
+}
+
+- (void)setVisibleRangeEnd:(NSTimeInterval)end {
+    [self setVisibleRangeStart:(end - self.visibleRange) end:end];
+}
+
+- (void)setVisibleRangeStart:(NSTimeInterval)start end:(NSTimeInterval)end {
+    double position;
+    if (_alignment == SaltoAlignCalendarDate) {
+        _visibleRangeStart = MAX(start, _rangeStart);
+        _visibleRangeEnd = MIN(end, _rangeEnd);
+        position = (_visibleRangeStart - _rangeStart) / (_maxVisibleRange - self.visibleRange);
     } else {
-        _visibleRange = 0.0;
-        NSLog(@"Visible range %f is negative", newRange);
+        _visibleRangeStart = MAX(start, 0.0);
+        _visibleRangeEnd = MIN(end, start + _maxVisibleRange);
+        position = _visibleRangeStart / (_maxVisibleRange - self.visibleRange);
     }
+    _zoomedIn = (self.visibleRange < _maxVisibleRange);
     if (_zoomedIn) {
         _scrollerHeightConstraint.constant = [NSScroller scrollerWidthForControlSize:NSRegularControlSize scrollerStyle:NSScrollerStyleOverlay];
-        [_scroller setKnobProportion:(_visibleRange / _maxVisibleRange)];
-        [_scroller setDoubleValue:_visibleRangePosition];
+        [_scroller setKnobProportion:(self.visibleRange / _maxVisibleRange)];
+        [_scroller setDoubleValue:position];
         [_scroller setEnabled:YES];
     } else {
         _scrollerHeightConstraint.constant = 0.0;
     }
-    [self updateGraphs];
+    [self updateGraphsWithReload:NO];
+}
+
+- (void)moveVisibleRangeToScrollerPosition:(double)position {
+    if (self.alignment == SaltoAlignCalendarDate) {
+        self.visibleRangeStart = _rangeStart + position * (_maxVisibleRange - self.visibleRange);
+    } else {
+        self.visibleRangeStart = position * (_maxVisibleRange - self.visibleRange);
+    }
 }
 
 
@@ -110,10 +127,13 @@ static const double zoomFactor = 1.3;
     }
 }
 
-- (void)updateGraphs {
+- (void)updateGraphsWithReload:(BOOL)reload {
     for (SaltoChannelWrapper *channel in _channelArray) {
         if (channel.view) {
             [channel setupPlot];
+            if (reload) {
+                [channel.graph reloadData];
+            }
         }
     }
 }
@@ -143,7 +163,13 @@ static const double zoomFactor = 1.3;
             _maxVisibleRange = channel.duration;
         }
         if (!_zoomedIn) {
-            _visibleRange = _maxVisibleRange;
+            if (_alignment == SaltoAlignCalendarDate) {
+                _visibleRangeStart = _rangeStart;
+                _visibleRangeEnd = _rangeEnd;
+            } else {
+                _visibleRangeStart = 0.0;
+                _visibleRangeEnd = _maxVisibleRange;
+            }
         }
     }
     [self didChangeValueForKey:@"channelArray"];
@@ -156,7 +182,8 @@ static const double zoomFactor = 1.3;
         _rangeStart = INFINITY;
         _rangeEnd = -INFINITY;
         _maxVisibleRange = 0.0;
-        _visibleRange = 0.0;
+        _visibleRangeStart = 0.0;
+        _visibleRangeEnd = 0.0;
     } else {
         NSTimeInterval __block startTime = INFINITY;
         NSTimeInterval __block endTime = -INFINITY;
@@ -187,7 +214,13 @@ static const double zoomFactor = 1.3;
             _maxVisibleRange = maxDuration;
         }
         if (!_zoomedIn) {
-            _visibleRange = _maxVisibleRange;
+            if (_alignment == SaltoAlignCalendarDate) {
+                _visibleRangeStart = _rangeStart;
+                _visibleRangeEnd = _rangeEnd;
+            } else {
+                _visibleRangeStart = 0.0;
+                _visibleRangeEnd = _maxVisibleRange;
+            }
         }
     }
     [self didChangeValueForKey:@"channelArray"];
@@ -205,19 +238,18 @@ static const double zoomFactor = 1.3;
         case SaltoAlignStartTime:
             _alignment = SaltoAlignStartTime;
             _maxVisibleRange = 0.0;
-            _visibleRange = 0.0;
             for (SaltoChannelWrapper *channel in _channelArray) {
                 if (channel.duration > _maxVisibleRange) {
                     _maxVisibleRange = channel.duration;
-                    _visibleRange = _maxVisibleRange;
                 }
                 channel.visibleRangeStart = channel.startTime;
             }
+            [self setVisibleRangeStart:0.0 end:_maxVisibleRange];
             break;
         case SaltoAlignCalendarDate:
             _alignment = SaltoAlignCalendarDate;
             _maxVisibleRange = self.range;
-            _visibleRange = _maxVisibleRange;
+            [self setVisibleRangeStart:_rangeStart end:_rangeEnd];
             for (SaltoChannelWrapper *channel in _channelArray) {
                 channel.visibleRangeStart = _rangeStart;
             }
@@ -225,7 +257,7 @@ static const double zoomFactor = 1.3;
         case SaltoAlignTimeOfDay:
             _alignment = SaltoAlignTimeOfDay;
             _maxVisibleRange = 86400.0;
-            _visibleRange = _maxVisibleRange;
+            [self setVisibleRangeStart:0.0 end:_maxVisibleRange];
             for (SaltoChannelWrapper *channel in _channelArray) {
                 // TODO: fix
                 channel.visibleRangeStart = 0.0;
@@ -234,9 +266,8 @@ static const double zoomFactor = 1.3;
         default:
             NSLog(@"Unknown alignment mode %ld", (long)[sender tag]);
     }
-    _visibleRangePosition = 0.0;
     [sender setState:NSOnState];
-    [self updateGraphs];
+    [self updateGraphsWithReload:YES];
 }
 
 - (IBAction)openDocument:(id)sender {
@@ -257,17 +288,27 @@ static const double zoomFactor = 1.3;
 }
 
 - (IBAction)zoomIn:(id)sender {
-    // Keep the beginning of the visible range stationary when zooming in.
-    self.visibleRange /= zoomFactor;
+    // Keep the center of the visible range stationary when zooming in.
+    NSTimeInterval newVisibleRange = self.visibleRange / zoomFactor;
+    NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
+    [self setVisibleRangeStart:start end:(start + newVisibleRange)];
 }
 
 - (IBAction)zoomOut:(id)sender {
-    // Keep the beginning of the visible range stationary when zooming out.
-    self.visibleRange *= zoomFactor;
+    if (self.isZoomedIn) {
+        // Keep the center of the visible range stationary when zooming out.
+        NSTimeInterval newVisibleRange = self.visibleRange * zoomFactor;
+        NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
+        [self setVisibleRangeStart:start end:(start + newVisibleRange)];
+    }
 }
 
 - (IBAction)showAll:(id)sender {
-    self.visibleRange = _maxVisibleRange;
+    if (self.alignment == SaltoAlignCalendarDate) {
+        [self setVisibleRangeStart:_rangeStart end:_rangeEnd];
+    } else {
+        [self setVisibleRangeStart:0.0 end:_maxVisibleRange];
+    }
 }
 
 - (IBAction)interruptExecution:(id)sender {
@@ -275,25 +316,26 @@ static const double zoomFactor = 1.3;
 }
 
 - (IBAction)scrollAction:(id)sender {
+    double position = 0.0;
     switch (self.scroller.hitPart) {
         case NSScrollerNoPart:
             break;
         case NSScrollerDecrementPage:
-            _visibleRangePosition = MAX(_visibleRangePosition - _visibleRange / _maxVisibleRange, 0.0);
-            self.scroller.doubleValue = _visibleRangePosition;
+            position = MAX(self.scroller.doubleValue - self.visibleRange / (_maxVisibleRange - self.visibleRange), 0.0);
+            self.scroller.doubleValue = position;
             break;
         case NSScrollerIncrementPage:
-            _visibleRangePosition = MIN(_visibleRangePosition + _visibleRange / _maxVisibleRange, 1.0);
-            self.scroller.doubleValue = _visibleRangePosition;
+            position = MIN(self.scroller.doubleValue + self.visibleRange / (_maxVisibleRange - self.visibleRange), 1.0);
+            self.scroller.doubleValue = position;
             break;
         case NSScrollerKnob:
         case NSScrollerKnobSlot:
-            _visibleRangePosition = self.scroller.doubleValue;
+            position = self.scroller.doubleValue;
             break;
         default:
             NSLog(@"unsupported scroller part code %lu", (unsigned long)self.scroller.hitPart);
     }
-    // TODO: Change plot range.
+    [self moveVisibleRangeToScrollerPosition:position];
 }
 
 #pragma mark - Other delegate messages
