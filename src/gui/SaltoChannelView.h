@@ -9,6 +9,7 @@
 #import <Cocoa/Cocoa.h>
 
 @class CPTGraphHostingView;
+@class SaltoEventWrapper;
 
 @interface SaltoChannelView : NSTableCellView
 
@@ -19,8 +20,8 @@
 @property (nonatomic, readonly, getter = isResizing) BOOL resizing;
 
 - (void)clearEventLayers;
-- (void)addEventLayer:(CALayer *)eventLayer;
+- (void)setFrame:(CGRect)rect forEvent:(SaltoEventWrapper *)event;
 - (void)clearTrackingAreas;
-- (void)addTrackingAreasForEvent:(CALayer *)eventLayer;
+- (void)addTrackingAreasForLayer:(CALayer *)layer;
 
 @end

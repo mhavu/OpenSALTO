@@ -8,6 +8,7 @@
 
 #import "SaltoChannelView.h"
 #import "SaltoChannelWrapper.h"
+#import "SaltoEventWrapper.h"
 #import "SaltoGuiDelegate.h"
 
 @implementation SaltoChannelView
@@ -44,9 +45,16 @@
     [self.eventLayerArray removeAllObjects];
 }
 
-- (void)addEventLayer:(CALayer *)eventLayer {
-    [self.hostingView.layer addSublayer:eventLayer];
-    [self.eventLayerArray addObject:eventLayer];
+- (void)setFrame:(CGRect)rect forEvent:(SaltoEventWrapper *)event {
+    CALayer *layer = [CALayer layer];
+    layer.frame = rect;
+    layer.backgroundColor = CGColorCreateGenericRGB(1.0, 1.0, 0.0, 0.3);
+    layer.borderWidth = 1.0;
+    layer.borderColor = event.color;
+    [layer setValue:event forKey:@"eventObject"];
+    [self.hostingView.layer addSublayer:layer];
+    [self.eventLayerArray addObject:layer];
+    [self addTrackingAreasForLayer:layer];
 }
 
 - (void)clearTrackingAreas {
@@ -61,13 +69,15 @@
     [self.trackingAreaArray addObject:trackingArea];
 }
 
-- (void)addTrackingAreasForEvent:(CALayer *)eventLayer {
+- (void)addTrackingAreasForLayer:(CALayer *)layer {
     // Add tracking areas to the left and right edge of the event
     // to allow resizing by dragging.
     CGFloat width = 4.0;
-    NSRect lRect = NSMakeRect(NSMinX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
-    NSRect rRect = NSMakeRect(NSMaxX(eventLayer.frame) - width / 2, NSMinY(eventLayer.frame), width, NSHeight(eventLayer.frame));
-    NSMutableDictionary *userInfoDict = [NSMutableDictionary dictionaryWithObject:eventLayer
+    NSRect lRect = NSMakeRect(NSMinX(layer.frame) - width / 2, NSMinY(layer.frame),
+                              width, NSHeight(layer.frame));
+    NSRect rRect = NSMakeRect(NSMaxX(layer.frame) - width / 2, NSMinY(layer.frame),
+                              width, NSHeight(layer.frame));
+    NSMutableDictionary *userInfoDict = [NSMutableDictionary dictionaryWithObject:layer
                                                                            forKey:@"layer"];
     if (!NSIntersectsRect(lRect, rRect)) {
         [userInfoDict setObject:@"left" forKey:@"edge"];
@@ -102,7 +112,7 @@
 - (void)updateTrackingAreas {
     [self clearTrackingAreas];
     for (CALayer *layer in self.eventLayerArray) {
-        [self addTrackingAreasForEvent:layer];
+        [self addTrackingAreasForLayer:layer];
     }
     [super updateTrackingAreas];
 }
@@ -193,12 +203,21 @@
 
 - (void)mouseUp:(NSEvent *)event {
     if (self.isResizing) {
+        // Set new start and end time for the event.
+        CALayer *eventLayer = [self.activeTrackingArea.userInfo objectForKey:@"layer"];
+        CGPoint point = NSPointToCGPoint(eventLayer.frame.origin);
+        NSTimeInterval start = [self.objectValue timeForPoint:point];
+        point.x += NSWidth(eventLayer.frame);
+        NSTimeInterval end = [self.objectValue timeForPoint:point];
+        SaltoEventWrapper *event = [eventLayer valueForKey:@"eventObject"];
+        event.startTime = start;
+        event.endTime = end;
+        // Reset tracking areas.
         [self clearTrackingAreas];
         for (CALayer *layer in self.eventLayerArray) {
-            [self addTrackingAreasForEvent:layer];
+            [self addTrackingAreasForLayer:layer];
         }
         _resizing = NO;
-        // TODO: Edit event start and end times
     } else {
         [self.nextResponder mouseUp:event];
     }

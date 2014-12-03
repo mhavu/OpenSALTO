@@ -54,6 +54,7 @@
 		ADB5E92219FED29E004B2F65 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADB5E92119FED29E004B2F65 /* QuartzCore.framework */; };
 		ADE2504219F5138200929553 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADE2503F19F5136700929553 /* CorePlot.framework */; };
 		ADE2504319F513B800929553 /* CorePlot.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = ADE2503F19F5136700929553 /* CorePlot.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		ADEA72781A2DE6980071B34C /* SaltoEventWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = ADEA72771A2DE6980071B34C /* SaltoEventWrapper.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -225,6 +226,8 @@
 		27F18436198967D700FCD050 /* HUGE.ATS */ = {isa = PBXFileReference; lastKnownFileType = file; name = HUGE.ATS; path = test/HUGE.ATS; sourceTree = SOURCE_ROOT; };
 		ADB5E92119FED29E004B2F65 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		ADE2503819F5136700929553 /* CorePlot.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CorePlot.xcodeproj; path = "../../../core-plot/framework/CorePlot.xcodeproj"; sourceTree = "<group>"; };
+		ADEA72761A2DE6980071B34C /* SaltoEventWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoEventWrapper.h; sourceTree = "<group>"; };
+		ADEA72771A2DE6980071B34C /* SaltoEventWrapper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoEventWrapper.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -303,6 +306,8 @@
 				276C5D9E19AE35C5005B3024 /* SaltoConsole.xib */,
 				276C5D4419ACC83B005B3024 /* SaltoChannelView.h */,
 				276C5D4519ACC83C005B3024 /* SaltoChannelView.m */,
+				ADEA72761A2DE6980071B34C /* SaltoEventWrapper.h */,
+				ADEA72771A2DE6980071B34C /* SaltoEventWrapper.m */,
 				276C5D4719ACC892005B3024 /* SaltoChannelWrapper.h */,
 				276C5D4819ACC892005B3024 /* SaltoChannelWrapper.m */,
 				276C5D1519AC83A8005B3024 /* Supporting Files */,
@@ -736,6 +741,7 @@
 				276C5D2219AC83A8005B3024 /* SaltoGuiDelegate.m in Sources */,
 				276C5D4619ACC83C005B3024 /* SaltoChannelView.m in Sources */,
 				276C5D4919ACC893005B3024 /* SaltoChannelWrapper.m in Sources */,
+				ADEA72781A2DE6980071B34C /* SaltoEventWrapper.m in Sources */,
 				276C5D8E19ADF110005B3024 /* salto.c in Sources */,
 				276C5D9019ADF11B005B3024 /* Event.c in Sources */,
 				276C5D9219ADF11F005B3024 /* Channel.c in Sources */,

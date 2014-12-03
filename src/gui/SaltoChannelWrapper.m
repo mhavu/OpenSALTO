@@ -9,6 +9,7 @@
 #import "SaltoChannelWrapper.h"
 #import "SaltoChannelView.h"
 #import "SaltoGuiDelegate.h"
+#import "SaltoEventWrapper.h"
 #include "salto.h"
 
 static int typenum;
@@ -130,23 +131,19 @@ static int typenum;
         if (iterator) {
             Event *e = (Event *)PyIter_Next(iterator);
             while (e) {
-                // Draw the event as a Core Animation layer.
-                CALayer *eventLayer = [CALayer layer];
+                SaltoEventWrapper *event = [SaltoEventWrapper wrapperForEvent:e];
                 // TODO: Assign event colours.
-                eventLayer.backgroundColor = CGColorCreateGenericRGB(1.0, 1.0, 0.0, 0.3);
-                eventLayer.borderWidth = 1.0;
-                eventLayer.borderColor = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.3);
-                struct timespec eventStart = {e->start_sec, e->start_nsec};
-                struct timespec eventEnd = {e->end_sec, e->end_nsec};
+                event.color = CGColorCreateGenericRGB(0.0, 0.0, 0.0, 0.3);
+                NSTimeInterval eventStart = event.startTime;
+                NSTimeInterval eventEnd = event.endTime;
                 if (appDelegate.alignment != SaltoAlignCalendarDate) {
-                    eventStart = endTimeFromDuration(e->end_sec, e->end_nsec, -self.visibleRangeStart);
-                    eventEnd = endTimeFromDuration(e->end_sec, e->end_nsec, -self.visibleRangeStart);
+                    eventStart -= self.visibleRangeStart;
+                    eventEnd -= self.visibleRangeStart;
                 }
-                CGFloat xMin = [self xForTimespec:eventStart];
-                CGFloat xMax = [self xForTimespec:eventEnd];
-                eventLayer.frame = CGRectMake(xMin, 0, xMax - xMin, NSHeight(self.view.frame));
-                [self.view addEventLayer:eventLayer];
-                [self.view addTrackingAreasForEvent:eventLayer];
+                CGFloat xMin = [self xForTimeInterval:event.startTime];
+                CGFloat xMax = [self xForTimeInterval:event.endTime];
+                CGRect frame = CGRectMake(xMin, 0, xMax - xMin, NSHeight(self.view.frame));
+                [self.view setFrame:frame forEvent:event];
                 Py_DECREF(e);
                 e = (Event *)PyIter_Next(iterator);
             }
