@@ -24,14 +24,18 @@
     [super dealloc];
 }
 
+- (void)refreshView {
+    [self.objectValue setupPlot];
+    self.hostingView.hostedGraph = [self.objectValue graph];
+    [self.hostingView.hostedGraph setNeedsDisplay];
+    [self.objectValue updateEventViews];
+}
+
 - (void)viewDidMoveToSuperview {
     SaltoChannelView *linkedView = self.superview ? self : nil;
     [self.objectValue setView:linkedView];
     if (linkedView) {
-        [self.objectValue setupPlot];
-        self.hostingView.hostedGraph = [self.objectValue graph];
-        [self.hostingView.hostedGraph setNeedsDisplay];
-        [self.objectValue updateEventViews];
+        [self refreshView];
     } else {
         [self clearEventLayers];
         [self clearTrackingAreas];

@@ -282,6 +282,11 @@
                                     <action selector="performZoom:" target="-1" id="240"/>
                                 </connections>
                             </menuItem>
+                            <menuItem title="Refresh" keyEquivalent="r" id="HUB-sV-0Kt" userLabel="Refresh">
+                                <connections>
+                                    <action selector="refresh:" target="-1" id="nHA-k6-DuG"/>
+                                </connections>
+                            </menuItem>
                             <menuItem isSeparatorItem="YES" id="681">
                                 <modifierMask key="keyEquivalentModifierMask" command="YES"/>
                             </menuItem>

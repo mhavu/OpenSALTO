@@ -338,6 +338,16 @@ static const double zoomFactor = 1.3;
     [self moveVisibleRangeToScrollerPosition:position];
 }
 
+- (IBAction)refresh:(id)sender {
+    NSTableView *tableView = self.scrollView.documentView;
+    NSRange rowsInRect = [tableView rowsInRect:self.scrollView.contentView.bounds];
+    NSInteger column = [tableView columnWithIdentifier:@"Channel"];
+    for (NSInteger row = rowsInRect.location; row < rowsInRect.length; row++) {
+        SaltoChannelView *view = [tableView viewAtColumn:column row:row makeIfNecessary:NO];
+        [view refreshView];
+    }
+}
+
 #pragma mark - Other delegate messages
 
 - (void)tableView:(NSTableView *)view didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {

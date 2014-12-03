@@ -19,6 +19,7 @@
 @property (nonatomic, readonly) NSTrackingArea *activeTrackingArea;
 @property (nonatomic, readonly, getter = isResizing) BOOL resizing;
 
+- (void)refreshView;
 - (void)clearEventLayers;
 - (void)setFrame:(CGRect)rect forEvent:(SaltoEventWrapper *)event;
 - (void)clearTrackingAreas;
