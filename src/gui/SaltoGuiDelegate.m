@@ -288,18 +288,42 @@ static const double zoomFactor = 1.3;
 }
 
 - (IBAction)zoomIn:(id)sender {
-    // Keep the center of the visible range stationary when zooming in.
     NSTimeInterval newVisibleRange = self.visibleRange / zoomFactor;
-    NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
-    [self setVisibleRangeStart:start end:(start + newVisibleRange)];
+    if (self.isZoomedIn && _scroller.doubleValue == 0.0) {
+        // Stay zoomed in on the beginning of the visible range.
+        [self setVisibleRangeEnd:(self.visibleRangeStart + newVisibleRange)];
+    } else if (self.isZoomedIn && _scroller.doubleValue == 1.0) {
+        // Stay zoomed in on the end of the visible range.
+        [self setVisibleRangeStart:(self.visibleRangeStart + self.visibleRange - newVisibleRange)];
+    } else {
+        // Keep the center of the visible range stationary when zooming in.
+        NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
+        [self setVisibleRangeStart:start end:(start + newVisibleRange)];
+    }
 }
 
 - (IBAction)zoomOut:(id)sender {
     if (self.isZoomedIn) {
-        // Keep the center of the visible range stationary when zooming out.
         NSTimeInterval newVisibleRange = self.visibleRange * zoomFactor;
-        NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
-        [self setVisibleRangeStart:start end:(start + newVisibleRange)];
+        if ((self.alignment == SaltoAlignCalendarDate &&
+             self.visibleRangeStart == self.rangeStart) ||
+            self.visibleRangeStart == 0.0) {
+            // If we are zoomed in on the beginning of the visible range,
+            // keep it stationary when zooming out.
+            [self setVisibleRangeStart:self.visibleRangeStart
+                                   end:(self.visibleRangeStart + newVisibleRange)];
+        } else if ((self.alignment == SaltoAlignCalendarDate &&
+                    self.visibleRangeEnd == self.rangeEnd) ||
+                   self.visibleRangeEnd == _maxVisibleRange) {
+            // If we are zoomed in on the end of the visible range,
+            // keep it stationary when zooming out.
+            NSTimeInterval start = self.visibleRangeStart + self.visibleRange - newVisibleRange;
+            [self setVisibleRangeStart:start end:self.visibleRangeEnd];
+        } else {
+            // Elsewhere keep the center of the visible range stationary when zooming out.
+            NSTimeInterval start = self.visibleRangeStart + (self.visibleRange - newVisibleRange) / 2.0;
+            [self setVisibleRangeStart:start end:(start + newVisibleRange)];
+        }
     }
 }
 
