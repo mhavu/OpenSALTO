@@ -55,6 +55,9 @@
 		ADE2504219F5138200929553 /* CorePlot.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ADE2503F19F5136700929553 /* CorePlot.framework */; };
 		ADE2504319F513B800929553 /* CorePlot.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = ADE2503F19F5136700929553 /* CorePlot.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		ADEA72781A2DE6980071B34C /* SaltoEventWrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = ADEA72771A2DE6980071B34C /* SaltoEventWrapper.m */; };
+		ADFF7D731A44643400EAA714 /* directory.py in Resources */ = {isa = PBXBuildFile; fileRef = ADFF7D721A44643400EAA714 /* directory.py */; };
+		ADFF7D781A44799500EAA714 /* directory.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = ADFF7D721A44643400EAA714 /* directory.py */; };
+		ADFF7D791A4479AC00EAA714 /* directory.py in CopyFiles */ = {isa = PBXBuildFile; fileRef = ADFF7D721A44643400EAA714 /* directory.py */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -88,6 +91,7 @@
 			dstPath = plugins;
 			dstSubfolderSpec = 16;
 			files = (
+				ADFF7D791A4479AC00EAA714 /* directory.py in CopyFiles */,
 				276C5D5619ADD798005B3024 /* inclination.py in CopyFiles */,
 				276C5D5719ADD798005B3024 /* gviewer.py in CopyFiles */,
 			);
@@ -121,6 +125,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				ADFF7D781A44799500EAA714 /* directory.py in CopyFiles */,
 				276C5D6819ADD903005B3024 /* gviewer.py in CopyFiles */,
 				276C5D6919ADD907005B3024 /* inclination.py in CopyFiles */,
 			);
@@ -228,6 +233,7 @@
 		ADE2503819F5136700929553 /* CorePlot.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = CorePlot.xcodeproj; path = "../../../core-plot/framework/CorePlot.xcodeproj"; sourceTree = "<group>"; };
 		ADEA72761A2DE6980071B34C /* SaltoEventWrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaltoEventWrapper.h; sourceTree = "<group>"; };
 		ADEA72771A2DE6980071B34C /* SaltoEventWrapper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = SaltoEventWrapper.m; sourceTree = "<group>"; };
+		ADFF7D721A44643400EAA714 /* directory.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = directory.py; path = plugins/file/directory.py; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -461,6 +467,7 @@
 			children = (
 				27C6E4DB19669CD5004192BD /* atsf.c */,
 				277CC0481990D29C00E9F4EF /* gviewer.py */,
+				ADFF7D721A44643400EAA714 /* directory.py */,
 				27F1842A19891A8E00FCD050 /* hookie.c */,
 				27F183E31975550100FCD050 /* gcdc.c */,
 			);
@@ -700,6 +707,7 @@
 			files = (
 				276C5D1919AC83A8005B3024 /* InfoPlist.strings in Resources */,
 				276C5D1F19AC83A8005B3024 /* Credits.rtf in Resources */,
+				ADFF7D731A44643400EAA714 /* directory.py in Resources */,
 				276C5D2519AC83A9005B3024 /* SaltoMainWindow.xib in Resources */,
 				276C5DA019AE35C5005B3024 /* SaltoConsole.xib in Resources */,
 				272E1E2E19D4B63500BB6464 /* zoom.pdf in Resources */,

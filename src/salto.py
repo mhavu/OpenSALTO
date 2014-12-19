@@ -222,7 +222,7 @@ class PluginManager:
         ext = kwargs.get('ext')
         if not isinstance(ext, str):
             raise TypeError("Invalid extension %r" % ext)
-        if ext:
+        if ext is not None:
             mode = kwargs.get('mode')
             if mode is None:
                 mode = 'rw'
