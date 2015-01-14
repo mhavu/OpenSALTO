@@ -63,7 +63,7 @@ class Plugin(salto.Plugin):
             starttime = [timespecFromString(d.attrs['starttime'].item().decode('utf-8'))
                          for d in datasets]
             data = [9.81 * d[()] for d in datasets]
-            events = [d.attrs['events'] if 'events' in d.attrs else None for d in datasets]
+            events = [d.attrs['events'] if 'events' in d.attrs else [] for d in datasets]
             for n, d, t, elist in zip(name, data, starttime, events):
                 ch = salto.Channel(d,
                                    samplerate = samplerate,
