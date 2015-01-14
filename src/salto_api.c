@@ -86,7 +86,7 @@ int setStartTime(const char *chTable, const char *name, struct timespec start) {
     int result = 0;
 
     ch = getChannel(chTable, name);
-    if (ch) {
+    if (ch && start.tv_nsec >= 0 && start.tv_nsec < 1000000000) {
         ch->start_sec = start.tv_sec;
         ch->start_nsec = start.tv_nsec;
     } else {

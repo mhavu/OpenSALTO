@@ -29,7 +29,7 @@ static void Channel_dealloc(Channel* self) {
 
 static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     Channel *self;
-    PyObject *data;
+    PyObject *data, *item;
     Py_ssize_t length, i;
     
     data = PyTuple_GetItem(args, 0);
@@ -40,7 +40,8 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
                 self->collection = 1;
                 length = PyList_Size(data);
                 for (i = 0; i < length; i++) {
-                    if (!PyObject_TypeCheck(data, &ChannelType)) {
+                    item = PyList_GET_ITEM(data, i);  // borrowed
+                    if (!PyObject_TypeCheck(item, &ChannelType)) {
                         PyErr_SetString(PyExc_TypeError, "Channel.init() takes a NumPy array or a list of Channel objects as an argument");
                         Py_DECREF(self);
                         self = NULL;
@@ -90,13 +91,18 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                                           &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
                                           &(self->device), &(self->serial_no), &(self->resolution), &(self->json),
                                           &events);
-    if (!self->fill_values || PyArray_Check(self->fill_values)) {
-        self->events = (PySetObject *)PySet_New(events);  // new
-        if (!self->events)
+    if (self->start_nsec >= 0 && self->start_nsec < 1000000000) {
+        if (!self->fill_values || PyArray_Check(self->fill_values)) {
+            self->events = (PySetObject *)PySet_New(events);  // new
+            if (!self->events)
+                result = -1;
+        } else {
             result = -1;
+            PyErr_SetString(PyExc_TypeError, "fill_values argument must be a NumPy array");
+        }
     } else {
         result = -1;
-        PyErr_SetString(PyExc_TypeError, "fill_values argument must be a NumPy array");
+        PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
     }
     if (result == 0) {
         if (self->device) {

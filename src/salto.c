@@ -133,7 +133,7 @@ Channel *getChannel(const char *chTable, const char *name) {
     if (channelTable) {
         channels = PyObject_GetAttrString(channelTable, "channels");  // new
         ch = (Channel *)PyDict_GetItemString(channels, name);  // borrowed
-        if (!PyObject_TypeCheck(ch, &ChannelType))
+        if (ch && !PyObject_TypeCheck(ch, &ChannelType))
             ch = NULL;
         Py_DECREF(channels);
     }
@@ -153,8 +153,8 @@ struct timespec channelEndTime(Channel *ch) {
             duration = (length - 1) / ch->samplerate;
             t = endTimeFromDuration(ch->start_sec, ch->start_nsec, duration);
         } else {
-            t.tv_sec = -1;
-            t.tv_nsec = -1;
+            t.tv_sec = ch->start_sec;
+            t.tv_nsec = ch->start_nsec;
         }
     } else {
         t.tv_sec = -1;
@@ -377,7 +377,7 @@ const char **getChannelNames(const char *chTable, size_t *size) {
     return names;
 }
 
-int newCollectionChannel(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
+int makeCollectionFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
     PyObject *chTableDict, *sourceTable, *sourceDict, *sourceChannels = NULL;
     PyObject *start, *prevEnd, *fill;
     Channel *ch, *part;
@@ -395,6 +395,7 @@ int newCollectionChannel(const char *chTable, const char *name, const char *from
             sourceChannels = PyDict_Values(sourceDict);  // new
             Py_DECREF(sourceDict);
         }
+        // Sort the channels by start time.
         if (sourceChannels && PyList_Sort(sourceChannels) == 0) {
             nParts = PyList_GET_SIZE(sourceChannels);
             switch (nParts) {
@@ -413,8 +414,8 @@ int newCollectionChannel(const char *chTable, const char *name, const char *from
                     prevEnd = PyObject_CallMethod((PyObject *)part, "end", NULL);  // new
                     for (i = 1; i < nParts; i++) {
                         part = (Channel *)PyList_GET_ITEM(sourceChannels, i);  // borrowed
-                        start = PyObject_CallMethod((PyObject *)part, "start", NULL);;  // new
-                        hasOverlap = (start < prevEnd);
+                        start = PyObject_CallMethod((PyObject *)part, "start", NULL);  // new
+                        hasOverlap = PyObject_RichCompareBool(start, prevEnd, Py_LT);
                         Py_XDECREF(start);
                         Py_XDECREF(prevEnd);
                         isSameType = (PyArray_DTYPE((PyArrayObject *)part->data)->type_num == typenum);
@@ -434,8 +435,8 @@ int newCollectionChannel(const char *chTable, const char *name, const char *from
                     if (!err) {
                         nFillValues = nParts - 1;
                         fill = PyArray_SimpleNewFromData(1, &nFillValues, typenum, fillValues);
-                        ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType, sourceChannels,
-                                                                     fill, NULL);  // new
+                        ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType,
+                                                                     sourceChannels, fill, NULL);  // new
                     }
             }
             if (ch) {
@@ -447,6 +448,14 @@ int newCollectionChannel(const char *chTable, const char *name, const char *from
     }
     PyGILState_Release(state);
 
+    return err;
+}
+
+int makeCollectionFromArray(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues) {
+    int err = 0;
+    
+    // TODO: implement
+    
     return err;
 }
 
@@ -691,29 +700,29 @@ Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
 PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     // Convert timespec to a Python datetime object.
     long long epoch, nsec = 0;
-    PyObject *dtClass, *fromtimestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
+    PyObject *timestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
 
     if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
-        // TODO: Refactor to use PyDateTime C API
-        dtClass = PyDict_GetItemString(mainDict, "datetime");  // borrowed
-        fromtimestamp = PyObject_GetAttrString(dtClass, "fromtimestamp");  // new
-        dt = PyObject_CallFunction(fromtimestamp, "L", epoch);  // new
-        replace = PyObject_GetAttrString(dt, "replace");  // new
-        empty = PyTuple_New(0);  // new
-        keywords = PyDict_New();  // new
-        micro = Py_BuildValue("l", nsec / 1000);  // new
-        if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
-            datetime = PyObject_Call(replace, empty, keywords);  // new
-        } else {
-            Py_INCREF(Py_None);
-            datetime = Py_None;
+        timestamp = Py_BuildValue("(L)", epoch);  // new
+        if (timestamp) {
+            dt = PyDateTime_FromTimestamp(timestamp);  // new
+            Py_DECREF(timestamp);
+            replace = PyObject_GetAttrString(dt, "replace");  // new
+            empty = PyTuple_New(0);  // new
+            keywords = PyDict_New();  // new
+            micro = Py_BuildValue("l", roundtol(nsec / 1e3));  // new
+            if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
+                datetime = PyObject_Call(replace, empty, keywords);  // new
+            } else {
+                Py_INCREF(Py_None);
+                datetime = Py_None;
+            }
+            Py_XDECREF(dt);
+            Py_XDECREF(replace);
+            Py_XDECREF(empty);
+            Py_XDECREF(keywords);
+            Py_XDECREF(micro);
         }
-        Py_XDECREF(fromtimestamp);
-        Py_XDECREF(dt);
-        Py_XDECREF(replace);
-        Py_XDECREF(empty);
-        Py_XDECREF(keywords);
-        Py_XDECREF(micro);
     } else {
         PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
     }
