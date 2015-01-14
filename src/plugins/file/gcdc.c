@@ -116,41 +116,41 @@ int readFile(const char *filename, const char *chTable) {
             if (fgets(header, sizeof(header), fp)) {
                 line = header;
                 token = strsep(&line, ",");
-                if (strcmp(token, "16 bit resolution") == 0) {
+                if (strncmp(token, "16 bit resolution", 17) == 0) {
                     resolution = 16;
-                } else if (strcmp(token, "Deadband") == 0) {
+                } else if (strncmp(token, "Deadband", 8) == 0) {
                     // A new sample from the sensor must exceed
                     // the last reading by the deadband value
-                } else if (strcmp(token, "DeadbandTimeout") == 0) {
+                } else if (strncmp(token, "DeadbandTimeout", 15) == 0) {
                     // The period in seconds when a sample is
                     // recorded regardless of the deadband setting
-                } else if (strcmp(token, "Dwell") == 0) {
+                } else if (strncmp(token, "Dwell", 5) == 0) {
                     // The number of samples recorded after
                     // a threshold event
-                } else if (strcmp(token, "Gain") == 0) {
+                } else if (strncmp(token, "Gain", 4) == 0) {
                     token = strsep(&line, ",");
                     if (sscanf(token, "%255s", gain) == EOF) {
                         fclose(fp);
                         fprintf(stderr, "readFile(): Invalid gain value\n");
                         err = INVALID_HEADER;
                     }
-                } else if (strcmp(token, "Headers") == 0) {
+                } else if (strncmp(token, "Headers", 7) == 0) {
                     // Ignore column headers.
-                } else if (strcmp(token, "HPF filter set to:") == 0) {
+                } else if (strncmp(token, "HPF filter set to:", 18) == 0) {
                     // TODO: high pass filter value
-                } else if (strcmp(token, "SampleRate") == 0) {
+                } else if (strncmp(token, "SampleRate", 10) == 0) {
                     token = strsep(&line, ",");
                     if (sscanf(token, "%lf", &samplerate) == EOF) {
                         fclose(fp);
                         fprintf(stderr, "readFile(): Invalid sample rate\n");
                         err = INVALID_HEADER;
                     }
-                } else if (strcmp(token, "Start_time") == 0) {
+                } else if (strncmp(token, "Start_time", 10) == 0) {
                     token = strsep(&line, ",");
-                    result = sscanf(token, "%i-%i-%i", &tm.tm_year, &tm.tm_mon, &tm.tm_mday);
+                    result = sscanf(token, "%d-%d-%d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday);
                     if (result != EOF) {
                         token = strsep(&line, ",");
-                        result = sscanf(token, "%i:%i:%i.%li",
+                        result = sscanf(token, "%d:%d:%d.%ld",
                                         &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &start.tv_nsec);
                     }
                     if (result != EOF) {
@@ -162,11 +162,11 @@ int readFile(const char *filename, const char *chTable) {
                         fprintf(stderr, "readFile(): Invalid start time\n");
                         err = INVALID_HEADER;
                     }
-                } else if (strcmp(token, "Switch") == 0) {
+                } else if (strncmp(token, "Switch", 6) == 0) {
                     // TODO: Don't know what this is.
-                } else if (strcmp(token, "Temperature") == 0) {
+                } else if (strncmp(token, "Temperature", 11) == 0) {
                     // TODO: temperature in °C and battery voltage in mV
-                } else if (strcmp(token, "Version") == 0) {
+                } else if (strncmp(token, "Version", 7) == 0) {
                     // TODO: get firmware version
                     while (line) {
                         token = strsep(&line, ",");
@@ -186,7 +186,7 @@ int readFile(const char *filename, const char *chTable) {
             resolution = 16;
             scale = 9.81 / (2 * 1024);
         } else if (strncmp(model, "X6-", 3) == 0) {
-            if (strcmp(gain, "high") == 0) {
+            if (strncmp(gain, "high", 4) == 0) {
                 // range: [-2.0 2.0] * 9.81 m/s^2
                 divisor = (resolution == 16) ? 16384 : 1024;
             } else {
@@ -196,7 +196,7 @@ int readFile(const char *filename, const char *chTable) {
             scale = 9.81 / (2 * divisor);
         } else if (strncmp(model, "X2-", 3) == 0) {
             resolution = 15;
-            if (strcmp(gain, "high") == 0) {
+            if (strncmp(gain, "high", 4) == 0) {
                 // range: [-1.25 1.25] * 9.81 m/s^2
                 divisor = 13108;
             } else {
