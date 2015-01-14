@@ -250,6 +250,8 @@ class PluginManager:
             formatsWithExt = self.query(ext = ext, mode = 'r')
             if len(formatsWithExt) == 1:
                 format = formatsWithExt.pop()
+            elif os.path.isdir(filename):
+                format = 'directory'
             else:
                 raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._importFormats[format]

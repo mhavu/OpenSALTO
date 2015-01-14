@@ -272,8 +272,10 @@ static const double zoomFactor = 1.3;
 
 - (IBAction)openDocument:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel];
-    // TODO: [panel setCanChooseDirectories:YES];
-    // TODO: [panel setAllowedFileTypes:(NSArray *)types];
+    // TODO: Get file types from plugin manager.
+    NSArray *allowedTypes = [NSArray arrayWithObjects:@"csv", @"dat", nil];
+    [panel setCanChooseDirectories:YES];
+    [panel setAllowedFileTypes:allowedTypes];
     [panel setDelegate:(id)self];
     [panel beginSheetModalForWindow:[NSApp mainWindow] completionHandler:^(NSInteger result) {
         if (result == NSFileHandlingPanelOKButton) {
@@ -281,7 +283,7 @@ static const double zoomFactor = 1.3;
                 NSString *command = [NSString stringWithFormat:@"salto.open(\"%@\")", file.path];
                 [_consoleController insertInput:command];
                 [_consoleController.console execute:command];
-                // TODO: [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file];
+                [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file];
             }
         }
     }];
