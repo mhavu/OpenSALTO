@@ -9,9 +9,8 @@
 #  GNU General Public License version 3 or later.
 #
 
-import salto
+import salto, math, warnings
 import numpy as np
-import warnings
 
 class Plugin(salto.Plugin):
     """OpenSALTO filter plugin for creating events where values
@@ -25,7 +24,7 @@ class Plugin(salto.Plugin):
                                            ('upper', 'f', 'upper threshold', None)],
                                  outputs = [('channelTable', 'S', 0, 0)])
     def position_(self, data, lower = None, upper = None):
-        if (lower is not None and upper is not None):
+        if ((lower is not None) and (upper is not None)):
             result = np.where((data > lower) & (data < upper))
         elif (lower is not None):
             result = np.where(data > lower)
@@ -36,7 +35,7 @@ class Plugin(salto.Plugin):
         return result[0]
     def addEvent_(self, channel, startpos, endpos):
         t0 = channel.start_sec + channel.start_nsec / 1e9
-        (start, end) = t0 + (startpos, endpos) / channel.samplerate
+        (start, end) = (t0 + pos / channel.samplerate for pos in (startpos, endpos))
         event = salto.Event(type = salto.CALCULATED_EVENT,
                             subtype = 'threshold',
                             start_sec = int(start), start_nsec = int(math.fmod(start, 1.0)),
@@ -53,7 +52,7 @@ class Plugin(salto.Plugin):
                     positions = np.concatenate(positions, p + round(t * channel.samplerate))
             else:
                 positions = self.position_(channel.data, inputs['lower'], inputs['upper'])
-            if positions:
+            if positions.size > 0:
                 start = positions[0]
                 prev = start
                 for i in positions[1:]:
