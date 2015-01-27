@@ -15,8 +15,8 @@ class Plugin(salto.Plugin):
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
         self.registerFormat('directory', [''])
-        self.setImportFunc('directory', self.read_)
-    def read_(self, dirname, chTable):
+        self.setImportFunc('directory', self._read)
+    def _read(self, dirname, chTable):
         if os.path.isdir(dirname):
             filelist = os.listdir(dirname)
             if not filelist:

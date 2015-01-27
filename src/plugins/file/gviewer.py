@@ -41,9 +41,9 @@ class Plugin(salto.Plugin):
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
         self.registerFormat("GViewer", [".h5"])
-        self.setImportFunc("GViewer", self.read_)
-        self.setExportFunc("GViewer", self.write_)
-    def read_(self, filename, chTable):
+        self.setImportFunc("GViewer", self._read)
+        self.setExportFunc("GViewer", self._write)
+    def _read(self, filename, chTable):
         with h5py.File(filename, 'r') as f:
             metadata = dict(subjectID = f['measurement'].attrs['subject'].item().decode('utf-8'),
                             notes = "\n".join([l.decode('utf-8')
@@ -84,7 +84,7 @@ class Plugin(salto.Plugin):
                                         end_sec = int(end), end_nsec = int(math.fmod(end, 1.0)))
                     ch.events.add(event)
                 chTable.add(chTable.getUnique(n), ch)
-    def write_(self, filename, chTable):
+    def _write(self, filename, chTable):
         timestr = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         username = getpass.getuser()
         samplerate = 0.0

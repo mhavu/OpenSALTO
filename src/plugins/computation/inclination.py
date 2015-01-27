@@ -19,10 +19,10 @@ class Plugin(salto.Plugin):
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
         self.registerComputation("inclination",
-                                 self.inclination_,
+                                 self._inclination,
                                  inputs = [('channelTable', 'S', 2, 3)],
                                  outputs = [('channelTable', 'S', 3, 4)])
-    def inclination_(self, inputs):
+    def _inclination(self, inputs):
         tableName = salto.makeUniqueKey(salto.channelTables, "inclination")
         iChannels = salto.channelTables[inputs['channelTable']].channels
         chIter = iter(iChannels.values())
