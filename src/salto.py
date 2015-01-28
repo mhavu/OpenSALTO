@@ -55,6 +55,13 @@ class ChannelTable:
             salto.gui.removeChannel(removed)
     def getUnique(self, name):
         return salto.makeUniqueKey(self._channels, name)
+    def name(self):
+        result = None
+        for name, table in salto.channelTables.items():
+            if table == self:
+                result = name
+                break
+        return result
 
 class Plugin:
     """OpenSALTO plugin"""
@@ -87,28 +94,28 @@ class Plugin:
         self._formats.get(format)['readfunc'] = func
     def setExportFunc(self, format, func):
         self._formats.get(format)['writefunc'] = func
-    def read(self, filename, format, chTable):
+    def read(self, filename, format, chTableName):
         registered = self._formats.get(format)
         if registered:
             readfunc = registered.get('readfunc')
         if readfunc:
             if self._cdll:
-                err = readfunc(filename.encode('utf-8'), chTable.encode('utf-8'))
+                err = readfunc(filename.encode('utf-8'), chTableName.encode('utf-8'))
                 if err != 0:
                     raise IOError(self._cdll.describeError(err).decode('utf-8'))
             else:
-                readfunc(filename, salto.channelTables[chTable])
-    def write(self, filename, format, chTable):
+                readfunc(filename, salto.channelTables[chTableName])
+    def write(self, filename, format, chTableName):
         registered = self._formats.get(format)
         if registered:
             writefunc = registered.get('writefunc')
         if writefunc:
             if self._cdll:
-                err = writefunc(filename.encode('utf-8'), chTable.encode('utf-8'))
+                err = writefunc(filename.encode('utf-8'), chTableName.encode('utf-8'))
                 if err != 0:
                     raise IOError(self._cdll.describeError(err).decode('utf-8'))
             else:
-                writefunc(filename, salto.channelTables[chTable])
+                writefunc(filename, salto.channelTables[chTableName])
     # computations
     @staticmethod
     def convertOutputPtr(value, format):
@@ -242,9 +249,9 @@ class PluginManager:
         plugin = self._computations.get(compname)
         if plugin:
             return plugin.compute(compname, inputs)
-    def read(self, filename, format, chTable = None):
-        if chTable is None:
-            format, chTable = None, format
+    def read(self, filename, format, chTableName = None):
+        if chTableName is None:
+            format, chTableName = (None, format)
         if format is None:
             _, ext = os.path.splitext(filename)
             formatsWithExt = self.query(ext = ext, mode = 'r')
@@ -255,10 +262,10 @@ class PluginManager:
             else:
                 raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._importFormats[format]
-        plugin.read(filename, format, chTable)
-    def write(self, filename, format, chTable = None):
-        if chTable is None:
-            format, chTable = None, format
+        plugin.read(filename, format, chTableName)
+    def write(self, filename, format, chTableName = None):
+        if chTableName is None:
+            format, chTableName = (None, format)
         if format is None:
             _, ext = os.path.splitext(filename)
             formatsWithExt = self.query(ext = ext, mode = 'w')
@@ -267,7 +274,7 @@ class PluginManager:
             else:
                 raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._exportFormats[format]
-        plugin.write(filename, format, chTable)
+        plugin.write(filename, format, chTableName)
 
 def open(filename, format = None):
     salto.pluginManager.read(filename, format, 'main')

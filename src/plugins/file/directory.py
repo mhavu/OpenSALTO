@@ -8,7 +8,7 @@
 #  GNU General Public License version 3 or later.
 #
 
-import salto, os
+import salto, os, math
 
 class Plugin(salto.Plugin):
     """OpenSALTO plugin for reading data file directories"""
@@ -27,26 +27,49 @@ class Plugin(salto.Plugin):
                 extdict.setdefault(ext, [])
                 extdict[ext].append(file)
             pm = salto.pluginManager
-            for name, table in salto.channelTables.items():
-                if table == chTable:
-                    chTableName = name
-                    break
             # For directories with more than one type of file, process
             # the type with most files.
             dominantext = max(extdict, key = lambda x: len(extdict[x]))
             formats = pm.query(ext = dominantext, mode = 'r')
             file = extdict[dominantext].pop()
+            # If file extension matches more than one format,
+            # detect the format by trial and error.
+            tmpName = salto.makeUniqueKey(salto.channelTables, "temporary")
+            tmpTable = salto.ChannelTable()
+            salto.channelTables[tmpName] = tmpTable
             for fmt in formats:
                 try:
-                    pm.read(os.path.join(dirname, file), fmt, chTableName)
+                    pm.read(os.path.join(dirname, file), fmt, tmpName)
                     break
-                except:
+                except IOError:
                     pass
             else:
+                salto.channelTables.pop(tmpName, None)
                 raise RuntimeError("Detecting the import file type failed")
+            # Read the files, each to its own channel table.
+            tableList = []
+            channels = set()
             for file in extdict[dominantext]:
-                pm.read(os.path.join(dirname, file), fmt, chTableName)
-            # TODO: Combine the channels
-            # Create an event for each file
+                tmpTable = salto.ChannelTable()
+                salto.channelTables[tmpName] = tmpTable
+                tableList.append(tmpTable)
+                pm.read(os.path.join(dirname, file), fmt, tmpName)
+                salto.channelTables.pop(tmpName, None)
+                for name, ch in tmpTable.channels.items():
+                    channels.add(name)
+                    # Create an event for the file.
+                    end = ch.end().timestamp()
+                    end_sec = int(end)
+                    end_nsec = int(math.fmod(end, 1.0))
+                    e = salto.Event(salto.MARKER_EVENT, file, ch.start_sec,
+                                    ch.start_nsec, end_sec, end_nsec,
+                                    os.path.join(dirname, file))
+                    ch.events.add(e)
+            # Combine the files to collection channels.
+            for chName in channels:
+                parts = [table.channels.get(chName) for table in tableList
+                         if chName in table.channels.keys()]
+                ch = salto.Channel(parts)
+                chTable.add(chName, ch)
         else:
             raise NotADirectoryError
