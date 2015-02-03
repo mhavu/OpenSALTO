@@ -69,7 +69,8 @@ class Plugin(salto.Plugin):
             for chName in channels:
                 parts = [table.channels.get(chName) for table in tableList
                          if chName in table.channels.keys()]
-                ch = salto.Channel(parts)
+                ch = parts.pop(0)
+                ch = ch.collate(parts)
                 chTable.add(chName, ch)
         else:
             raise NotADirectoryError

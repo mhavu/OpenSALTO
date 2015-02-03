@@ -32,7 +32,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     PyObject *data, *item;
     Py_ssize_t length, i;
     
-    data = PyTuple_GetItem(args, 0);
+    data = PyTuple_GetItem(args, 0);  // borrowed
     if (data && (PyArray_Check(data) || PyList_Check(data))) {
         self = (Channel *)type->tp_alloc(type, 0);
         if (self) {
@@ -42,7 +42,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
                 for (i = 0; i < length; i++) {
                     item = PyList_GET_ITEM(data, i);  // borrowed
                     if (!PyObject_TypeCheck(item, &ChannelType)) {
-                        PyErr_SetString(PyExc_TypeError, "Channel.init() takes a NumPy array or a list of Channel objects as an argument");
+                        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array or a list of Channel objects as an argument");
                         Py_DECREF(self);
                         self = NULL;
                         break;
@@ -57,14 +57,9 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             self->events = NULL;
             Py_INCREF(data);
             self->data = data;
-            if (self->data == NULL) {
-                Py_DECREF(data);
-                Py_DECREF(self);
-                self = NULL;
-            }
         }
     } else {
-        PyErr_SetString(PyExc_TypeError, "Channel.init() takes a NumPy array or a list of Channel objects as an argument");
+        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array or a list of Channel objects as an argument");
         self = NULL;
     }
 
@@ -73,7 +68,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *data = NULL, *events = NULL;
-    int result;
+    int error;
     size_t size;
     char *tmp;
     static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
@@ -86,25 +81,35 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     self->scale = 1.0;
     self->json = NULL;
     self->fill_values = NULL;
-    result = !PyArg_ParseTupleAndKeywords(args, kwds, "O|OdddssLlssisO", kwlist, &data, &(self->fill_values),
-                                          &(self->samplerate), &(self->scale), &(self->offset),
-                                          &(self->unit), &(self->type), &(self->start_sec), &(self->start_nsec),
-                                          &(self->device), &(self->serial_no), &(self->resolution), &(self->json),
-                                          &events);
-    if (self->start_nsec >= 0 && self->start_nsec < 1000000000) {
-        if (!self->fill_values || PyArray_Check(self->fill_values)) {
-            self->events = (PySetObject *)PySet_New(events);  // new
-            if (!self->events)
-                result = -1;
-        } else {
-            result = -1;
-            PyErr_SetString(PyExc_TypeError, "fill_values argument must be a NumPy array");
-        }
-    } else {
-        result = -1;
+    error = !PyArg_ParseTupleAndKeywords(args, kwds, "O|O!dddssLlssisO", kwlist,
+                                         &data,
+                                         &PyArray_Type, &(self->fill_values),
+                                         &(self->samplerate),
+                                         &(self->scale), &(self->offset),
+                                         &(self->unit), &(self->type),
+                                         &(self->start_sec), &(self->start_nsec),
+                                         &(self->device), &(self->serial_no),
+                                         &(self->resolution), &(self->json),
+                                         &events);
+    if (!error && (self->start_nsec < 0 || self->start_nsec > 999999999)) {
+        error = -1;
         PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
     }
-    if (result == 0) {
+    if (!error) {
+        if (self->collection) {
+            Py_INCREF(self->fill_values);
+        } else {
+            self->fill_values = NULL;
+        }
+    }
+    if (!error) {
+        self->events = (PySetObject *)PySet_New(events);  // new
+        if (!self->events) {
+            Py_DECREF(self->fill_values);
+            error = -1;
+        }
+    }
+    if (!error) {
         if (self->device) {
             size = strlen(self->device) + 1;
             tmp = self->device;
@@ -149,7 +154,7 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         }
     }
 
-    return result;
+    return error;
 }
 
 static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
@@ -262,6 +267,123 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
     }
     Py_INCREF(result);
 
+    return result;
+}
+
+static PyObject *Channel_collate(Channel *self, PyObject *args) {
+    PyObject *chList, *item, *resultList, *fill, *iterator, *result = NULL;
+    Channel *ch, *part;
+    Py_ssize_t length, i, p, nParts;
+    int thisType, otherType, error = 0;
+    npy_intp nFillValues;
+    
+    chList = PyTuple_GetItem(args, 0);
+    if (chList && PyList_Check(chList)) {
+        if (self->collection) {
+            nParts = PyList_Size(self->data);
+            part = (Channel *)PyList_GET_ITEM(self->data, 0);  // borrowed
+            thisType = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
+        } else {
+            nParts = 1;
+            thisType = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
+        }
+        length = PyList_Size(chList);
+        for (i = 0; i < length; i++) {
+            // Check that each argument is compatible with self, and
+            // count the total number of parts.
+            item = PyList_GET_ITEM(chList, i);  // borrowed
+            if (PyObject_TypeCheck(item, &ChannelType)) {
+                ch = (Channel *)item;
+                if (ch->collection) {
+                    nParts += PyList_Size(ch->data);
+                    part = (Channel *)PyList_GET_ITEM(ch->data, 0);  // borrowed
+                    otherType = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
+                } else {
+                    nParts++;
+                    otherType = PyArray_DTYPE((PyArrayObject *)ch->data)->type_num;
+                }
+                if (otherType != thisType) {
+                    PyErr_SetString(PyExc_TypeError, "Channel objects in collate() need to be of same type");
+                    error = -1;
+                    break;
+                }
+                if (ch->samplerate != self->samplerate) {
+                    PyErr_SetString(PyExc_ValueError, "Channel objects in collate() need to have the same samplerate");
+                    error = -1;
+                    break;
+                }
+            } else {
+                PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+                error = -1;
+                break;
+            }
+        }
+        if (!error) {
+            resultList = PyList_New(nParts);  // new
+            if (!resultList) {
+                error = -1;
+                // TODO: Raise exception.
+            }
+        }
+        if (!error) {
+            nFillValues = nParts - 1;
+            fill = PyArray_ZEROS(1, &nFillValues, thisType, 0);  // new
+            if (!fill) {
+                Py_DECREF(resultList);
+                error = -1;
+                // TODO: Raise exception.
+            }
+        }
+        if (!error) {
+            // Collate the parts to resultList.
+            p = 0;
+            if (self->collection) {
+                iterator = PyObject_GetIter(self->data);  // new
+                if (iterator) {
+                    while ((item = PyIter_Next(iterator))) {  // new
+                        PyList_SET_ITEM(resultList, p++, item);  // stolen
+                    }
+                    Py_DECREF(iterator);
+                } else {
+                    error = -1;
+                    // TODO: Raise exception.
+                }
+            } else {
+                Py_INCREF(self);
+                PyList_SET_ITEM(resultList, p++, (PyObject *)self);  // stolen
+            }
+            for (i = 0; i < length; i++) {
+                ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
+                if (ch->collection) {
+                    iterator = PyObject_GetIter(ch->data);  // new
+                    if (iterator) {
+                        while ((item = PyIter_Next(iterator))) {  // new
+                            PyList_SET_ITEM(resultList, p++, item);  // stolen
+                        }
+                        Py_DECREF(iterator);
+                    } else {
+                        error = -1;
+                        // TODO: Raise exception.
+                    }
+                } else {
+                    Py_INCREF(ch);
+                    PyList_SET_ITEM(resultList, p++, (PyObject *)ch);  // stolen
+                }
+            }
+            // Create a new channel.
+            result = PyObject_CallFunctionObjArgs((PyObject *)&ChannelType,
+                                                  resultList, fill, NULL);  // new
+            ((Channel *)result)->samplerate = self->samplerate;
+            // TODO: Fix this:
+            ((Channel *)result)->unit = "";
+            Py_DECREF(resultList);
+            Py_DECREF(fill);
+        }
+    } else {
+        PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+        error = -1;
+    }
+    
     return result;
 }
 
@@ -725,6 +847,7 @@ static PyMethodDef Channel_methods[] = {
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
     {"matches", (PyCFunction)Channel_matches, METH_VARARGS, "check whether channel type and time match those of another channel"},
+    {"collate", (PyCFunction)Channel_collate, METH_VARARGS, "combine channels to a collection channel"},
     {"validateTimes", (PyCFunction)Channel_validateTimes, METH_VARARGS, "validate start and end times"},
     {"getEvents", (PyCFunction)Channel_getEvents, METH_VARARGS | METH_KEYWORDS, "get channel events"},
     {"resample", (PyCFunction)Channel_resample, METH_VARARGS | METH_KEYWORDS, "resample channel"},

@@ -146,8 +146,16 @@ struct timespec channelEndTime(Channel *ch) {
     struct timespec t;
     double duration;
     size_t length;
+    Py_ssize_t nParts;
+    PyGILState_STATE state;
 
     if (ch) {
+        if (ch->collection) {
+            state = PyGILState_Ensure();
+            nParts = PyList_GET_SIZE(ch->data);
+            ch = (Channel *)PyList_GET_ITEM(ch->data, nParts - 1);
+            PyGILState_Release(state);
+        }
         channelData(ch, &length);
         if (length > 0) {
             duration = (length - 1) / ch->samplerate;
@@ -452,7 +460,7 @@ int makeCollectionFromTable(const char *chTable, const char *name, const char *f
 }
 
 int makeCollectionFromArray(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues) {
-    int err = 0;
+    int err = -1;
     
     // TODO: implement
     
@@ -585,21 +593,16 @@ int setCallback(void *obj, const char *type, const char *format, const char *fun
 }
 
 int addEvent(const char *chTable, const char *name, Event *event) {
-    PyObject *events;
     Channel *ch;
     int result = -1;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
     ch = getChannel(chTable, name);
-    if (ch) {
-        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
-        if (events) {
-            result = PySet_Add(events, (PyObject *)event);
-            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
-                // TODO: Update GUI
-            }
-            Py_DECREF(events);
+    if (ch && ch->events) {
+        result = PySet_Add((PyObject *)ch->events, (PyObject *)event);
+        if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+            // TODO: Update GUI
         }
     }
     PyGILState_Release(state);
@@ -608,21 +611,16 @@ int addEvent(const char *chTable, const char *name, Event *event) {
 }
 
 int removeEvent(const char *chTable, const char *name, Event *event) {
-    PyObject *events;
     Channel *ch;
     int result = -1;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
     ch = getChannel(chTable, name);
-    if (ch) {
-        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
-        if (events) {
-            result = PySet_Discard(events, (PyObject *)event);
-            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
-                // TODO: Update GUI
-            }
-            Py_DECREF(events);
+    if (ch && ch->events) {
+        result = PySet_Discard((PyObject *)ch->events, (PyObject *)event);
+        if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+            // TODO: Update GUI
         }
     }
     PyGILState_Release(state);
@@ -631,7 +629,7 @@ int removeEvent(const char *chTable, const char *name, Event *event) {
 }
 
 Event **getEvents(const char *chTable, const char *name, size_t *size) {
-    PyObject *events, *iterator, *e;
+    PyObject *iterator, *e;
     Channel *ch;
     Py_ssize_t length, i = 0;
     Event **array = NULL;
@@ -639,19 +637,15 @@ Event **getEvents(const char *chTable, const char *name, size_t *size) {
 
     state = PyGILState_Ensure();
     ch = getChannel(chTable, name);
-    if (ch) {
-        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
-        if (events) {
-            length = PySet_GET_SIZE(events);
-            if (length > 0) {
-                array = calloc(length, sizeof(Event *));
-                iterator = PyObject_GetIter(events);  // new
-                while ((e = PyIter_Next(iterator))) {  // new
-                    array[i++] = (Event *)e;
-                }
-                Py_DECREF(iterator);
+    if (ch && ch->events) {
+        length = PySet_GET_SIZE(ch->events);
+        if (length > 0) {
+            array = calloc(length, sizeof(Event *));
+            iterator = PyObject_GetIter((PyObject *)ch->events);  // new
+            while ((e = PyIter_Next(iterator))) {  // new
+                array[i++] = (Event *)e;
             }
-            Py_DECREF(events);
+            Py_DECREF(iterator);
         }
     }
     PyGILState_Release(state);
@@ -660,20 +654,15 @@ Event **getEvents(const char *chTable, const char *name, size_t *size) {
 }
 
 void clearEvents(const char *chTable, const char *name) {
-    PyObject *events;
     Channel *ch;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
     ch = getChannel(chTable, name);
-    if (ch) {
-        events = PyObject_GetAttrString((PyObject *)ch, "events");  // new
-        if (events) {
-            PySet_Clear(events);
-            if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
-                // TODO: Update GUI
-            }
-            Py_DECREF(events);
+    if (ch && ch->events) {
+        PySet_Clear((PyObject *)ch->events);
+        if (PyDict_GetItemString(saltoDict, "gui")) {  // borrowed
+            // TODO: Update GUI
         }
     }
     PyGILState_Release(state);
