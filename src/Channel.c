@@ -235,7 +235,7 @@ static PyObject *Channel_duration(Channel *self) {
 }
 
 static PyObject *Channel_matches(Channel *self, PyObject *args) {
-    PyObject *result = Py_False;
+    PyObject *argTuple, *result = Py_False;
     Channel *other;
     Py_ssize_t length, i;
 
@@ -251,8 +251,15 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
                 if (PyList_GET_SIZE(other->data) == length) {
                     result = Py_True;
                     for (i = 0; i < length; i++) {
-                        result = Channel_matches((Channel *)PyList_GET_ITEM(self->data, i),
-                                                 PyList_GET_ITEM(other->data, i));
+                        argTuple = Py_BuildValue("(O)", PyList_GET_ITEM(other->data, i));  // new
+                        if (argTuple) {
+                            result = Channel_matches((Channel *)PyList_GET_ITEM(self->data, i),
+                                                     argTuple);
+                            Py_DECREF(argTuple);
+                        } else {
+                            result = NULL;
+                            PyErr_SetString(PyExc_RuntimeError, "Building an argument tuple for Channel.matches() failed");
+                        }
                         if (result != Py_True)
                             break;
                     }
@@ -263,9 +270,10 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
             }
         }
     } else {
+        result = NULL;
         PyErr_SetString(PyExc_TypeError, "Channel.matches() takes a Channel argument");
     }
-    Py_INCREF(result);
+    Py_XINCREF(result);
 
     return result;
 }
