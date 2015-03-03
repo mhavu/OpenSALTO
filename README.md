@@ -45,6 +45,12 @@ computations on one or more channels. Filters return one or more new
 channels as a result, whereas calculation and report plugins return
 descriptive values, graphs and so on.
 
+The first input and output is always a channel table. Its type
+descriptor is 'S', and the minimum and maximum number of channels in
+the table are given. For the other inputs and outputs, name, type
+descriptor, and description are given. Inputs have one more field,
+which is the default value. Default values are not currently in use.
+
 ##API
 
 The plugins are expected to implement the following functions:
@@ -81,8 +87,8 @@ int16_t *newInt16Channel(const char *chTable, const char *name, size_t length);
 int32_t *newInt32Channel(const char *chTable, const char *name, size_t length);
 float *newFloatChannel(const char *chTable, const char *name, size_t length);
 double *newDoubleChannel(const char *chTable, const char *name, size_t length);
-int makeCollectionFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
-int makeCollectionFromArray(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues);
+int collateChannelsFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
+int collateChannels(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues);
 void deleteChannel(const char *chTable, const char *name);
 int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
 int copyChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);

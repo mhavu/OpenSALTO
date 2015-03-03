@@ -65,7 +65,7 @@ class Plugin(salto.Plugin):
                                     ch.start_nsec, end_sec, end_nsec,
                                     os.path.join(dirname, file))
                     ch.events.add(e)
-            # Combine the files to collection channels.
+            # Combine the files to sparse channels.
             for chName in channels:
                 parts = [table.channels.get(chName) for table in tableList
                          if chName in table.channels.keys()]

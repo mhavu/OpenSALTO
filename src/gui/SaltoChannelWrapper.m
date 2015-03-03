@@ -41,9 +41,7 @@ static int typenum;
     if (self) {
         PyGILState_STATE state = PyGILState_Ensure();
         Py_INCREF(ch);
-        BOOL isSigned = (!ch->collection) ?
-                        PyArray_ISSIGNED((PyArrayObject *)ch->data) :
-                        PyArray_ISSIGNED((PyArrayObject *)ch->fill_values);
+        BOOL isSigned = PyArray_ISSIGNED((PyArrayObject *)ch->data);
         PyGILState_Release(state);
         _channel = ch;
         _signalType = [[NSString stringWithUTF8String:_channel->type] retain];
@@ -196,7 +194,11 @@ static int typenum;
                                                                        start_t.tv_sec, start_t.tv_nsec,
                                                                        end_t.tv_sec, end_t.tv_nsec,
                                                                        typenum, "VRA");
-            memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
+            if (data) {
+                memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
+            } else {
+                bzero(values, range.length * sizeof(double));
+            }
             PyGILState_Release(state);
         } else {
             NSUInteger nPoints = [self numberOfRecordsForPlot:plot];

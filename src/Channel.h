@@ -18,7 +18,9 @@ PyTypeObject ChannelType;
 typedef struct {
     PyObject_HEAD
     PyObject *dict;
-    PyObject *data;
+    PyArrayObject *data;
+    PyArrayObject *fill_positions;
+    PyArrayObject *fill_lengths;
     PyArrayObject *fill_values;
     double samplerate;
     double scale;
@@ -30,7 +32,6 @@ typedef struct {
     char *device;
     char *serial_no;
     int resolution;
-    int collection;
     char *json;
     PySetObject *events;
 } Channel;

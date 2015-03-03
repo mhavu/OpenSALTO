@@ -30,8 +30,6 @@ class Plugin(salto.Plugin):
         for another in chIter:
             if not channel.matches(another):
                 raise TypeError("Input channels must be of same type and from same time period")
-        if channel.collection:
-            raise TypeError("Inclination plugin does not support collection channels yet")
         chTable = salto.ChannelTable()
         normArray = np.linalg.norm([ch.data for ch in iChannels.values()], axis = 0)
         allEvents = set()
@@ -48,6 +46,7 @@ class Plugin(salto.Plugin):
                              unit = channel.unit, type = channel.type,
                              start_sec = channel.start_sec, start_nsec = channel.start_nsec,
                              events = allEvents)
+        # TODO: Calculate correct fill values for sparse channels.
         chTable.add("norm", norm)
         salto.channelTables[tableName] = chTable
         outputs = {'channelTable': tableName}

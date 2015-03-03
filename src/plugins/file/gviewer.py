@@ -103,7 +103,8 @@ class Plugin(salto.Plugin):
             chNum = 0
             for name, ch in chTable.channels.items():
                 chNum += 1
-                if ch.type == "acceleration" and not ch.collection:
+                if ch.type == "acceleration" and not ch.fill_values:
+                    # TODO: Add support for sparse channels.
                     if ch.samplerate > samplerate: samplerate = ch.samplerate
                     dsname = "dataset" + str(chNum)
                     dset = f.create_dataset(dsname, (len(ch.data),), dtype = 'f4')

@@ -146,19 +146,23 @@ struct timespec channelEndTime(Channel *ch) {
     struct timespec t;
     double duration;
     size_t length;
-    Py_ssize_t nParts;
+    npy_intp nFills, i, total;
     PyGILState_STATE state;
 
     if (ch) {
-        if (ch->collection) {
+        total = 0;
+        if (ch->fill_values) {
             state = PyGILState_Ensure();
-            nParts = PyList_GET_SIZE(ch->data);
-            ch = (Channel *)PyList_GET_ITEM(ch->data, nParts - 1);
+            nFills = PyArray_DIM(ch->fill_lengths, 0);
+            for (i = 0; i < nFills; i++) {
+                total += *(npy_intp *)PyArray_GETPTR1(ch->fill_lengths, i);
+            }
             PyGILState_Release(state);
         }
         channelData(ch, &length);
         if (length > 0) {
-            duration = (length - 1) / ch->samplerate;
+            total += length;
+            duration = (total - 1) / ch->samplerate;
             t = endTimeFromDuration(ch->start_sec, ch->start_nsec, duration);
         } else {
             t.tv_sec = ch->start_sec;
@@ -187,25 +191,13 @@ double channelDuration(Channel *ch) {
 }
 
 void *channelData(Channel *ch, size_t *length) {
-    Py_ssize_t nParts, i;
-    Channel *part;
     void *ptr;
     PyGILState_STATE state;
 
     if (ch) {
         state = PyGILState_Ensure();
-        if (!ch->collection) {
-            ptr = PyArray_DATA((PyArrayObject *)ch->data);
-            *length = (size_t)PyArray_DIM((PyArrayObject *)ch->data, 0);
-        } else {
-            ptr = NULL;
-            *length = 0;
-            nParts = PyList_GET_SIZE(ch->data);
-            for (i = 0; i < nParts; i++) {
-                part = (Channel *)PyList_GET_ITEM(ch->data, i);  // borrowed
-                *length += (size_t)PyArray_DIM((PyArrayObject *)part->data, 0);
-            }
-        }
+        ptr = PyArray_DATA((PyArrayObject *)ch->data);
+        *length = (size_t)PyArray_DIM((PyArrayObject *)ch->data, 0);
         PyGILState_Release(state);
     } else {
         ptr = NULL;
@@ -243,7 +235,7 @@ const char *getChannelName(const char *chTable, void *ptr) {
         pos = 0;
         while (PyDict_Next(channelTable, &pos, &name, &value)) {  // borrowed
             isChannelObj = PyObject_TypeCheck(value, &ChannelType);
-            if (isChannelObj && !((Channel *)value)->collection &&
+            if (isChannelObj &&
                 PyArray_DATA((PyArrayObject *)((Channel *)value)->data) == ptr)
             {
                 s = PyUnicode_AsUTF8(name);
@@ -385,7 +377,7 @@ const char **getChannelNames(const char *chTable, size_t *size) {
     return names;
 }
 
-int makeCollectionFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
+int collateChannelsFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
     PyObject *chTableDict, *sourceTable, *sourceDict, *sourceChannels = NULL;
     PyObject *start, *prevEnd, *fill;
     Channel *ch, *part;
@@ -459,7 +451,7 @@ int makeCollectionFromTable(const char *chTable, const char *name, const char *f
     return err;
 }
 
-int makeCollectionFromArray(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues) {
+int collateChannels(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues) {
     int err = -1;
     
     // TODO: implement

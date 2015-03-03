@@ -68,21 +68,22 @@ static time_t bcdToTime(uint8_t *buffer) {
 
 int readFile(const char *filename, const char *chTable) {
     uint8_t buffer[512], *sample;
-    long long blk, nBlocks, fileLength;
-    size_t length, i, position;
+    long long blk, nBlocks, fileLength, part, nParts;
+    size_t length, i, *partLen;
     int headerIsValid, isDynamic = 0;
-    int16_t fill;
+    int16_t *fillValues;
     int ch;
     const int samplesPerBlock = 84;
     const int nChannels = 3;
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
     char serialno[28], tag[28], value[28], json[512] = "{ ";
-    double samplerate, t;
+    double samplerate;
     Error err = SUCCESS;
-    struct timespec startTime;
-    time_t *latestStart, *timecodes = NULL;
-    const char *tmpTable;
+    struct timespec startTime, t;
+    time_t latestStart, *timecodes = NULL;
+    const char *tmpTable, *partTable;
+    char **name;
 
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
@@ -133,6 +134,7 @@ int readFile(const char *filename, const char *chTable) {
     }
 
     if (!err) {
+        // Allocate resources.
         nBlocks = fileLength / 512 - 1;
         length = samplesPerBlock * nBlocks;
         for (ch = 0; ch < nChannels; ch++) {
@@ -147,18 +149,31 @@ int readFile(const char *filename, const char *chTable) {
             }
         }
         timecodes = calloc(nBlocks, sizeof(time_t));
-        if (!timecodes) {
-            err = ALLOCATION_FAILED;
-        }
-        tmpTable = newChannelTable(NULL);
-        if (!tmpTable) {
+        fillValues = calloc(nBlocks, sizeof(uint16_t));
+        partLen = calloc(nBlocks, sizeof(size_t));
+        if (timecodes && fillValues && partLen) {
+            tmpTable = newChannelTable(NULL);
+            if (tmpTable) {
+                partTable = newChannelTable("collection");
+                if (!partTable) {
+                    deleteChannelTable(tmpTable);
+                    free((void *)tmpTable);
+                    err = ALLOCATION_FAILED;
+                }
+                bzero(partLen, nBlocks * sizeof(size_t));
+            } else {
+                err = ALLOCATION_FAILED;
+            }
+        } else {
+            free(timecodes);
+            free(fillValues);
+            free(partLen);
             err = ALLOCATION_FAILED;
         }
     }
     
     if (!err) {
-        latestStart = timecodes;
-        t = 0;
+        nParts = 1;
         for (blk = 0; blk < nBlocks; blk++) {
             if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
                 // Read the data.
@@ -169,13 +184,15 @@ int readFile(const char *filename, const char *chTable) {
                         channel[ch].buffer[samplesPerBlock * blk + i] = letoh16(sample);
                     }
                 }
-                // Reserve space for missing samples if the device has entered sleep mode.
-                // TODO: Use sparse channels. Adding the missing samples may take terabytes of storage.
-                t += samplesPerBlock / samplerate;
-                if (timecodes[blk] - *latestStart > round(t)) {
-                    length += (timecodes[blk] - *latestStart - t) * samplerate;
-                    t = 0;
-                    latestStart = &timecodes[blk];
+                // Check whether the device has entered sleep mode.
+                if (blk == 0) {
+                    latestStart = timecodes[0];
+                    partLen[0] = samplesPerBlock;
+                } else if (timecodes[blk] - latestStart > round(partLen[nParts - 1] / samplerate)) {
+                    partLen[nParts++] += samplesPerBlock;
+                    latestStart = timecodes[blk];
+                } else {
+                    partLen[nParts - 1] += samplesPerBlock;
                 }
             } else {
                 for (ch = 0; ch < nChannels; ch++) {
@@ -205,7 +222,30 @@ int readFile(const char *filename, const char *chTable) {
         startTime.tv_nsec = 0;
         json[strlen(json) - 1] = '}';
         for (ch = 0; ch < nChannels; ch++) {
-            channel[ch].data = newInt16Channel(tmpTable, channel[ch].name, length);
+            // Copy data.
+            if (nParts == 1) {
+                channel[ch].data = newInt16Channel(tmpTable, channel[ch].name, length);
+                memcpy(channel[ch].data, channel[ch].buffer, length);
+            } else {
+                blk = 0;
+                t.tv_nsec = 0;
+                name = calloc(nParts, sizeof(char *));
+                // TODO: Check for allocation errors.
+                for (part = 0; part < nParts; part++) {
+                    name[part] = malloc(20);
+                    // TODO: Check for allocation errors.
+                    snprintf(name[part], 20, "%lld", part);
+                    // TODO: Check for errors.
+                    channel[ch].data = newInt16Channel(partTable, name[part], partLen[part]);
+                    setSampleRate(partTable, name[part], samplerate);
+                    t.tv_sec = timecodes[blk];
+                    setStartTime(partTable, name[part], t);
+                    memcpy(channel[ch].data, &channel[ch].buffer[samplesPerBlock * blk], partLen[part]);
+                    blk += partLen[part] / samplesPerBlock;
+                    fillValues[part] = isDynamic ? channel[ch].buffer[samplesPerBlock * blk - 1] : 0;
+                }
+                collateChannelsFromTable(tmpTable, channel[ch].name, partTable, fillValues);
+            }
             // range: [-16 16] * 9.81 m/s^2
             setScaleAndOffset(tmpTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
             setResolution(tmpTable, channel[ch].name, 13);
@@ -215,30 +255,20 @@ int readFile(const char *filename, const char *chTable) {
             setDevice(tmpTable, channel[ch].name, "Hookie AM20", serialno);
             setStartTime(tmpTable, channel[ch].name, startTime);
             setMetadata(tmpTable, channel[ch].name, json);
-            // Copy data filling in blanks if the device has entered sleep mode.
-            latestStart = timecodes;
-            t = 0;
-            position = 0;
-            for (blk = 0; blk < nBlocks; blk++) {
-                t += samplesPerBlock / samplerate;
-                if (timecodes[blk] - *latestStart > round(t)) {
-                    fill = isDynamic ? channel[ch].buffer[samplesPerBlock * blk - 1] : 0;
-                    for (i = 0; i < (timecodes[blk] - *latestStart - t) * samplerate; i++) {
-                        channel[ch].data[position++] = fill;
-                    }
-                    t = 0;
-                    latestStart = &timecodes[blk];
-                }
-                for (i = 0; i < samplesPerBlock; i++) {
-                    channel[ch].data[position++] = channel[ch].buffer[samplesPerBlock * blk + i];
-                }
-            }
             moveChannel(tmpTable, channel[ch].name, chTable);
             free(channel[ch].buffer);
             free((void *)channel[ch].name);
         }
         free(timecodes);
+        free(fillValues);
+        free(partLen);
+        for (part = 0; part < nParts; part++) {
+            free(name[part]);
+        }
+        free(name);
+        deleteChannelTable(partTable);
         deleteChannelTable(tmpTable);
+        free((void *)partTable);
         free((void *)tmpTable);
     }
 

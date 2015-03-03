@@ -29,37 +29,21 @@ static void Channel_dealloc(Channel* self) {
 
 static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     Channel *self;
-    PyObject *data, *item;
-    Py_ssize_t length, i;
+    PyObject *data;
     
     data = PyTuple_GetItem(args, 0);  // borrowed
-    if (data && (PyArray_Check(data) || PyList_Check(data))) {
+    if (data && PyArray_Check(data)) {
         self = (Channel *)type->tp_alloc(type, 0);
-        if (self) {
-            if (PyList_Check(data)) {
-                self->collection = 1;
-                length = PyList_Size(data);
-                for (i = 0; i < length; i++) {
-                    item = PyList_GET_ITEM(data, i);  // borrowed
-                    if (!PyObject_TypeCheck(item, &ChannelType)) {
-                        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array or a list of Channel objects as an argument");
-                        Py_DECREF(self);
-                        self = NULL;
-                        break;
-                    }
-                }
-            } else {
-                self->collection = 0;
-            }
-        }
         if (self) {
             self->dict = NULL;
             self->events = NULL;
+            self->fill_positions = NULL;
+            self->fill_values = NULL;
             Py_INCREF(data);
-            self->data = data;
+            self->data = (PyArrayObject *)data;
         }
     } else {
-        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array or a list of Channel objects as an argument");
+        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array as an argument");
         self = NULL;
     }
 
@@ -70,21 +54,30 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *data = NULL, *events = NULL;
     int error;
     size_t size;
+    npy_intp nFills;
+    PyArray_Descr *fillDescr;
     char *tmp;
-    static char *kwlist[] = {"data", "fill_values", "samplerate", "scale", "offset", "unit", "type",
-        "start_sec", "start_nsec", "device", "serial_no", "resolution", "json", "events", NULL};
+    static char *kwlist[] = {"data", "samplerate",
+        "fill_positions", "fill_lengths", "fill_values",
+        "scale", "offset", "unit", "type",
+        "start_sec", "start_nsec", "device", "serial_no", "resolution",
+        "json", "events", NULL};
 
     self->device = NULL;
     self->serial_no = NULL;
     self->unit = NULL;
     self->type = NULL;
-    self->scale = 1.0;
     self->json = NULL;
-    self->fill_values = NULL;
-    error = !PyArg_ParseTupleAndKeywords(args, kwds, "O|O!dddssLlssisO", kwlist,
+    self->scale = 1.0;
+    self->offset = 0.0;
+    self->start_sec = 0;
+    self->start_nsec = 0;
+    error = !PyArg_ParseTupleAndKeywords(args, kwds, "Od|O!O!O!ddssLlssisO", kwlist,
                                          &data,
-                                         &PyArray_Type, &(self->fill_values),
                                          &(self->samplerate),
+                                         &PyArray_Type, &(self->fill_positions),
+                                         &PyArray_Type, &(self->fill_lengths),
+                                         &PyArray_Type, &(self->fill_values),
                                          &(self->scale), &(self->offset),
                                          &(self->unit), &(self->type),
                                          &(self->start_sec), &(self->start_nsec),
@@ -96,17 +89,51 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
     }
     if (!error) {
-        if (self->collection) {
-            Py_INCREF(self->fill_values);
-        } else {
-            self->fill_values = NULL;
+        if (self->fill_positions && self->fill_lengths && self->fill_values) {
+            if (PyArray_DTYPE(self->fill_values) == PyArray_DTYPE(self->data)) {
+                if (PyArray_NDIM(self->fill_positions) == 1 &&
+                    PyArray_NDIM(self->fill_lengths) == 1 &&
+                    PyArray_NDIM(self->fill_values) == 1) {
+                    nFills = PyArray_DIM(self->fill_positions, 0);
+                    if (PyArray_DIM(self->fill_lengths, 0) == nFills &&
+                        PyArray_DIM(self->fill_values, 0) == nFills) {
+                        fillDescr = PyArray_DescrFromType(NPY_INTP);
+                        if (PyArray_CanCastArrayTo(self->fill_positions, fillDescr, NPY_SAFE_CASTING) &&
+                            PyArray_CanCastArrayTo(self->fill_lengths, fillDescr, NPY_SAFE_CASTING)) {
+                            self->fill_positions = (PyArrayObject *)PyArray_Cast(self->fill_positions, NPY_INTP);
+                            Py_INCREF(self->fill_positions);
+                            self->fill_lengths = (PyArrayObject *)PyArray_Cast(self->fill_lengths, NPY_INTP);
+                            Py_INCREF(self->fill_lengths);
+                            Py_INCREF(self->fill_values);
+                        } else {
+                            error = -1;
+                            PyErr_SetString(PyExc_ValueError, "fill_positions and fill_lengths need to be able to hold array indices");
+                        }
+                    } else {
+                        error = -1;
+                        PyErr_SetString(PyExc_ValueError, "fill_positions, fill_lengths and fill_values must be of equal length");
+                    }
+                } else {
+                    error = -1;
+                    PyErr_SetString(PyExc_ValueError, "fill_positions, fill_lengths and fill_values must have exactly one dimension");
+                }
+            } else {
+                error = -1;
+                PyErr_SetString(PyExc_TypeError, "fill_values must be of same type as data");
+            }
+        } else if (self->fill_positions || self->fill_values) {
+            error = -1;
+            PyErr_SetString(PyExc_ValueError, "fill_positions, fill_lengths and fill_values must be either all specified or all null");
         }
     }
     if (!error) {
         self->events = (PySetObject *)PySet_New(events);  // new
         if (!self->events) {
+            Py_DECREF(self->fill_positions);
+            Py_DECREF(self->fill_lengths);
             Py_DECREF(self->fill_values);
             error = -1;
+            PyErr_SetString(PyExc_RuntimeError, "creating events failed");
         }
     }
     if (!error) {
@@ -235,39 +262,20 @@ static PyObject *Channel_duration(Channel *self) {
 }
 
 static PyObject *Channel_matches(Channel *self, PyObject *args) {
-    PyObject *argTuple, *result = Py_False;
+    PyObject *result = Py_False;
     Channel *other;
-    Py_ssize_t length, i;
 
     if (PyArg_ParseTuple(args, "O!", &ChannelType, &other)) {
         if (strcmp(self->type, other->type) == 0 &&
             self->samplerate == other->samplerate &&
-            self->collection == other->collection &&
             self->start_sec == other->start_sec &&
-            self->start_nsec == other->start_nsec)
+            self->start_nsec == other->start_nsec &&
+            self->fill_positions && other->fill_positions &&
+            PyObject_RichCompareBool((PyObject *)self->fill_positions, (PyObject *)other->fill_positions, Py_EQ) &&
+            PyArray_DTYPE(self->data)->type_num == PyArray_DTYPE(other->data)->type_num &&
+            PyArray_DIM(self->data, 0) == PyArray_DIM(other->data, 0))
         {
-            if (self->collection) {
-                length = PyList_GET_SIZE(self->data);
-                if (PyList_GET_SIZE(other->data) == length) {
-                    result = Py_True;
-                    for (i = 0; i < length; i++) {
-                        argTuple = Py_BuildValue("(O)", PyList_GET_ITEM(other->data, i));  // new
-                        if (argTuple) {
-                            result = Channel_matches((Channel *)PyList_GET_ITEM(self->data, i),
-                                                     argTuple);
-                            Py_DECREF(argTuple);
-                        } else {
-                            result = NULL;
-                            PyErr_SetString(PyExc_RuntimeError, "Building an argument tuple for Channel.matches() failed");
-                        }
-                        if (result != Py_True)
-                            break;
-                    }
-                }
-            } else if (PyArray_DIM((PyArrayObject *)self->data, 0) ==
-                       PyArray_DIM((PyArrayObject *)other->data, 0)) {
-                result = Py_True;
-            }
+            result = Py_True;
         }
     } else {
         result = NULL;
@@ -279,113 +287,130 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
 }
 
 static PyObject *Channel_collate(Channel *self, PyObject *args) {
-    PyObject *chList, *item, *resultList, *fill, *iterator, *result = NULL;
-    Channel *ch, *part;
-    Py_ssize_t length, i, p, nParts;
+    PyObject *chList, *item, *dataList, *num, *result = NULL, *data = NULL;
+    PyArrayObject *fill_positions = NULL, *fill_lengths = NULL, *fill_values = NULL;
+    Channel *ch;
+    Py_ssize_t length, i, nParts, fillLen;
+    size_t size;
     int thisType, otherType, error = 0;
-    npy_intp nFillValues;
+    npy_intp fill, pos, nFills = 0;
+    double samplerate, t0, t;
+    char *typestr, *unit;
     
-    chList = PyTuple_GetItem(args, 0);
-    if (chList && PyList_Check(chList)) {
-        if (self->collection) {
-            nParts = PyList_Size(self->data);
-            part = (Channel *)PyList_GET_ITEM(self->data, 0);  // borrowed
-            thisType = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
+    if (PyArg_ParseTuple(args, "O!", &PyList_Type, &chList)) {
+        nParts = PyList_Size(chList);
+        PyList_Sort(chList);
+        item = PyList_GET_ITEM(chList, 0);  // borrowed
+        if (item && PyObject_TypeCheck(item, &ChannelType)) {
+            // Check the first channel.
+            ch = (Channel *)item;
+            thisType = PyArray_DTYPE(ch->data)->type_num;
+            length = PyArray_DIM(ch->data, 0);
+            if (ch->fill_values) {
+                nFills += PyArray_DIM(ch->fill_values, 0);
+            }
+            size = PyArray_ITEMSIZE(ch->data);
+            typestr = ch->type;
+            samplerate = ch->samplerate;
+            unit = ch->unit;
+            t0 = ch->start_sec + ch->start_nsec / 1e9;
         } else {
-            nParts = 1;
-            thisType = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
-        }
-        length = PyList_Size(chList);
-        for (i = 0; i < length; i++) {
-            // Check that each argument is compatible with self, and
-            // count the total number of parts.
-            item = PyList_GET_ITEM(chList, i);  // borrowed
-            if (PyObject_TypeCheck(item, &ChannelType)) {
-                ch = (Channel *)item;
-                if (ch->collection) {
-                    nParts += PyList_Size(ch->data);
-                    part = (Channel *)PyList_GET_ITEM(ch->data, 0);  // borrowed
-                    otherType = PyArray_DTYPE((PyArrayObject *)part->data)->type_num;
-                } else {
-                    nParts++;
-                    otherType = PyArray_DTYPE((PyArrayObject *)ch->data)->type_num;
-                }
-                if (otherType != thisType) {
-                    PyErr_SetString(PyExc_TypeError, "Channel objects in collate() need to be of same type");
-                    error = -1;
-                    break;
-                }
-                if (ch->samplerate != self->samplerate) {
-                    PyErr_SetString(PyExc_ValueError, "Channel objects in collate() need to have the same samplerate");
-                    error = -1;
-                    break;
-                }
-            } else {
-                PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
-                error = -1;
-                break;
-            }
+            PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+            error = -1;
         }
         if (!error) {
-            resultList = PyList_New(nParts);  // new
-            if (!resultList) {
-                error = -1;
-                // TODO: Raise exception.
-            }
-        }
-        if (!error) {
-            nFillValues = nParts - 1;
-            fill = PyArray_ZEROS(1, &nFillValues, thisType, 0);  // new
-            if (!fill) {
-                Py_DECREF(resultList);
-                error = -1;
-                // TODO: Raise exception.
-            }
-        }
-        if (!error) {
-            // Collate the parts to resultList.
-            p = 0;
-            if (self->collection) {
-                iterator = PyObject_GetIter(self->data);  // new
-                if (iterator) {
-                    while ((item = PyIter_Next(iterator))) {  // new
-                        PyList_SET_ITEM(resultList, p++, item);  // stolen
-                    }
-                    Py_DECREF(iterator);
-                } else {
-                    error = -1;
-                    // TODO: Raise exception.
-                }
-            } else {
-                Py_INCREF(self);
-                PyList_SET_ITEM(resultList, p++, (PyObject *)self);  // stolen
-            }
-            for (i = 0; i < length; i++) {
-                ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
-                if (ch->collection) {
-                    iterator = PyObject_GetIter(ch->data);  // new
-                    if (iterator) {
-                        while ((item = PyIter_Next(iterator))) {  // new
-                            PyList_SET_ITEM(resultList, p++, item);  // stolen
+            for (i = 1; i < nParts; i++) {
+                // Check that the rest of the channels are
+                // compatible with the first one.
+                item = PyList_GET_ITEM(chList, i);  // borrowed
+                if (PyObject_TypeCheck(item, &ChannelType)) {
+                    ch = (Channel *)item;
+                    otherType = PyArray_DTYPE(ch->data)->type_num;
+                    if (otherType == thisType && strcmp(typestr, ch->type) == 0) {
+                        if (samplerate == ch->samplerate) {
+                            // Channels can be combined (if they don't overlap).
+                            length += PyArray_DIM(ch->data, 0);
+                            if (ch->fill_values) {
+                                nFills += PyArray_DIM(ch->fill_values, 0);
+                            }
+                        } else {
+                            PyErr_SetString(PyExc_ValueError, "Channel objects in collate() need to have the same samplerate");
+                            error = -1;
+                            break;
                         }
-                        Py_DECREF(iterator);
                     } else {
+                        PyErr_SetString(PyExc_TypeError, "Channel objects in collate() need to be of same type");
                         error = -1;
-                        // TODO: Raise exception.
+                        break;
                     }
                 } else {
-                    Py_INCREF(ch);
-                    PyList_SET_ITEM(resultList, p++, (PyObject *)ch);  // stolen
+                    PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+                    error = -1;
+                    break;
                 }
             }
+        }
+        if (!error) {
+            dataList = PyList_New(nParts);  // new
+            nFills += nParts - 1;
+            fill_values = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            fill_positions = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            fill_lengths = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            fill = 0;
+            pos = 0;
+            for (i = 0; i < nParts; i++) {
+                ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
+                Py_INCREF(ch->data);
+                PyList_SET_ITEM(dataList, i, (PyObject *)ch->data);  // stolen
+                if (ch->fill_values) {
+                    memcpy(PyArray_GETPTR1(fill_values, fill), ch->fill_values, PyArray_NBYTES(ch->fill_values));
+                    memcpy(PyArray_GETPTR1(fill_positions, fill), ch->fill_positions, PyArray_NBYTES(ch->fill_positions));
+                    memcpy(PyArray_GETPTR1(fill_lengths, fill), ch->fill_lengths, PyArray_NBYTES(ch->fill_lengths));
+                    fill += PyArray_DIM(ch->fill_values, 0);
+                    num = PyArray_Sum(ch->fill_lengths, 0, NPY_NOTYPE, NULL);
+                    pos += PyArray_DIM(ch->data,0);
+                    pos += PyLong_AsSsize_t(num);
+                    Py_DECREF(num);
+                }
+                if (i < nParts - 1) {
+                    // Calculate fill length.
+                    t = ch->start_sec + ch->start_nsec / 1e9;
+                    fillLen = round((t - (t0 + pos / samplerate)) * samplerate);
+                    // TODO: Specify minimum fill lengths.
+                    // If the fill is shorter than minimum, store it as
+                    // ordinary samples instead of a fill.
+                    if (fillLen > 0) {
+                        num = PyLong_FromSsize_t(pos);  // new
+                        PyArray_SETITEM(fill_positions, PyArray_GETPTR1(fill_positions, fill), num);
+                        Py_DECREF(num);
+                        num = PyLong_FromSsize_t(fillLen);  // new
+                        PyArray_SETITEM(fill_lengths, PyArray_GETPTR1(fill_lengths, fill), num);
+                        Py_DECREF(num);
+                        // TODO: Take fill values as argument.
+                        num = PyFloat_FromDouble(0.0);  // new
+                        PyArray_SETITEM(fill_values, PyArray_GETPTR1(fill_values, fill), num);
+                        Py_DECREF(num);
+                    } else if (fillLen == 0) {
+                        // TODO: Remove fill.
+                    } else {
+                        PyErr_SetString(PyExc_TypeError, "Can not collate() Channel objects that overlap");
+                        error = -1;
+                        break;
+                    }
+                    fill++;
+                    pos += fillLen;
+                }
+            }
+            data = PyArray_Concatenate(dataList, 0);
             // Create a new channel.
             result = PyObject_CallFunctionObjArgs((PyObject *)&ChannelType,
-                                                  resultList, fill, NULL);  // new
-            ((Channel *)result)->samplerate = self->samplerate;
-            // TODO: Fix this:
+                                                  data, samplerate,
+                                                  fill_positions, fill_lengths,
+                                                  fill_values, NULL);  // new
+            // TODO: Handle units.
             ((Channel *)result)->unit = "";
-            Py_DECREF(resultList);
-            Py_DECREF(fill);
+            Py_DECREF(data);
+            Py_DECREF(fill_values);
         }
     } else {
         PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
@@ -506,7 +531,6 @@ static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds
 }
 
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
-    Channel *part;
     PyArrayObject *newArray = NULL, *tmpArray = NULL;
     PyObject *numpy, *linspace, *slice, *start, *end, *step = NULL, *times;
     double samplerate, *sliceData;
@@ -514,7 +538,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
     long start_nsec, end_nsec;
     int oldTypenum, newTypenum, err = 0;
     struct timespec end_t;
-    Py_ssize_t start_idx, end_idx, nParts, i;
+    Py_ssize_t start_idx, end_idx, i;
     npy_intp size, dims[1], *index = NULL;
     const char *method = "interpolate-decimate";
     static char *kwlist[] = {"samplerate", "start_sec", "start_nsec", "end_sec", "end_nsec", "typenum", "method", NULL};
@@ -525,11 +549,7 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
     end_t = channelEndTime(self);
     end_sec = end_t.tv_sec;
     end_nsec = end_t.tv_nsec;
-    if (!self->collection) {
-        oldTypenum = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
-    } else {
-        oldTypenum = PyArray_DTYPE(self->fill_values)->type_num;
-    }
+    oldTypenum = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
     newTypenum = oldTypenum;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "d|LlLlis", kwlist, &samplerate,
                                     &start_sec, &start_nsec, &end_sec, &end_nsec, &newTypenum, &method)) {
@@ -547,125 +567,117 @@ static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *
         }
     }
 
+    // TODO: Check if fill_positions exists, and fill the data, if necessary.
+    
     if (!err) {
         // Get references to necessary NumPy functions.
         numpy = PyImport_AddModule("numpy");  // borrowed
         linspace = PyObject_GetAttrString(numpy, "linspace");  // new
 
         // Resample the specified part of the array.
-        if (!self->collection) {
-            start_idx = (start_sec - self->start_sec + (start_nsec - self->start_nsec) / 1e9) * self->samplerate;
-            end_idx = PyArray_DIM((PyArrayObject *)self->data, 0);
-            end_idx -= (end_t.tv_sec - end_sec + (end_t.tv_nsec - end_nsec) / 1e9) * self->samplerate;
-
-            if (strcmp(method, "interpolate-decimate") == 0) {
-                // Get a view to the specified part of the array.
-                start = PyLong_FromSsize_t(start_idx);  // new
-                end = PyLong_FromSsize_t(end_idx);  // new
+        start_idx = (start_sec - self->start_sec + (start_nsec - self->start_nsec) / 1e9) * self->samplerate;
+        end_idx = PyArray_DIM((PyArrayObject *)self->data, 0);
+        end_idx -= (end_t.tv_sec - end_sec + (end_t.tv_nsec - end_nsec) / 1e9) * self->samplerate;
+        
+        if (strcmp(method, "interpolate-decimate") == 0) {
+            // Get a view to the specified part of the array.
+            start = PyLong_FromSsize_t(start_idx);  // new
+            end = PyLong_FromSsize_t(end_idx);  // new
+            slice = PySlice_New(start, end, step);  // new
+            Py_DECREF(start);
+            Py_DECREF(end);
+            tmpArray = (PyArrayObject *)PyObject_GetItem((PyObject *)self->data, slice);  // new
+            // TODO: FIR
+            Py_XDECREF(slice);
+        } else if (strcmp(method, "VRA") == 0) {
+            if (self->samplerate > 3.0 * samplerate) {
+                size = llabs(end_idx - start_idx) * samplerate / self->samplerate;
+                if (size < 2)
+                size = 2;
+                slice = PyObject_CallFunction(linspace, "nnn", start_idx, end_idx - 1, size);  // new
+                if (slice) {
+                    sliceData = PyArray_DATA((PyArrayObject *)slice);
+                    index = calloc(size, sizeof(npy_intp));
+                    if (sliceData && index) {
+                        for (i = 0; i < size; i++) {
+                            index[i] = rint(sliceData[i]);
+                        }
+                    }
+                    Py_DECREF(slice);
+                }
+                if (index) {
+                    dims[0] = 3 * size - 2;
+                    tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, oldTypenum);
+                    switch (oldTypenum) {
+                        #define AGGREGATEMINMAX(type)                                   \
+                        do {                                                            \
+                            type *tmp = PyArray_DATA(tmpArray);                         \
+                            type *data = PyArray_DATA((PyArrayObject *)self->data);     \
+                            tmp[0] = data[*index];                                      \
+                            for (i = 0; i < size - 1; i++) {                            \
+                                tmp[3 * i + 1] = tmp[3 * i];                            \
+                                tmp[3 * i + 2] = tmp[3 * i];                            \
+                                for (k = index[i] + 1; k < index[i + 1]; k++) {         \
+                                    if (data[k] < tmp[3 * i + 1])                       \
+                                        tmp[3 * i + 1] = data[k];                       \
+                                    if (data[k] > tmp[3 * i + 2])                       \
+                                        tmp[3 * i + 2] = data[k];                       \
+                                }                                                       \
+                                tmp[3 * i + 3] = data[index[i + 1]];                    \
+                                tmp[3 * i + 3] = data[index[i + 1]];                    \
+                            }                                                           \
+                        } while (0);
+                        case NPY_BYTE: {
+                            AGGREGATEMINMAX(int8_t);
+                            break;
+                        }
+                        case NPY_UBYTE: {
+                            AGGREGATEMINMAX(uint8_t);
+                            break;
+                        }
+                        case NPY_INT16: {
+                            AGGREGATEMINMAX(int16_t);
+                            break;
+                        }
+                        case NPY_UINT16: {
+                            AGGREGATEMINMAX(uint16_t);
+                            break;
+                        }
+                        case NPY_INT32: {
+                            AGGREGATEMINMAX(int32_t);
+                            break;
+                        }
+                        case NPY_UINT32: {
+                            AGGREGATEMINMAX(uint32_t);
+                            break;
+                        }
+                        case NPY_FLOAT: {
+                            AGGREGATEMINMAX(float);
+                            break;
+                        }
+                        case NPY_DOUBLE: {
+                            AGGREGATEMINMAX(double);
+                            break;
+                        }
+                        default:
+                            PyErr_SetString(PyExc_TypeError, "unsupported dtype");
+                    }
+                    free(index);
+                }
+            } else {
+                // There is no need for aggregation. Return original samples.
+                start = PyLong_FromSsize_t(start_idx);
+                end = PyLong_FromSsize_t(end_idx);
                 slice = PySlice_New(start, end, step);  // new
                 Py_DECREF(start);
                 Py_DECREF(end);
-                tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
-                // TODO: FIR
-                Py_XDECREF(slice);
-            } else if (strcmp(method, "VRA") == 0) {
-                if (self->samplerate > 3.0 * samplerate) {
-                    size = llabs(end_idx - start_idx) * samplerate / self->samplerate;
-                    if (size < 2)
-                        size = 2;
-                    slice = PyObject_CallFunction(linspace, "nnn", start_idx, end_idx - 1, size);  // new
-                    if (slice) {
-                        sliceData = PyArray_DATA((PyArrayObject *)slice);
-                        index = calloc(size, sizeof(npy_intp));
-                        if (sliceData && index) {
-                            for (i = 0; i < size; i++) {
-                                index[i] = rint(sliceData[i]);
-                            }
-                        }
-                        Py_DECREF(slice);
-                    }
-                    if (index) {
-                        dims[0] = 3 * size - 2;
-                        tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, oldTypenum);
-                        switch (oldTypenum) {
-                            #define AGGREGATEMINMAX(type)                                   \
-                            do {                                                            \
-                                type *tmp = PyArray_DATA(tmpArray);                         \
-                                type *data = PyArray_DATA((PyArrayObject *)self->data);     \
-                                tmp[0] = data[*index];                                      \
-                                for (i = 0; i < size - 1; i++) {                            \
-                                    tmp[3 * i + 1] = tmp[3 * i];                            \
-                                    tmp[3 * i + 2] = tmp[3 * i];                            \
-                                    for (k = index[i] + 1; k < index[i + 1]; k++) {         \
-                                        if (data[k] < tmp[3 * i + 1])                       \
-                                            tmp[3 * i + 1] = data[k];                       \
-                                        if (data[k] > tmp[3 * i + 2])                       \
-                                            tmp[3 * i + 2] = data[k];                       \
-                                    }                                                       \
-                                    tmp[3 * i + 3] = data[index[i + 1]];                    \
-                                    tmp[3 * i + 3] = data[index[i + 1]];                    \
-                                }                                                           \
-                            } while (0);
-                            case NPY_BYTE: {
-                                AGGREGATEMINMAX(int8_t);
-                                break;
-                            }
-                            case NPY_UBYTE: {
-                                AGGREGATEMINMAX(uint8_t);
-                                break;
-                            }
-                            case NPY_INT16: {
-                                AGGREGATEMINMAX(int16_t);
-                                break;
-                            }
-                            case NPY_UINT16: {
-                                AGGREGATEMINMAX(uint16_t);
-                                break;
-                            }
-                            case NPY_INT32: {
-                                AGGREGATEMINMAX(int32_t);
-                                break;
-                            }
-                            case NPY_UINT32: {
-                                AGGREGATEMINMAX(uint32_t);
-                                break;
-                            }
-                            case NPY_FLOAT: {
-                                AGGREGATEMINMAX(float);
-                                break;
-                            }
-                            case NPY_DOUBLE: {
-                                AGGREGATEMINMAX(double);
-                                break;
-                            }
-                            default:
-                                PyErr_SetString(PyExc_TypeError, "unsupported dtype");
-                        }
-                        free(index);
-                    }
-                } else {
-                    // There is no need for aggregation. Return original samples.
-                    start = PyLong_FromSsize_t(start_idx);
-                    end = PyLong_FromSsize_t(end_idx);
-                    slice = PySlice_New(start, end, step);  // new
-                    Py_DECREF(start);
-                    Py_DECREF(end);
-                    tmpArray = (PyArrayObject *)PyObject_GetItem(self->data, slice);  // new
-                }
-            } else if (strcmp(method, "empty") == 0)  {
-                dims[0] = 0;
-                tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, newTypenum);
-            } else {
-                PyErr_SetString(PyExc_AttributeError, "unknown resampling method");
+                tmpArray = (PyArrayObject *)PyObject_GetItem((PyObject *)self->data, slice);  // new
             }
+        } else if (strcmp(method, "empty") == 0)  {
+            dims[0] = 0;
+            tmpArray = (PyArrayObject *)PyArray_SimpleNew(1, dims, newTypenum);
         } else {
-            nParts = PyList_GET_SIZE(self->data);
-            for (i = 0; i < nParts; i++) {
-                part = (Channel *)PyList_GET_ITEM(self->data, i);
-                PyArray_GETPTR1(self->fill_values, i);
-                // TODO: Implement resampling of collection channels.
-                // PyObject_RichCompareBool(o1, o2, Py_LT);
-            }
+            PyErr_SetString(PyExc_AttributeError, "unknown resampling method");
         }
         Py_XDECREF(linspace);
         Py_XDECREF(step);
@@ -722,11 +734,7 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
     end_t = channelEndTime(self);
     end_sec = end_t.tv_sec;
     end_nsec = end_t.tv_nsec;
-    if (!self->collection) {
-        oldTypenum = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
-    } else {
-        oldTypenum = PyArray_DTYPE(self->fill_values)->type_num;
-    }
+    oldTypenum = PyArray_DTYPE((PyArrayObject *)self->data)->type_num;
     newTypenum = oldTypenum;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "d|LlLlisi:resample", kwlist, &samplerate,
                                     &start_sec, &start_nsec, &end_sec, &end_nsec, &newTypenum, &method, &copyEvents)) {
@@ -855,7 +863,7 @@ static PyMethodDef Channel_methods[] = {
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
     {"matches", (PyCFunction)Channel_matches, METH_VARARGS, "check whether channel type and time match those of another channel"},
-    {"collate", (PyCFunction)Channel_collate, METH_VARARGS, "combine channels to a collection channel"},
+    {"collate", (PyCFunction)Channel_collate, METH_VARARGS | METH_STATIC, "combine channels to a sparse channel"},
     {"validateTimes", (PyCFunction)Channel_validateTimes, METH_VARARGS, "validate start and end times"},
     {"getEvents", (PyCFunction)Channel_getEvents, METH_VARARGS | METH_KEYWORDS, "get channel events"},
     {"resample", (PyCFunction)Channel_resample, METH_VARARGS | METH_KEYWORDS, "resample channel"},
@@ -865,8 +873,9 @@ static PyMethodDef Channel_methods[] = {
 
 static PyMemberDef Channel_members[] = {
     {"__dict__", T_OBJECT, offsetof(Channel, dict), READONLY, "dictionary for instance variables"},
-    {"data", T_OBJECT_EX, offsetof(Channel, data), READONLY, "Channel data as NumPy array or collection of Channel objects"},
-    {"fill_values", T_OBJECT_EX, offsetof(Channel, fill_values), 0, "fill values for collection channels as NumPy array"},
+    {"data", T_OBJECT_EX, offsetof(Channel, data), READONLY, "Channel data as NumPy array"},
+    {"fill_positions", T_OBJECT_EX, offsetof(Channel, fill_positions), 0, "fill positions for sparse channels as list of (position, length) pairs"},
+    {"fill_values", T_OBJECT_EX, offsetof(Channel, fill_values), 0, "fill values for sparse channels as NumPy array"},
     {"samplerate", T_DOUBLE, offsetof(Channel, samplerate), 0, "sample rate in Hz"},
     {"scale", T_DOUBLE, offsetof(Channel, scale), 0, "scale for integer channels"},
     {"offset", T_DOUBLE, offsetof(Channel, offset), 0, "offset for integer channels"},
@@ -877,7 +886,6 @@ static PyMemberDef Channel_members[] = {
     {"device", T_STRING, offsetof(Channel, device), 0, "device make and model"},
     {"serial_no", T_STRING, offsetof(Channel, serial_no), 0, "device serial number"},
     {"resolution", T_INT, offsetof(Channel, resolution), 0, "sampling resolution in bits"},
-    {"collection", T_INT, offsetof(Channel, collection), 0, "indicates a collection channel"},
     {"json", T_STRING, offsetof(Channel, json), 0, "additional metadata in JSON format"},
     {"events", T_OBJECT_EX, offsetof(Channel, events), 0, "set of Event objects"},
     {NULL}  // sentinel
