@@ -247,14 +247,33 @@ static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
 }
 
 static PyObject *Channel_start(Channel *self) {
-    PyObject *timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);
-    return datetimeFromTimespec((PyObject *)self, timespec);
+    PyObject *timespec, *result;
+    
+    timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);  // new
+    if (timespec) {
+        result = datetimeFromTimespec((PyObject *)self, timespec);
+        Py_DECREF(timespec);
+    } else {
+        result = NULL;
+    }
+    
+    return result;
 }
 
 static PyObject *Channel_end(Channel *self) {
-    struct timespec t = channelEndTime(self);
-    PyObject *timespec = Py_BuildValue("Ll", t.tv_sec, t.tv_nsec);
-    return datetimeFromTimespec((PyObject *)self, timespec);
+    struct timespec t;
+    PyObject *timespec, *result;
+    
+    t = channelEndTime(self);
+    timespec = Py_BuildValue("Ll", t.tv_sec, t.tv_nsec);  // new
+    if (timespec) {
+        result = datetimeFromTimespec((PyObject *)self, timespec);
+        Py_DECREF(timespec);
+    } else {
+        result = NULL;
+    }
+    
+    return result;
 }
 
 static PyObject *Channel_duration(Channel *self) {
