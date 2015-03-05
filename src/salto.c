@@ -21,15 +21,89 @@ static PyObject *saltoDict = NULL;  // salto namespace
 
 double duration(const char *chTable, const char *name) {
     double duration;
-    PyObject *channel;
+    PyObject *channel, *value;
     PyGILState_STATE state;
 
     channel = (PyObject *)getChannel(chTable, name);
     state = PyGILState_Ensure();
-    duration = PyFloat_AsDouble(PyObject_CallMethod(channel, "duration", NULL));
+    value = PyObject_CallMethod(channel, "duration", NULL);  // new
+    duration = PyFloat_AsDouble(value);
     PyGILState_Release(state);
 
     return duration;
+}
+
+int setFills(const char *chTable, const char *name, size_t *positions, size_t *lengths, void *values) {
+    Channel *ch;
+    int result = 0;
+    npy_intp nFills, fill, size;
+    npy_intp *posArray, *lenArray;
+    void *fillArray;
+    PyGILState_STATE state;
+    
+    ch = getChannel(chTable, name);
+    if (ch && ch->fill_values) {
+        state = PyGILState_Ensure();
+        nFills = PyArray_DIM(ch->fill_values, 0);
+        posArray = PyArray_DATA(ch->fill_positions);
+        lenArray = PyArray_DATA(ch->fill_lengths);
+        fillArray = PyArray_DATA(ch->fill_values);
+        size = PyArray_NBYTES(ch->fill_values);
+        memcpy(fillArray, values, size);
+        for (fill = 0; fill < nFills; fill++) {
+            posArray[fill] = positions[fill];
+            lenArray[fill] = lengths[fill];
+        }
+        PyGILState_Release(state);
+    } else {
+        result = -1;
+    }
+    
+    return result;
+}
+
+int getFills(const char *chTable, const char *name, size_t *positions, size_t *lengths, void *values) {
+    Channel *ch;
+    int result = 0;
+    npy_intp nFills, fill, size;
+    npy_intp *posArray, *lenArray;
+    void *fillArray;
+    PyGILState_STATE state;
+    
+    ch = getChannel(chTable, name);
+    if (ch && ch->fill_values) {
+        state = PyGILState_Ensure();
+        nFills = PyArray_DIM(ch->fill_values, 0);
+        posArray = PyArray_DATA(ch->fill_positions);
+        lenArray = PyArray_DATA(ch->fill_lengths);
+        fillArray = PyArray_DATA(ch->fill_values);
+        size = PyArray_NBYTES(ch->fill_values);
+        memcpy(values, fillArray, size);
+        for (fill = 0; fill < nFills; fill++) {
+            positions[fill] = posArray[fill];
+            lengths[fill] = lenArray[fill];
+        }
+        PyGILState_Release(state);
+    } else {
+        result = -1;
+    }
+    
+    return result;
+}
+
+size_t numberOfFills(const char *chTable, const char *name) {
+    size_t nFills = 0;
+    Channel *ch;
+    PyGILState_STATE state;
+    
+    ch = getChannel(chTable, name);
+    if (ch && ch->fill_values) {
+        state = PyGILState_Ensure();
+        nFills = PyArray_DIM(ch->fill_values, 0);  // Casts npy_intp to size_t
+        PyGILState_Release(state);
+    }
+    
+    return nFills;
 }
 
 static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
@@ -67,56 +141,90 @@ static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
     return typenum;
 }
 
-void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int is_signed) {
+void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int isSigned, size_t nParts) {
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *ndarray;
+    PyObject *dataArray, *fillArray, *posArray, *lenArray;
+    npy_intp nFills[1], nSamples[1];
     PyGILState_STATE state;
 
-    typenum = numpyType(size, 1, is_signed);
-    if (typenum != NPY_NOTYPE) {
-        state = PyGILState_Ensure();
-        ndarray = PyArray_ZEROS(1, (npy_intp *)&length, typenum, 0);  // new
-        if (ndarray) {
-            ch = (Channel *)PyObject_CallFunctionObjArgs((PyObject *)&ChannelType, ndarray, NULL);  // new
-            if (ch && addChannel(chTable, name, ch) == 0) {
-                ptr = PyArray_DATA((PyArrayObject *)ch->data);
-                Py_DECREF(ch);
+    if (nParts > 0) {
+        typenum = numpyType(size, 1, isSigned);
+        if (typenum != NPY_NOTYPE) {
+            state = PyGILState_Ensure();
+            nSamples[0] = length;
+            dataArray = PyArray_ZEROS(1, nSamples, typenum, 0);  // new
+            if (dataArray) {
+                if (nParts == 1) {
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "Od",
+                                                          dataArray, 0.0);  // new
+                } else {
+                    nFills[0] = nParts - 1;
+                    fillArray = PyArray_ZEROS(1, nFills, typenum, 0);  // new
+                    posArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    lenArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOO",
+                                                          dataArray, 0.0,
+                                                          posArray, lenArray, fillArray);  // new
+                }
+                if (ch && addChannel(chTable, name, ch) == 0) {
+                    ptr = PyArray_DATA((PyArrayObject *)ch->data);
+                    Py_DECREF(ch);
+                }
             }
+            PyGILState_Release(state);
+        } else {
+            fprintf(stderr, "Invalid channel data type (%ssigned integer, %d bytes per sample)",
+                    (isSigned ? "" : "un"), (int)size);
         }
-        PyGILState_Release(state);
     } else {
-        fprintf(stderr, "Invalid channel data type (%ssigned integer, %d bytes per sample)",
-                (is_signed ? "" : "un"), (int)size);
+        fprintf(stderr, "newIntegerChannel called with nParts = 0");
     }
 
     return ptr;
 }
 
-void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size) {
+void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size, size_t nParts) {
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *ndarray;
+    PyObject *dataArray, *fillArray, *posArray, *lenArray;
+    npy_intp nFills[1], nSamples[1];
     PyGILState_STATE state;
 
-    typenum = numpyType(size, 0, 1);
-    if (typenum != NPY_NOTYPE) {
-        state = PyGILState_Ensure();
-        ndarray = PyArray_ZEROS(1, (npy_intp *)&length, typenum, 0);  // new
-        if (ndarray) {
-            ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdddsLlssis",
-                                                  ndarray, 0.0, nan(NULL), nan(NULL), "",
-                                                  0, 0, "unknown", "unknown", 0, "{}");  // new
-            if (ch && addChannel(chTable, name, ch) == 0) {
-                ptr = PyArray_DATA((PyArrayObject *)ch->data);
-                Py_DECREF(ch);
+    if (nParts > 0) {
+        typenum = numpyType(size, 0, 1);
+        if (typenum != NPY_NOTYPE) {
+            state = PyGILState_Ensure();
+            nSamples[0] = length;
+            dataArray = PyArray_ZEROS(1, nSamples, typenum, 0);  // new
+            if (dataArray) {
+                if (nParts == 1) {
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "Od",
+                                                          dataArray, 0.0);  // new
+                    ch->scale = nan(NULL);
+                    ch->offset = nan(NULL);
+                } else {
+                    nFills[0] = nParts - 1;
+                    fillArray = PyArray_ZEROS(1, nFills, typenum, 0);  // new
+                    posArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    lenArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOdd",
+                                                          dataArray, 0.0, posArray, lenArray, fillArray,
+                                                          nan(NULL), nan(NULL));  // new
+                }
+                if (ch && addChannel(chTable, name, ch) == 0) {
+                    ptr = PyArray_DATA((PyArrayObject *)ch->data);
+                    Py_DECREF(ch);
+                }
             }
+            PyGILState_Release(state);
+        } else {
+            fprintf(stderr, "Invalid channel data type (real, %d bytes per sample)", (int)size);
         }
-        PyGILState_Release(state);
     } else {
-        fprintf(stderr, "Invalid channel data type (real, %d bytes per sample)", (int)size);
+        fprintf(stderr, "newRealChannel called with nParts = 0");
     }
 
     return ptr;
@@ -378,6 +486,8 @@ const char **getChannelNames(const char *chTable, size_t *size) {
 }
 
 int collateChannelsFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues) {
+    int err = -1;
+    /*
     PyObject *chTableDict, *sourceTable, *sourceDict, *sourceChannels = NULL;
     PyObject *start, *prevEnd, *fill;
     Channel *ch, *part;
@@ -447,7 +557,7 @@ int collateChannelsFromTable(const char *chTable, const char *name, const char *
         }
     }
     PyGILState_Release(state);
-
+*/
     return err;
 }
 
@@ -680,34 +790,34 @@ Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
 
 PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     // Convert timespec to a Python datetime object.
-    long long epoch, nsec = 0;
-    PyObject *timestamp, *dt, *empty, *keywords, *micro, *replace, *datetime = NULL;
+    long long epoch;
+    long nsec = 0;
+    int year, month, day, hour, minute, second;
+    PyObject *timestamp, *datetime = NULL;
 
-    if (PyArg_ParseTuple(args, "L|L:datetimeFromTimespec", &epoch, &nsec)) {
+    if (PyArg_ParseTuple(args, "L|l:datetimeFromTimespec", &epoch, &nsec)) {
         timestamp = Py_BuildValue("(L)", epoch);  // new
         if (timestamp) {
-            dt = PyDateTime_FromTimestamp(timestamp);  // new
-            Py_DECREF(timestamp);
-            replace = PyObject_GetAttrString(dt, "replace");  // new
-            empty = PyTuple_New(0);  // new
-            keywords = PyDict_New();  // new
-            micro = Py_BuildValue("l", roundtol(nsec / 1e3));  // new
-            if (PyDict_SetItemString(keywords, "microsecond", micro) == 0) {
-                datetime = PyObject_Call(replace, empty, keywords);  // new
-            } else {
-                Py_INCREF(Py_None);
-                datetime = Py_None;
+            datetime = PyDateTime_FromTimestamp(timestamp);  // new
+            if (datetime) {
+                year = PyDateTime_GET_YEAR(datetime);
+                month = PyDateTime_GET_MONTH(datetime);
+                day = PyDateTime_GET_DAY(datetime);
+                hour = PyDateTime_DATE_GET_HOUR(datetime);
+                minute = PyDateTime_DATE_GET_MINUTE(datetime);
+                second = PyDateTime_DATE_GET_SECOND(datetime);
+                Py_DECREF(datetime);
+                datetime = PyDateTime_FromDateAndTime(year, month, day,
+                                                      hour, minute, second,
+                                                      round(nsec / 1e3));
+                
             }
-            Py_XDECREF(dt);
-            Py_XDECREF(replace);
-            Py_XDECREF(empty);
-            Py_XDECREF(keywords);
-            Py_XDECREF(micro);
+            Py_DECREF(timestamp);
         }
     } else {
         PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
     }
-
+    
     return datetime;
 }
 

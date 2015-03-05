@@ -251,7 +251,7 @@ static PyObject *Channel_start(Channel *self) {
     
     timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);  // new
     if (timespec) {
-        result = datetimeFromTimespec((PyObject *)self, timespec);
+        result = datetimeFromTimespec(NULL, timespec);
         Py_DECREF(timespec);
     } else {
         result = NULL;
@@ -267,7 +267,7 @@ static PyObject *Channel_end(Channel *self) {
     t = channelEndTime(self);
     timespec = Py_BuildValue("Ll", t.tv_sec, t.tv_nsec);  // new
     if (timespec) {
-        result = datetimeFromTimespec((PyObject *)self, timespec);
+        result = datetimeFromTimespec(NULL, timespec);
         Py_DECREF(timespec);
     } else {
         result = NULL;
@@ -306,13 +306,13 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
 }
 
 static PyObject *Channel_collate(Channel *self, PyObject *args) {
-    PyObject *chList, *item, *dataList, *num, *result = NULL, *data = NULL;
+    PyObject *chList, *item, *dataList, *numObj, *result = NULL, *data = NULL;
     PyArrayObject *fill_positions = NULL, *fill_lengths = NULL, *fill_values = NULL;
     Channel *ch;
     Py_ssize_t length, i, nParts, fillLen;
     size_t size;
     int thisType, otherType, error = 0;
-    npy_intp fill, pos, nFills = 0;
+    npy_intp num, fill, pos, nFills = 0;
     double samplerate, t0, t;
     char *typestr, *unit;
     
@@ -372,26 +372,16 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
         if (!error) {
             dataList = PyList_New(nParts);  // new
             nFills += nParts - 1;
-            fill_values = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
             fill_positions = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
             fill_lengths = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            fill_values = (PyArrayObject *)PyArray_EMPTY(1, &nFills, thisType, 0);  // new
             fill = 0;
             pos = 0;
             for (i = 0; i < nParts; i++) {
                 ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
                 Py_INCREF(ch->data);
                 PyList_SET_ITEM(dataList, i, (PyObject *)ch->data);  // stolen
-                if (ch->fill_values) {
-                    memcpy(PyArray_GETPTR1(fill_values, fill), ch->fill_values, PyArray_NBYTES(ch->fill_values));
-                    memcpy(PyArray_GETPTR1(fill_positions, fill), ch->fill_positions, PyArray_NBYTES(ch->fill_positions));
-                    memcpy(PyArray_GETPTR1(fill_lengths, fill), ch->fill_lengths, PyArray_NBYTES(ch->fill_lengths));
-                    fill += PyArray_DIM(ch->fill_values, 0);
-                    num = PyArray_Sum(ch->fill_lengths, 0, NPY_NOTYPE, NULL);
-                    pos += PyArray_DIM(ch->data,0);
-                    pos += PyLong_AsSsize_t(num);
-                    Py_DECREF(num);
-                }
-                if (i < nParts - 1) {
+                if (i > 0) {
                     // Calculate fill length.
                     t = ch->start_sec + ch->start_nsec / 1e9;
                     fillLen = round((t - (t0 + pos / samplerate)) * samplerate);
@@ -399,36 +389,69 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
                     // If the fill is shorter than minimum, store it as
                     // ordinary samples instead of a fill.
                     if (fillLen > 0) {
-                        num = PyLong_FromSsize_t(pos);  // new
-                        PyArray_SETITEM(fill_positions, PyArray_GETPTR1(fill_positions, fill), num);
-                        Py_DECREF(num);
-                        num = PyLong_FromSsize_t(fillLen);  // new
-                        PyArray_SETITEM(fill_lengths, PyArray_GETPTR1(fill_lengths, fill), num);
-                        Py_DECREF(num);
+                        numObj = PyLong_FromSsize_t(pos);  // new
+                        error = PyArray_SETITEM(fill_positions, PyArray_GETPTR1(fill_positions, fill), numObj);
+                        Py_DECREF(numObj);
+                        if (!error) {
+                            numObj = PyLong_FromSsize_t(fillLen);  // new
+                            error = PyArray_SETITEM(fill_lengths, PyArray_GETPTR1(fill_lengths, fill), numObj);
+                            Py_DECREF(numObj);
+                        } else {
+                            break;
+                        }
                         // TODO: Take fill values as argument.
-                        num = PyFloat_FromDouble(0.0);  // new
-                        PyArray_SETITEM(fill_values, PyArray_GETPTR1(fill_values, fill), num);
-                        Py_DECREF(num);
+                        if (!error) {
+                            numObj = PyFloat_FromDouble(0.0);  // new
+                            error = PyArray_SETITEM(fill_values, PyArray_GETPTR1(fill_values, fill), numObj);
+                            Py_DECREF(numObj);
+                        } else {
+                            break;
+                        }
                     } else if (fillLen == 0) {
                         // TODO: Remove fill.
                     } else {
                         PyErr_SetString(PyExc_TypeError, "Can not collate() Channel objects that overlap");
                         error = -1;
+                        Py_DECREF(dataList);
+                        Py_DECREF(fill_positions);
+                        Py_DECREF(fill_lengths);
+                        Py_DECREF(fill_values);
                         break;
                     }
                     fill++;
                     pos += fillLen;
                 }
+                if (ch->fill_values) {
+                    memcpy(PyArray_GETPTR1(fill_values, fill), ch->fill_values, PyArray_NBYTES(ch->fill_values));
+                    memcpy(PyArray_GETPTR1(fill_positions, fill), ch->fill_positions, PyArray_NBYTES(ch->fill_positions));
+                    memcpy(PyArray_GETPTR1(fill_lengths, fill), ch->fill_lengths, PyArray_NBYTES(ch->fill_lengths));
+                    fill += PyArray_DIM(ch->fill_values, 0);
+                    numObj = PyArray_Sum(ch->fill_lengths, 0, NPY_NOTYPE, NULL);  // new
+                    if (numObj) {
+                        PyArray_ScalarAsCtype(numObj, &num);
+                        pos += PyArray_DIM(ch->data, 0);
+                        pos += num;
+                        Py_DECREF(numObj);
+                    } else {
+                        error = -1;
+                        break;
+                    }
+                }
             }
-            data = PyArray_Concatenate(dataList, 0);
+        }
+        if (!error) {
+            data = PyArray_Concatenate(dataList, 0);  // new
+            Py_DECREF(dataList);
             // Create a new channel.
-            result = PyObject_CallFunctionObjArgs((PyObject *)&ChannelType,
+            result = PyObject_CallFunction((PyObject *)&ChannelType, "OdOOO",
                                                   data, samplerate,
                                                   fill_positions, fill_lengths,
-                                                  fill_values, NULL);  // new
+                                                  fill_values);  // new
             // TODO: Handle units.
             ((Channel *)result)->unit = "";
             Py_DECREF(data);
+            Py_DECREF(fill_positions);
+            Py_DECREF(fill_lengths);
             Py_DECREF(fill_values);
         }
     } else {
@@ -865,8 +888,10 @@ static PyObject *Channel_resample(Channel *self, PyObject *args, PyObject *kwds)
                     Py_DECREF(iterator);
                 }
             }
-            newChannel = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OOdddssLlssisO",
-                                                          array, Py_None, samplerate, scale, offset,
+            // TODO: Fix the call (cannot pass NULL values):
+            newChannel = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOddssLlssisO",
+                                                          array, samplerate,
+                                                          NULL, NULL, NULL, scale, offset,
                                                           self->unit, self->type, start_sec, start_nsec,
                                                           self->device, self->serial_no, resolution,
                                                           self->json, events);  // new
@@ -893,8 +918,9 @@ static PyMethodDef Channel_methods[] = {
 static PyMemberDef Channel_members[] = {
     {"__dict__", T_OBJECT, offsetof(Channel, dict), READONLY, "dictionary for instance variables"},
     {"data", T_OBJECT_EX, offsetof(Channel, data), READONLY, "Channel data as NumPy array"},
-    {"fill_positions", T_OBJECT_EX, offsetof(Channel, fill_positions), 0, "fill positions for sparse channels as list of (position, length) pairs"},
-    {"fill_values", T_OBJECT_EX, offsetof(Channel, fill_values), 0, "fill values for sparse channels as NumPy array"},
+    {"fill_positions", T_OBJECT_EX, offsetof(Channel, fill_positions), 0, "fill positions for sparse channels as a NumPy array"},
+    {"fill_lengths", T_OBJECT_EX, offsetof(Channel, fill_lengths), 0, "fill lengths for sparse channels as a NumPy array"},
+    {"fill_values", T_OBJECT_EX, offsetof(Channel, fill_values), 0, "fill values for sparse channels as a NumPy array"},
     {"samplerate", T_DOUBLE, offsetof(Channel, samplerate), 0, "sample rate in Hz"},
     {"scale", T_DOUBLE, offsetof(Channel, scale), 0, "scale for integer channels"},
     {"offset", T_DOUBLE, offsetof(Channel, offset), 0, "offset for integer channels"},

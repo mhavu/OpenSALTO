@@ -68,8 +68,8 @@ static time_t bcdToTime(uint8_t *buffer) {
 
 int readFile(const char *filename, const char *chTable) {
     uint8_t buffer[512], *sample;
-    long long blk, nBlocks, fileLength, part, nParts;
-    size_t length, i, *partLen;
+    off_t fileLength;
+    size_t length, i, *partLen, blk, nBlocks, fill, nParts, pos;
     int headerIsValid, isDynamic = 0;
     int16_t *fillValues;
     int ch;
@@ -80,10 +80,10 @@ int readFile(const char *filename, const char *chTable) {
     char serialno[28], tag[28], value[28], json[512] = "{ ";
     double samplerate;
     Error err = SUCCESS;
-    struct timespec startTime, t;
-    time_t latestStart, *timecodes = NULL;
-    const char *tmpTable, *partTable;
-    char **name;
+    struct timespec startTime;
+    time_t t, latestStart, *timecodes;
+    const char *tmpTable;
+    size_t *posArray = NULL, *lenArray = NULL;
 
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
@@ -139,29 +139,26 @@ int readFile(const char *filename, const char *chTable) {
         length = samplesPerBlock * nBlocks;
         for (ch = 0; ch < nChannels; ch++) {
             channel[ch].buffer = calloc(length, sizeof(uint16_t));
-            if (!channel[ch].buffer) {
-                err = ALLOCATION_FAILED;
-            } else {
+            if (channel[ch].buffer) {
                 channel[ch].name = getUniqueName(chTable, names[ch]);
                 if (!channel[ch].name) {
                     err = ALLOCATION_FAILED;
                 }
+            } else {
+                err = ALLOCATION_FAILED;
             }
         }
         timecodes = calloc(nBlocks, sizeof(time_t));
-        fillValues = calloc(nBlocks, sizeof(uint16_t));
+        fillValues = calloc(nBlocks - 1, sizeof(uint16_t));
         partLen = calloc(nBlocks, sizeof(size_t));
         if (timecodes && fillValues && partLen) {
             tmpTable = newChannelTable(NULL);
             if (tmpTable) {
-                partTable = newChannelTable("collection");
-                if (!partTable) {
-                    deleteChannelTable(tmpTable);
-                    free((void *)tmpTable);
-                    err = ALLOCATION_FAILED;
-                }
                 bzero(partLen, nBlocks * sizeof(size_t));
             } else {
+                free(timecodes);
+                free(fillValues);
+                free(partLen);
                 err = ALLOCATION_FAILED;
             }
         } else {
@@ -169,6 +166,15 @@ int readFile(const char *filename, const char *chTable) {
             free(fillValues);
             free(partLen);
             err = ALLOCATION_FAILED;
+        }
+        if (err == ALLOCATION_FAILED) {
+            // Clean up.
+            fclose(fp);
+            fprintf(stderr, "readFile(): Resource allocation failed\n");
+            for (ch = 0; ch < nChannels; ch++) {
+                free(channel[ch].buffer);
+                free((void *)channel[ch].name);
+            }
         }
     }
     
@@ -187,64 +193,69 @@ int readFile(const char *filename, const char *chTable) {
                 // Check whether the device has entered sleep mode.
                 if (blk == 0) {
                     latestStart = timecodes[0];
-                    partLen[0] = samplesPerBlock;
-                } else if (timecodes[blk] - latestStart > round(partLen[nParts - 1] / samplerate)) {
-                    partLen[nParts++] += samplesPerBlock;
+                    partLen[0] = 1;
+                } else if (timecodes[blk] - latestStart >
+                           round(partLen[nParts - 1] * samplesPerBlock / samplerate)) {
+                    partLen[nParts++]++;
                     latestStart = timecodes[blk];
                 } else {
-                    partLen[nParts - 1] += samplesPerBlock;
+                    partLen[nParts - 1]++;
                 }
             } else {
+                // Clean up.
                 for (ch = 0; ch < nChannels; ch++) {
                     free(channel[ch].buffer);
                 }
                 free(timecodes);
+                free(fillValues);
+                free(partLen);
+                deleteChannelTable(tmpTable);
+                free((void *)tmpTable);
                 fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
                 err = INVALID_FILE;
                 break;
             }
         }
         fclose(fp);
-    } else if (err == ALLOCATION_FAILED) {
-        fclose(fp);
-        fprintf(stderr, "readFile(): Resource allocation failed\n");
-        for (ch = 0; ch < nChannels; ch++) {
-            free(channel[ch].buffer);
-            free((void *)channel[ch].name);
-        }
-        free(timecodes);
-        free((void *)tmpTable);
     }
 
     if (!err) {
-        // Create the channels.
         startTime.tv_sec = timecodes[0];
         startTime.tv_nsec = 0;
         json[strlen(json) - 1] = '}';
-        for (ch = 0; ch < nChannels; ch++) {
-            // Copy data.
-            if (nParts == 1) {
-                channel[ch].data = newInt16Channel(tmpTable, channel[ch].name, length);
-                memcpy(channel[ch].data, channel[ch].buffer, length);
-            } else {
-                blk = 0;
-                t.tv_nsec = 0;
-                name = calloc(nParts, sizeof(char *));
-                // TODO: Check for allocation errors.
-                for (part = 0; part < nParts; part++) {
-                    name[part] = malloc(20);
-                    // TODO: Check for allocation errors.
-                    snprintf(name[part], 20, "%lld", part);
-                    // TODO: Check for errors.
-                    channel[ch].data = newInt16Channel(partTable, name[part], partLen[part]);
-                    setSampleRate(partTable, name[part], samplerate);
-                    t.tv_sec = timecodes[blk];
-                    setStartTime(partTable, name[part], t);
-                    memcpy(channel[ch].data, &channel[ch].buffer[samplesPerBlock * blk], partLen[part]);
-                    blk += partLen[part] / samplesPerBlock;
-                    fillValues[part] = isDynamic ? channel[ch].buffer[samplesPerBlock * blk - 1] : 0;
+        if (nParts > 1) {
+            posArray = calloc(nParts - 1, sizeof(size_t));
+            lenArray = calloc(nParts - 1, sizeof(size_t));
+            if (posArray && lenArray) {
+                // Calculate fill positions and lengths.
+                blk = 0;  // block
+                i = 0;    // sample
+                pos = 0;  // sample (including skipped ones)
+                for (fill = 0; fill < nParts - 1; fill++) {
+                    i += partLen[fill] * samplesPerBlock;
+                    posArray[fill] = i;
+                    blk += partLen[fill];
+                    pos += partLen[fill] * samplesPerBlock;
+                    t = timecodes[blk] - startTime.tv_sec;
+                    lenArray[fill] = round(t * samplerate) - pos;
+                    pos += lenArray[fill];
                 }
-                collateChannelsFromTable(tmpTable, channel[ch].name, partTable, fillValues);
+            } else {
+                err = ALLOCATION_FAILED;
+            }
+        }
+    }
+    
+    if (!err) {
+        for (ch = 0; ch < nChannels; ch++) {
+            // Create the channels.
+            channel[ch].data = newSparseInt16Channel(tmpTable, channel[ch].name, length, nParts);
+            memcpy(channel[ch].data, channel[ch].buffer, length);
+            if (nParts > 1) {
+                for (fill = 0; fill < nParts - 1; fill++) {
+                    fillValues[fill] = isDynamic ? channel[ch].buffer[posArray[fill] - 1] : 0;
+                }
+                setFills(tmpTable, channel[ch].name, posArray, lenArray, fillValues);
             }
             // range: [-16 16] * 9.81 m/s^2
             setScaleAndOffset(tmpTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
@@ -259,16 +270,12 @@ int readFile(const char *filename, const char *chTable) {
             free(channel[ch].buffer);
             free((void *)channel[ch].name);
         }
+        free(posArray);
+        free(lenArray);
         free(timecodes);
         free(fillValues);
         free(partLen);
-        for (part = 0; part < nParts; part++) {
-            free(name[part]);
-        }
-        free(name);
-        deleteChannelTable(partTable);
         deleteChannelTable(tmpTable);
-        free((void *)partTable);
         free((void *)tmpTable);
     }
 

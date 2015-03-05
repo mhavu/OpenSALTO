@@ -17,19 +17,38 @@ class Plugin(salto.Plugin):
        are in given range or above given threshold"""
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
+        inputs = [('channelTable', 'S', 1, 1),
+                  ('lower', 'f', 'lower threshold', None),
+                  ('upper', 'f', 'upper threshold', None),
+                  ('includelower', 'i', 'include lower threshold', 1),
+                  ('includeupper', 'i', 'include upper threshold', 0),
+                  ('minduration', 'f', 'minimum event duration (s)', None),
+                  ('minbreak', 'f', 'minimum time between events (s)', None)]
+        # TODO: Implement minduration and minbreak.
         self.registerComputation("threshold",
                                  self._threshold,
-                                 inputs = [('channelTable', 'S', 1, 1),
-                                           ('lower', 'f', 'lower threshold', None),
-                                           ('upper', 'f', 'upper threshold', None)],
+                                 inputs = inputs,
                                  outputs = [('channelTable', 'S', 0, 0)])
-    def _position(self, data, lower = None, upper = None):
+    def _position(self, data, lower, upper, includelower, includeupper):
         if ((lower is not None) and (upper is not None)):
-            result = np.where((data > lower) & (data < upper))
+            if (includelower and includeupper):
+                result = np.where((data >= lower) & (data <= upper))
+            elif includeupper:
+                result = np.where((data > lower) & (data <= upper))
+            elif includelower:
+                result = np.where((data >= lower) & (data < upper))
+            else:
+                result = np.where((data > lower) & (data < upper))
         elif (lower is not None):
-            result = np.where(data > lower)
+            if includelower:
+                result = np.where(data >= lower)
+            else:
+                result = np.where(data > lower)
         elif (upper is not None):
-            result = np.where(data < upper)
+            if includeupper:
+                result = np.where(data <= upper)
+            else:
+                result = np.where(data < upper)
         else:
             raise ValueError("At least one threshold needs to be specified")
         return result[0]
@@ -44,14 +63,8 @@ class Plugin(salto.Plugin):
     def _threshold(self, inputs):
         iChannels = salto.channelTables[inputs['channelTable']].channels
         for channel in iChannels.values():
-            if (channel.collection):
-                positions = np.array([])
-                for part in channel.data:
-                    p = self._position(channel.data, inputs['lower'], inputs['upper'])
-                    t = (part.start_sec + part.start_nsec / 1e9) - (channel.start_sec + channel.start_nsec / 1e9)
-                    positions = np.concatenate(positions, p + round(t * channel.samplerate))
-            else:
-                positions = self._position(channel.data, inputs['lower'], inputs['upper'])
+            positions = self._position(channel.data, inputs['lower'], inputs['upper'])
+            # TODO: Check fill values too.
             if positions.size > 0:
                 start = positions[0]
                 prev = start

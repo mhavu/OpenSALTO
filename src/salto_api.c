@@ -20,35 +20,67 @@ int registerExportFunc(void *handle, const char *format, const char *funcname) {
 
 
 uint8_t *newUInt8Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint8_t), 0);
+    return newIntegerChannel(chTable, name, length, sizeof(uint8_t), 0, 1);
 }
 
 uint16_t *newUInt16Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint16_t), 0);
+    return newIntegerChannel(chTable, name, length, sizeof(uint16_t), 0, 1);
 }
 
 uint32_t *newUInt32Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(uint32_t), 0);
+    return newIntegerChannel(chTable, name, length, sizeof(uint32_t), 0, 1);
 }
 
 int8_t *newInt8Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(int8_t), 1);
+    return newIntegerChannel(chTable, name, length, sizeof(int8_t), 1, 1);
 }
 
 int16_t *newInt16Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(int16_t), 1);
+    return newIntegerChannel(chTable, name, length, sizeof(int16_t), 1, 1);
 }
 
 int32_t *newInt32Channel(const char *chTable, const char *name, size_t length) {
-    return newIntegerChannel(chTable, name, length, sizeof(int32_t), 1);
+    return newIntegerChannel(chTable, name, length, sizeof(int32_t), 1, 1);
 }
 
 float *newFloatChannel(const char *chTable, const char *name, size_t length) {
-    return newRealChannel(chTable, name, length, sizeof(float));
+    return newRealChannel(chTable, name, length, sizeof(float), 1);
 }
 
 double *newDoubleChannel(const char *chTable, const char *name, size_t length) {
-    return newRealChannel(chTable, name, length, sizeof(double));
+    return newRealChannel(chTable, name, length, sizeof(double), 1);
+}
+
+uint8_t *newSparseUInt8Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint8_t), 0, nParts);
+}
+
+uint16_t *newSparseUInt16Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint16_t), 0, nParts);
+}
+
+uint32_t *newSparseUInt32Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(uint32_t), 0, nParts);
+}
+
+int8_t *newSparseInt8Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(int8_t), 1, nParts);
+}
+
+int16_t *newSparseInt16Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(int16_t), 1, nParts);
+}
+
+int32_t *newSparseInt32Channel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newIntegerChannel(chTable, name, length, sizeof(int32_t), 1, nParts);
+}
+
+float *newSparseFloatChannel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newRealChannel(chTable, name, length, sizeof(float), nParts);
+}
+
+double *newSparseDoubleChannel(const char *chTable, const char *name, size_t length, size_t nParts) {
+    return newRealChannel(chTable, name, length, sizeof(double), nParts);
 }
 
 

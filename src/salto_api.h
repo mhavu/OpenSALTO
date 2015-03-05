@@ -70,6 +70,14 @@ int16_t *newInt16Channel(const char *chTable, const char *name, size_t length);
 int32_t *newInt32Channel(const char *chTable, const char *name, size_t length);
 float *newFloatChannel(const char *chTable, const char *name, size_t length);
 double *newDoubleChannel(const char *chTable, const char *name, size_t length);
+uint8_t *newSparseUInt8Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+uint16_t *newSparseUInt16Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+uint32_t *newSparseUInt32Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+int8_t *newSparseInt8Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+int16_t *newSparseInt16Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+int32_t *newSparseInt32Channel(const char *chTable, const char *name, size_t length, size_t nParts);
+float *newSparseFloatChannel(const char *chTable, const char *name, size_t length, size_t nParts);
+double *newSparseDoubleChannel(const char *chTable, const char *name, size_t length, size_t nParts);
 int collateChannelsFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
 int collateChannels(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues);
 void deleteChannel(const char *chTable, const char *name);
@@ -79,6 +87,9 @@ int copyChannel(const char *fromChannelTable, const char *name, const char *toCh
 void *getChannelData(const char *chTable, const char *name, size_t *length);
 const char *getChannelName(const char *chTable, void *dataPtr);
 
+int setFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths, void *values);
+int getFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths, void *values);
+size_t numberOfFills(const char *chTable, const char *ch);
 int setScaleAndOffset(const char *chTable, const char *ch, double scale, double offset);
 double scale(const char *chTable, const char *ch);
 double offset(const char *chTable, const char *ch);
