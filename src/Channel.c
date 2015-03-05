@@ -314,6 +314,7 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
     int thisType, otherType, error = 0;
     npy_intp num, fill, pos, nFills = 0;
     double samplerate, t0, t;
+    struct timespec start;
     char *typestr, *unit;
     
     if (PyArg_ParseTuple(args, "O!", &PyList_Type, &chList)) {
@@ -332,7 +333,9 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
             typestr = ch->type;
             samplerate = ch->samplerate;
             unit = ch->unit;
-            t0 = ch->start_sec + ch->start_nsec / 1e9;
+            start.tv_sec = ch->start_sec;
+            start.tv_nsec = ch->start_nsec;
+            t0 = start.tv_sec + start.tv_nsec / 1e9;
         } else {
             PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
             error = -1;
@@ -422,9 +425,9 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
                     pos += fillLen;
                 }
                 if (ch->fill_values) {
-                    memcpy(PyArray_GETPTR1(fill_values, fill), ch->fill_values, PyArray_NBYTES(ch->fill_values));
-                    memcpy(PyArray_GETPTR1(fill_positions, fill), ch->fill_positions, PyArray_NBYTES(ch->fill_positions));
-                    memcpy(PyArray_GETPTR1(fill_lengths, fill), ch->fill_lengths, PyArray_NBYTES(ch->fill_lengths));
+                    memcpy(PyArray_GETPTR1(fill_positions, fill), PyArray_DATA(ch->fill_positions), PyArray_NBYTES(ch->fill_positions));
+                    memcpy(PyArray_GETPTR1(fill_lengths, fill), PyArray_DATA(ch->fill_lengths), PyArray_NBYTES(ch->fill_lengths));
+                    memcpy(PyArray_GETPTR1(fill_values, fill), PyArray_DATA(ch->fill_values), PyArray_NBYTES(ch->fill_values));
                     fill += PyArray_DIM(ch->fill_values, 0);
                     numObj = PyArray_Sum(ch->fill_lengths, 0, NPY_NOTYPE, NULL);  // new
                     if (numObj) {
@@ -443,10 +446,11 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
             data = PyArray_Concatenate(dataList, 0);  // new
             Py_DECREF(dataList);
             // Create a new channel.
-            result = PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOddss",
-                                                  data, samplerate,
-                                                  fill_positions, fill_lengths,
-                                                  fill_values, 1.0, 0.0, "", "");  // new
+            result = PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOddssLl",
+                                           data, samplerate,
+                                           fill_positions, fill_lengths,
+                                           fill_values, 1.0, 0.0, "", "",
+                                           start.tv_sec, start.tv_nsec);  // new
             // TODO: Handle units, scaling and offsets.
             Py_DECREF(data);
             Py_DECREF(fill_positions);
