@@ -443,12 +443,11 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
             data = PyArray_Concatenate(dataList, 0);  // new
             Py_DECREF(dataList);
             // Create a new channel.
-            result = PyObject_CallFunction((PyObject *)&ChannelType, "OdOOO",
+            result = PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOddss",
                                                   data, samplerate,
                                                   fill_positions, fill_lengths,
-                                                  fill_values);  // new
-            // TODO: Handle units.
-            ((Channel *)result)->unit = "";
+                                                  fill_values, 1.0, 0.0, "", "");  // new
+            // TODO: Handle units, scaling and offsets.
             Py_DECREF(data);
             Py_DECREF(fill_positions);
             Py_DECREF(fill_lengths);
