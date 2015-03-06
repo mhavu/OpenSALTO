@@ -31,22 +31,28 @@ class Plugin(salto.Plugin):
             if not channel.matches(another):
                 raise TypeError("Input channels must be of same type and from same time period")
         chTable = salto.ChannelTable()
-        normArray = np.linalg.norm([ch.data for ch in iChannels.values()], axis = 0)
+        normArray = np.linalg.norm([ch.scale * ch.data + ch.offset
+                                    for ch in iChannels.values()], axis = 0)
+        fillNormArray = np.linalg.norm([ch.scale * ch.fill_values + ch.offset
+                                        for ch in iChannels.values()], axis = 0)
         allEvents = set()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             for name, ch in iChannels.items():
                 allEvents = allEvents.union(ch.events)
-                inclination = salto.Channel(np.arccos(ch.data / normArray),
-                                            samplerate = ch.samplerate, unit = "rad", type = "angle",
+                inclination = salto.Channel(np.arccos((ch.scale * ch.data + ch.offset) / normArray),
+                                            ch.samplerate,
+                                            ch.fill_positions, ch.fill_lengths,
+                                            np.arccos((ch.scale * ch.fill_values + ch.offset) / fillNormArray),
+                                            unit = "rad", type = "angle",
                                             start_sec = ch.start_sec, start_nsec = ch.start_nsec,
                                             events = ch.events)
                 chTable.add(name + " inclination", inclination)
-        norm = salto.Channel(normArray, samplerate = channel.samplerate,
+        norm = salto.Channel(normArray, channel.samplerate,
+                             ch.fill_positions, ch.fill_lengths, fillNormArray,
                              unit = channel.unit, type = channel.type,
                              start_sec = channel.start_sec, start_nsec = channel.start_nsec,
                              events = allEvents)
-        # TODO: Calculate correct fill values for sparse channels.
         chTable.add("norm", norm)
         salto.channelTables[tableName] = chTable
         outputs = {'channelTable': tableName}
