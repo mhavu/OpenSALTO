@@ -280,6 +280,49 @@ static PyObject *Channel_duration(Channel *self) {
     return PyFloat_FromDouble(channelDuration(self));
 }
 
+static PyObject *Channel_timecodes(Channel *self, PyObject *args, PyObject *kwds) {
+    npy_intp i, start, end, length, nFills, offset, fill;
+    npy_intp *fill_positions, *fill_lengths;
+    double *timecodes, t;
+    PyObject *result = NULL;
+    static char *kwlist[] = {"start", "end", NULL};
+    
+    start = 0;
+    end = -1;
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "|nn:timecodes", kwlist, &start, &end)) {
+        length = PyArray_DIM(self->data, 0);
+        if (start < 0) {
+            start = length + start;
+        }
+        if (end < 0) {
+            end = length + end;
+        }
+        if (start <= end && end < length) {
+            result = PyArray_Arange(start, end + 1, 1.0, NPY_DOUBLE);  // new
+            timecodes = PyArray_DATA((PyArrayObject *)result);
+            fill_positions = PyArray_DATA(self->fill_positions);
+            fill_lengths = PyArray_DATA(self->fill_lengths);
+            t = self->start_sec + self->start_nsec / 1e9;
+            nFills = PyArray_DIM(self->fill_positions, 0);
+            offset = 0;
+            fill = 0;
+            while (fill_positions[fill] < start && fill < nFills) {
+                offset += fill_lengths[fill++];
+            }
+            for (i = start; i <= end; i++) {
+                if (fill < nFills && fill_positions[fill] == i) {
+                    offset += fill_lengths[fill++];
+                }
+                timecodes[i] = (timecodes[i] + offset) / self->samplerate + t;
+             }
+        } else {
+            PyErr_SetString(PyExc_IndexError, "Index out of range");
+        }
+    }
+    
+    return result;
+}
+
 static PyObject *Channel_matches(Channel *self, PyObject *args) {
     PyObject *result = Py_False;
     Channel *other;
@@ -942,6 +985,7 @@ static PyMethodDef Channel_methods[] = {
     {"start", (PyCFunction)Channel_start, METH_NOARGS, "channel start time as a datetime object"},
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},
+    {"timecodes", (PyCFunction)Channel_timecodes, METH_VARARGS | METH_KEYWORDS, "timecodes for the samples in range"},
     {"matches", (PyCFunction)Channel_matches, METH_VARARGS, "check whether channel type and time match those of another channel"},
     {"collate", (PyCFunction)Channel_collate, METH_VARARGS | METH_STATIC, "combine channels to a sparse channel"},
     {"validateTimes", (PyCFunction)Channel_validateTimes, METH_VARARGS, "validate start and end times"},
