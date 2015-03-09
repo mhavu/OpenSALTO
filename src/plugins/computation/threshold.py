@@ -53,8 +53,8 @@ class Plugin(salto.Plugin):
             raise ValueError("At least one threshold needs to be specified")
         return result[0]
     def _addEvent(self, channel, startpos, endpos):
-        t0 = channel.start_sec + channel.start_nsec / 1e9
-        (start, end) = (t0 + pos / channel.samplerate for pos in (startpos, endpos))
+        start = channel.timecodes(startpos, startpos)[0]
+        end = channel.timecodes(endpos, endpos)[0]
         event = salto.Event(type = salto.CALCULATED_EVENT,
                             subtype = 'threshold',
                             start_sec = int(start), start_nsec = int(math.fmod(start, 1.0)),
@@ -63,7 +63,7 @@ class Plugin(salto.Plugin):
     def _threshold(self, inputs):
         iChannels = salto.channelTables[inputs['channelTable']].channels
         for channel in iChannels.values():
-            positions = self._position(channel.data, inputs['lower'], inputs['upper'])
+            positions = self._position(channel.data, inputs['lower'], inputs['upper'], inputs['includelower'], inputs['includeupper'])
             # TODO: Check fill values too.
             if positions.size > 0:
                 start = positions[0]

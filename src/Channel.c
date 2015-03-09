@@ -309,8 +309,8 @@ static PyObject *Channel_timecodes(Channel *self, PyObject *args, PyObject *kwds
             while (fill_positions[fill] < start && fill < nFills) {
                 offset += fill_lengths[fill++];
             }
-            for (i = start; i <= end; i++) {
-                if (fill < nFills && fill_positions[fill] == i) {
+            for (i = 0; i <= end - start; i++) {
+                if (fill < nFills && fill_positions[fill] == start + i) {
                     offset += fill_lengths[fill++];
                 }
                 timecodes[i] = (timecodes[i] + offset) / self->samplerate + t;
