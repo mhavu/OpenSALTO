@@ -166,7 +166,8 @@ class Plugin:
             outputs = {o[0]: salto.Plugin.convertOutputPtr(outputs[o[0]].item(), o[1]) for o in outputSpec}
             outputs = {k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in outputs.items()}
         else:
-            outputs = func(inputs)
+            inputArgs = {i[0]:inputs.get(i[0], i[3]) for i in inputSpec}
+            outputs = func(inputArgs)
         return outputs
 
 class PluginManager:
