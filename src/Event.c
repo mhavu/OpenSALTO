@@ -128,7 +128,13 @@ static int Event_init(Event *self, PyObject *args, PyObject *kwds) {
     return result;
 }
 
+static PyObject *Event_duration(Event *self) {
+    double duration = self->end_sec - self->start_sec + (self->end_nsec - self->start_nsec) / 1e9;
+    return PyFloat_FromDouble(duration);
+}
+
 static PyMethodDef Event_methods[] = {
+    {"duration", (PyCFunction)Event_duration, METH_NOARGS, "event duration in seconds"},
     {NULL}  // sentinel
 };
 
