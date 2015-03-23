@@ -821,8 +821,28 @@ PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     return datetime;
 }
 
+PyObject *timedeltaFromFloat(PyObject *self, PyObject *args) {
+    // Converts seconds as Python float to a datetime.timedelta object.
+    PyObject *delta = NULL;
+    int seconds, useconds;
+    double t, s, days;
+    
+    if (PyArg_ParseTuple(args, "d:timedeltaFromFloat", &t)) {
+        useconds = round(modf(t, &s) / 1e6);
+        seconds = modf(s / 86400, &days) * 86400;
+        if (days <= INT_MAX) {
+            delta = PyDelta_FromDSU((int)days, seconds, useconds);  // new
+        } else {
+            PyErr_SetString(PyExc_OverflowError, "Time argument too big for timedelta");
+        }
+    }
+    
+    return delta;
+}
+
 static PyMethodDef saltoMethods[] = {
     {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
+    {"timedeltaFromFloat", timedeltaFromFloat, METH_VARARGS, "Convert seconds to a Python datetime.timedelta"},
     {NULL, NULL, 0, NULL}  // sentinel
 };
 

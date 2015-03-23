@@ -300,21 +300,27 @@ static PyObject *Channel_timecodes(Channel *self, PyObject *args, PyObject *kwds
         if (start <= end && end < length) {
             result = PyArray_Arange(start, end + 1, 1.0, NPY_DOUBLE);  // new
             timecodes = PyArray_DATA((PyArrayObject *)result);
-            fill_positions = PyArray_DATA(self->fill_positions);
-            fill_lengths = PyArray_DATA(self->fill_lengths);
             t = self->start_sec + self->start_nsec / 1e9;
-            nFills = PyArray_DIM(self->fill_positions, 0);
-            offset = 0;
-            fill = 0;
-            while (fill_positions[fill] < start && fill < nFills) {
-                offset += fill_lengths[fill++];
-            }
-            for (i = 0; i <= end - start; i++) {
-                if (fill < nFills && fill_positions[fill] == start + i) {
+            if (self->fill_positions) {
+                fill_positions = PyArray_DATA(self->fill_positions);
+                fill_lengths = PyArray_DATA(self->fill_lengths);
+                nFills = PyArray_DIM(self->fill_positions, 0);
+                offset = 0;
+                fill = 0;
+                while (fill_positions[fill] < start && fill < nFills) {
                     offset += fill_lengths[fill++];
                 }
-                timecodes[i] = (timecodes[i] + offset) / self->samplerate + t;
-             }
+                for (i = 0; i <= end - start; i++) {
+                    if (fill < nFills && fill_positions[fill] == start + i) {
+                        offset += fill_lengths[fill++];
+                    }
+                    timecodes[i] = (timecodes[i] + offset) / self->samplerate + t;
+                }
+            } else {
+                for (i = 0; i <= end - start; i++) {
+                    timecodes[i] = timecodes[i] / self->samplerate + t;
+                }
+            }
         } else {
             PyErr_SetString(PyExc_IndexError, "Index out of range");
         }
@@ -444,8 +450,8 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
             nFills += nParts - 1;
             data = (PyArrayObject *)PyArray_EMPTY(1, &length, thisType, 0);  // new
             fill_positions = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
-            fill_lengths = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
-            fill_values = (PyArrayObject *)PyArray_EMPTY(1, &nFills, thisType, 0);  // new
+            fill_lengths = (PyArrayObject *)PyArray_ZEROS(1, &nFills, NPY_INTP, 0);  // new
+            fill_values = (PyArrayObject *)PyArray_ZEROS(1, &nFills, thisType, 0);  // new
             fill = 0;
             pos = 0;
             sample = 0;
@@ -471,17 +477,27 @@ static PyObject *Channel_collate(Channel *self, PyObject *args) {
                             break;
                         }
                         // TODO: Take fill values as argument.
+                        /*
                         if (!error) {
-                            numObj = PyFloat_FromDouble(0.0);  // new
+                            numObj = PyFloat_FromDouble(<fill value>);  // new
                             error = PyArray_SETITEM(fill_values, PyArray_GETPTR1(fill_values, fill), numObj);
                             Py_DECREF(numObj);
                         } else {
                             break;
                         }
-                    } else if (fillLen == 0) {
+                         */
+                    } else if (fillLen > -samplerate / 2) {
+                        // Allow overlap of 0.5 s in case the file timestamps
+                        // are in full seconds.
                         // TODO: Remove fill.
+                        numObj = PyLong_FromSsize_t(sample);  // new
+                        error = PyArray_SETITEM(fill_positions, PyArray_GETPTR1(fill_positions, fill), numObj);
+                        Py_DECREF(numObj);
+                        if (error) {
+                            break;
+                        }
                     } else {
-                        PyErr_SetString(PyExc_TypeError, "Can not collate() Channel objects that overlap");
+                        PyErr_SetString(PyExc_ValueError, "Can not collate() Channel objects that overlap");
                         error = -1;
                         Py_DECREF(data);
                         Py_DECREF(fill_positions);
@@ -649,6 +665,184 @@ static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds
     }
 
     return (PyObject *)events;
+}
+
+static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kwds) {
+    PyObject *obj, *start, *delta, *sec, *time = NULL, *result = NULL;
+    double n, offset, tolerance;
+    npy_intp nFills, i, fillPos, fillLen, index, len;
+    int ok = 1;
+    const char *method = "nearest";
+    static char *kwlist[] = {"time", "method", "tolerance", NULL};
+    
+    // Default tolerance is ±10% of sample interval.
+    tolerance = 0.1 / self->samplerate;
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "O|sd:sampleIndex", kwlist,
+                                    &time, &method, &tolerance)) {
+        if PyFloat_Check(time) {
+            n = PyFloat_AsDouble(time) * self->samplerate;
+        } else {
+            start = Channel_start(self);  // new
+            delta = PyNumber_Subtract(time, start);  // new
+            Py_XDECREF(start);
+            // If the subtraction succeeds, time argument is a datetime.
+            // If not, let us assume for a while that it is a timedelta.
+            if (!delta) {
+                PyErr_Clear();
+                delta = time;
+            }
+            obj = Py_BuildValue("(d)", 1.0);  // new
+            sec = timedeltaFromFloat(NULL, obj);  // new
+            Py_XDECREF(obj);
+            obj = PyNumber_TrueDivide(delta, sec);  // new
+            Py_XDECREF(delta);
+            Py_XDECREF(sec);
+            if (obj) {
+                offset = PyFloat_AsDouble(obj);
+                n = offset * self->samplerate;
+                Py_DECREF(obj);
+            } else {
+                ok = 0;
+                PyErr_SetString(PyExc_TypeError, "Argument 'time' needs to be a datetime object or a float or timedelta specifying time offset from channel start");
+            }
+        }
+    } else {
+        ok = 0;
+    }
+    if (ok) {
+        if (self->fill_values) {
+            nFills = PyArray_DIM(self->fill_lengths, 0);
+            for (i = 0; i < nFills; i++) {
+                fillPos = *(npy_intp *)PyArray_GETPTR1(self->fill_positions, i);
+                fillLen = *(npy_intp *)PyArray_GETPTR1(self->fill_lengths, i);
+                if (fillPos + fillLen < n) {
+                    n -= fillLen;
+                } else if (fillPos < n) {
+                    if (strcasecmp(method, "nearest") == 0) {
+                        n = (n - fillPos > fillLen / 2) ? fillPos : fillPos - 1;
+                    } else  if (strcasecmp(method, "next") == 0) {
+                        n = fillPos;
+                    } else  if (strcasecmp(method, "previous") == 0) {
+                        n = fillPos - 1;
+                    } else if (strcasecmp(method, "exact") == 0) {
+                        n = nan(NULL);
+                    }
+                    break;
+                } else {
+                    break;
+                }
+            }
+        }
+        len = PyArray_DIM(self->data, 0);
+        if (strcasecmp(method, "nearest") == 0) {
+            index = round(n);
+            if (index < 0) {
+                index = 0;
+            } else if (index >= len) {
+                index = len - 1;
+            }
+        } else  if (strcasecmp(method, "next") == 0) {
+            index = (n < 0) ? 0 : ceil(n);
+            if (index >= len) {
+                ok = 0;
+            }
+        } else  if (strcasecmp(method, "previous") == 0) {
+            index = (n < len) ? floor(n) : len - 1;
+            if (index < 0) {
+                ok = 0;
+            }
+        } else if (strcasecmp(method, "exact") == 0) {
+            offset = n - round(n);
+            if (abs(offset) <= tolerance) {
+                index = round(n);
+                if (index < 0 || index >= len) {
+                    ok = 0;
+                }
+            } else {
+                ok = 0;
+            }
+        } else {
+            PyErr_SetString(PyExc_ValueError, "Valid values for method are nearest, next, previous, and exact");
+        }
+    }
+    if (ok) {
+        result = PyLong_FromSsize_t(index);  // new
+    }
+    
+    return result;
+}
+
+static PyObject *Channel_sampleOffset(Channel *self, PyObject *args) {
+    // Returns time offset since channel start in seconds.
+    npy_intp n, index, nFills, i, fillPos, fillLen, len;
+    PyObject *result = NULL;
+    
+    if (PyArg_ParseTuple(args, "n:sampleOffset", &index)) {
+        len = PyArray_DIM(self->data, 0);
+        n = (index < 0) ? len + index : index;
+        if (n >= 0 && n < len) {
+            if (self->fill_values) {
+                nFills = PyArray_DIM(self->fill_lengths, 0);
+                for (i = 0; i < nFills; i++) {
+                    fillPos = *(npy_intp *)PyArray_GETPTR1(self->fill_positions, i);
+                    fillLen = *(npy_intp *)PyArray_GETPTR1(self->fill_lengths, i);
+                    if (fillPos <= index) {
+                        n += fillLen;
+                    } else {
+                        break;
+                    }
+                }
+            }
+            result = PyFloat_FromDouble(n / self->samplerate);  // new
+        } else {
+            PyErr_SetString(PyExc_IndexError, "Sample index out of range");
+        }
+    }
+    
+    return result;
+}
+
+static PyObject *Channel_sampleTime(Channel *self, PyObject *args) {
+    PyObject *offset, *argTuple, *delta, *start, *result = NULL;
+    
+    offset = Channel_sampleOffset(self, args);
+    if (offset) {
+        argTuple = PyTuple_New(1);  // new
+        PyTuple_SET_ITEM(argTuple, 0, offset);  // stolen
+        delta = timedeltaFromFloat(NULL, argTuple);  // new
+        start = Channel_start(self);  // new
+        if (start && delta) {
+            result = PyNumber_Add(start, delta);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to instantiate a datetime object");
+        }
+        Py_XDECREF(argTuple);
+        Py_XDECREF(delta);
+        Py_XDECREF(start);
+    }
+    
+    return result;
+}
+
+static PyObject *Channel_getSample(Channel *self, PyObject *args, PyObject *kwds) {
+    PyObject *index, *sample = NULL;
+    npy_intp i;
+    double value;
+    
+    index = Channel_sampleIndex(self, args, kwds);  // new
+    if (index) {
+        i = PyLong_AsSize_t(index);
+        Py_DECREF(index);
+        sample = PyArray_GETITEM(self->data, PyArray_GETPTR1(self->data, i));  // new?
+        value = PyFloat_AsDouble(sample);
+        Py_XDECREF(sample);
+        value *= self->scale;
+        value += self->offset;
+        sample = PyFloat_FromDouble(value);  // new
+        // TODO: Multiply by unit
+    }
+    
+    return sample;
 }
 
 static PyObject *Channel_resampledData(Channel *self, PyObject *args, PyObject *kwds) {
@@ -990,6 +1184,10 @@ static PyMethodDef Channel_methods[] = {
     {"collate", (PyCFunction)Channel_collate, METH_VARARGS | METH_STATIC, "combine channels to a sparse channel"},
     {"validateTimes", (PyCFunction)Channel_validateTimes, METH_VARARGS, "validate start and end times"},
     {"getEvents", (PyCFunction)Channel_getEvents, METH_VARARGS | METH_KEYWORDS, "get channel events"},
+    {"sampleIndex", (PyCFunction)Channel_sampleIndex, METH_VARARGS | METH_KEYWORDS, "sample index"},
+    {"sampleOffset", (PyCFunction)Channel_sampleOffset, METH_VARARGS, "sample time as offset from the channel start"},
+    {"sampleTime", (PyCFunction)Channel_sampleTime, METH_VARARGS, "sample time as a datetime object"},
+    {"getSample", (PyCFunction)Channel_getSample, METH_VARARGS | METH_KEYWORDS, "get the sample at specified time"},
     {"resample", (PyCFunction)Channel_resample, METH_VARARGS | METH_KEYWORDS, "resample channel"},
     {"resampledData", (PyCFunction)Channel_resampledData, METH_VARARGS | METH_KEYWORDS, "resampled channel data as a NumPy array"},
     {NULL}  // sentinel
