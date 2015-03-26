@@ -12,6 +12,19 @@
 
 @class SaltoChannelView;
 
+typedef struct {
+    NSUInteger location;
+    NSUInteger length;
+    NSUInteger expandedLocation;
+    NSUInteger expandedLength;
+    CGFloat value;
+} SaltoChannelSegment;
+
+@interface NSValue (SaltoChannelSegment)
++ (id)valueWithChannelSegment:(SaltoChannelSegment)pair;
+- (SaltoChannelSegment)channelSegmentValue;
+@end
+
 @interface SaltoChannelWrapper : NSObject<CPTPlotDataSource, CPTPlotSpaceDelegate>
 
 @property (retain) CPTXYGraph *graph;
@@ -20,6 +33,7 @@
 @property (readonly) NSRect frame;
 @property (retain) NSString *label;
 @property (readonly) NSString *signalType;
+@property (readonly) NSArray *segments;
 @property (readonly) double samplerate;
 @property (assign) NSTimeInterval visibleRangeStart;
 @property (readonly) NSTimeInterval startTime;
@@ -36,5 +50,6 @@
 - (NSTimeInterval)timeForPoint:(CGPoint)point;
 - (CGFloat)xForTimeInterval:(NSTimeInterval)time;
 - (CGFloat)xForTimespec:(struct timespec)t;
+- (double)pixelsPerSecond;
 
 @end

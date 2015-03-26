@@ -14,6 +14,21 @@
 
 static int typenum;
 
+@implementation NSValue (SaltoChannelSegment)
+
++ (id)valueWithChannelSegment:(SaltoChannelSegment)channelSegment {
+    return [NSValue value:&channelSegment withObjCType:@encode(SaltoChannelSegment)];
+}
+
+- (SaltoChannelSegment)channelSegmentValue {
+    SaltoChannelSegment channelSegment;
+    [self getValue:&channelSegment];
+    return channelSegment;
+}
+
+@end
+
+
 @implementation SaltoChannelWrapper
 
 + (void)initialize {
@@ -38,12 +53,60 @@ static int typenum;
 
 - (instancetype)initWithChannel:(Channel *)ch {
     self = [super init];
-    if (self) {
+    if (self && ch) {
+        npy_intp fillCount = 0;
+        npy_intp *fill_positions = NULL;
+        npy_intp *fill_lengths = NULL;
+        double *fill_values = NULL;
+ 
+        // Get Python object data.
         PyGILState_STATE state = PyGILState_Ensure();
         Py_INCREF(ch);
         BOOL isSigned = PyArray_ISSIGNED((PyArrayObject *)ch->data);
+        npy_intp length = PyArray_DIM(ch->data, 0);
+        if (ch->fill_values) {
+            fillCount = PyArray_DIM(ch->fill_values, 0);
+            fill_positions = PyArray_DATA(ch->fill_positions);
+            fill_lengths = PyArray_DATA(ch->fill_lengths);
+            fill_values = PyArray_DATA(ch->fill_values);
+        }
         PyGILState_Release(state);
+ 
+        // Form SaltoChannelSegment array.
+        NSUInteger segmentCount = 2 * fillCount + 1;
+        NSMutableArray *segments = [NSMutableArray arrayWithCapacity:segmentCount];
+        NSUInteger sampleIndex = 0;
+        NSUInteger expandedSampleIndex = 0;
+        for (npy_intp i = 0; i < fillCount; i++) {
+            SaltoChannelSegment dataSegment = {
+                .location = sampleIndex,
+                .length = fill_positions[i] - sampleIndex,
+                .expandedLocation = expandedSampleIndex,
+                .expandedLength = fill_positions[i] - sampleIndex,
+                .value = 0.0};
+            sampleIndex = fill_positions[i];
+            expandedSampleIndex += dataSegment.length;
+            SaltoChannelSegment fillSegment = {
+                .location = sampleIndex,
+                .length = 0,
+                .expandedLocation = expandedSampleIndex,
+                .expandedLength = fill_lengths[i],
+                .value = fill_values[i] * ch->scale + ch->offset};
+            expandedSampleIndex += fill_lengths[i];
+            [segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:2 * i];
+            [segments insertObject:[NSValue valueWithChannelSegment:fillSegment] atIndex:2 * i + 1];
+        }
+        SaltoChannelSegment dataSegment = {
+            .location = sampleIndex,
+            .length = length - sampleIndex,
+            .expandedLocation = expandedSampleIndex,
+            .expandedLength = length - sampleIndex,
+            .value = 0.0};
+        [segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:segmentCount - 1];
+
+        // Initialize object properties.
         _channel = ch;
+        _segments = [[NSArray arrayWithArray:segments] retain];
         _signalType = [[NSString stringWithUTF8String:_channel->type] retain];
         _samplerate = _channel->samplerate;
         _startTime = _channel->start_sec + _channel->start_nsec / 1e9;
@@ -95,6 +158,8 @@ static int typenum;
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
             _yVisibleRangeMin = _channel->offset;
         }
+    } else {
+        self = nil;
     }
 
     return self;
@@ -104,6 +169,7 @@ static int typenum;
     [_graph release];
     [_label release];
     [_signalType release];
+    [_segments release];
     PyGILState_STATE state = PyGILState_Ensure();
 	Py_XDECREF(_channel);
 	PyGILState_Release(state);
@@ -153,23 +219,81 @@ static int typenum;
 }
 
 - (NSUInteger)numberOfRecordsForPlot:(CPTPlot *)plot {
+    const double maxPointsPerPixel = 3.0;
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
-    NSTimeInterval start = MAX(self.visibleRangeStart, self.startTime);
-    NSTimeInterval end = MIN(self.visibleRangeStart + appDelegate.visibleRange, self.endTime);
-    NSInteger nPoints = (end > start) ? (end - start) * self.samplerate : 0;
-    if (nPoints > 0) {
-        CGFloat xMin = [self xForTimeInterval:start];
-        CGFloat xMax = [self xForTimeInterval:end];
-        NSUInteger nPixels = xMax - xMin + 1;
-        if (nPoints > 3 * nPixels) {
-            // Aggregate data points.
-            double pixelsPerSecond = (xMax - xMin) / (end - start);
-            nPoints = nPoints * pixelsPerSecond / self.samplerate;
-            if (nPoints < 2)
-                nPoints = 2;
-            nPoints = 3 * nPoints - 2;
+    NSTimeInterval start = MAX(self.visibleRangeStart - self.startTime, 0.0);
+    NSTimeInterval end = MIN(start + appDelegate.visibleRange, self.duration);
+    npy_intp startIndex = 0;
+    npy_intp endIndex = 0;
+    PyGILState_STATE state = PyGILState_Ensure();
+    PyObject *o = PyObject_CallMethod((PyObject *)_channel, "sampleIndex",
+                                      "ds", start, "previous");  // new
+    if (o) {
+        startIndex = PyLong_AsSsize_t(o);
+        Py_DECREF(o);
+        o = PyObject_CallMethod((PyObject *)_channel, "sampleIndex",
+                                "ds", end, "next");  // new
+    }
+    if (o) {
+        endIndex = PyLong_AsSsize_t(o);
+        Py_DECREF(o);
+    } else {
+        PyObject *pyErr = PyErr_Occurred();  // borrowed
+        char *msg = NULL;
+        if (pyErr) {
+            PyObject *msgObj = PyObject_CallMethod(pyErr, "message", NULL);
+            msg = PyUnicode_AsUTF8(msgObj);
+            NSLog(@"Python call Channel.sampleIndex() failed: %s", msg);
+            PyErr_Clear();
         }
     }
+    PyGILState_Release(state);
+    double pixelsPerSecond = [self pixelsPerSecond];
+    __block NSInteger nPoints = 0;
+    [self.segments enumerateObjectsUsingBlock:^(NSValue *obj, NSUInteger idx, BOOL *stop) {
+        SaltoChannelSegment segment = [obj channelSegmentValue];
+        if (segment.location <= endIndex) {
+            if (segment.location >= startIndex && segment.location + segment.length <= endIndex) {
+                // The entire segment is included.
+                if (segment.length == 0) {
+                    nPoints += 2;
+                } else {
+                    NSUInteger nPixels = ceil(segment.length / self.samplerate * pixelsPerSecond);
+                    if (segment.length / nPixels <= maxPointsPerPixel) {
+                        // Show all data points.
+                        nPoints += segment.length;
+                    } else {
+                        // Aggregate data points to two points (min and max) per pixel.
+                        nPoints += 2 * nPixels;
+                    }
+                }
+            } else if (segment.location < startIndex) {
+                // The (first) segment starts from the middle.
+                NSUInteger validPointCount = segment.location + segment.length - startIndex;
+                NSUInteger nPixels = ceil(validPointCount / self.samplerate * pixelsPerSecond);
+                if (validPointCount / nPixels <= maxPointsPerPixel) {
+                    // Show all data points.
+                    nPoints += validPointCount;
+                } else {
+                    // Aggregate data points to two points (min and max) per pixel.
+                    nPoints += 2 * nPixels;
+                }
+            } else {
+                // The (last) segment ends in the middle.
+                NSUInteger validPointCount = endIndex - segment.location + 1;
+                NSUInteger nPixels = ceil(validPointCount / self.samplerate * pixelsPerSecond);
+                if (validPointCount / nPixels <= maxPointsPerPixel) {
+                    // Show all data points.
+                    nPoints += validPointCount;
+                } else {
+                    // Aggregate data points to two points (min and max) per pixel.
+                    nPoints += 2 * nPixels;
+                }
+            }
+        } else {
+            *stop = YES;
+        }
+    }];
     
     return nPoints;
 }
@@ -177,44 +301,89 @@ static int typenum;
 - (double *)doublesForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndexRange:(NSRange)range {
     double *values = calloc(range.length, sizeof(double));
     if (values) {
-        SaltoGuiDelegate *appDelegate = [NSApp delegate];
-        NSTimeInterval start = MAX(self.visibleRangeStart, self.startTime);
-        NSTimeInterval end = MIN(self.visibleRangeStart + appDelegate.visibleRange, self.endTime);
-        struct timespec start_t = endTimeFromDuration(0, 0, start);
-        struct timespec end_t = endTimeFromDuration(0, 0, end);
-        CGFloat xMin = [self xForTimeInterval:start];
-        CGFloat xMax = [self xForTimeInterval:end];
-        double pixelsPerSecond = (xMax - xMin) / (end - start);
+        NSTimeInterval start = MAX(self.visibleRangeStart - self.startTime, 0.0);
+        double pixelsPerSecond = [self pixelsPerSecond];
         
-        if (fieldEnum == CPTScatterPlotFieldY) {
-            PyGILState_STATE state = PyGILState_Ensure();
-            PyArrayObject *data = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel,
-                                                                       "resampledData", "dLlLlis",
-                                                                       pixelsPerSecond,
-                                                                       start_t.tv_sec, start_t.tv_nsec,
-                                                                       end_t.tv_sec, end_t.tv_nsec,
-                                                                       typenum, "VRA");
-            if (data) {
-                memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
-            } else {
-                bzero(values, range.length * sizeof(double));
+        PyGILState_STATE state = PyGILState_Ensure();
+        PyObject *startidx = PyObject_CallMethod((PyObject *)_channel, "sampleIndex",
+                                             "ds", start, "previous");  // new
+        PyObject *idx1 = NULL;
+        PyObject *idx2 = NULL;
+        if (startidx) {
+            PyObject *idx1offset = PyLong_FromSsize_t(range.location);  // new
+            PyObject *idx2offset = PyLong_FromSsize_t(range.location + range.length - 1);  // new
+            if (idx1offset) {
+                idx1 = PyNumber_Add(startidx, idx1offset);  // new
+                Py_DECREF(idx1offset);
             }
-            PyGILState_Release(state);
-        } else {
-            NSUInteger nPoints = [self numberOfRecordsForPlot:plot];
-            double step = (end - start) / (nPoints - 1);
-            double origin = 0.0;
-            if (appDelegate.alignment == SaltoAlignCalendarDate) {
-                origin = start;
+            if (idx2offset) {
+                idx2 = PyNumber_Add(startidx, idx2offset);  // new
+                Py_DECREF(idx2offset);
             }
-            for (NSUInteger i = 0; i < range.length; i++) {
-                values[i] = origin + (range.location + i) * step;
-            }
+            Py_DECREF(startidx);
         }
+        if (fieldEnum == CPTScatterPlotFieldY) {
+            PyArrayObject *data = NULL;
+            if (idx1 && idx2) {
+                PyObject *slice = PySlice_New(idx1, idx2, NULL);  // new
+                PyObject *part = NULL;
+                if (slice) {
+                    part = PyObject_GetItem((PyObject *)_channel->data, slice);  //new
+                    Py_DECREF(slice);
+                }
+                if (part) {
+                    data = (PyArrayObject *)PyArray_Cast((PyArrayObject *)part, typenum);
+                    Py_DECREF(part);
+                }
+            }
+            if (data) {
+                // TODO: fills
+                memcpy(values, PyArray_DATA(data), range.length * sizeof(double));
+                for (npy_intp i = 0; i < 1; i++) {
+                    values[i] *= _channel->scale;
+                    values[i] += _channel->offset;
+                }
+            } else {
+                free(values);
+                values = NULL;
+            }
+        } else {
+            PyArrayObject *tArray = NULL;
+            if (idx1 && idx2) {
+                tArray = (PyArrayObject *)PyObject_CallMethod((PyObject *)_channel,
+                                                              "timecodes", "OO",
+                                                              idx1, idx2);  // new
+            }
+            if (tArray) {
+                memcpy(values, PyArray_DATA(tArray), range.length * sizeof(double));
+            } else {
+                free(values);
+                values = NULL;
+            }
+            // TODO: Convert times if necessary
+            // (appDelegate.alignment == SaltoAlignTimeOfDay ||
+            //  appDelegate.alignment == SaltoAlignCalendarDate)
+        }
+        Py_XDECREF(idx1);
+        Py_XDECREF(idx2);
+        PyGILState_Release(state);
     }
+    
     
     return values;
 }
+
+- (double)pixelsPerSecond {
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
+    NSTimeInterval start = MAX(self.visibleRangeStart, self.startTime);
+    NSTimeInterval end = MIN(self.visibleRangeStart + appDelegate.visibleRange, self.endTime);
+    CGFloat xMin = [self xForTimeInterval:start];
+    CGFloat xMax = [self xForTimeInterval:end];
+    double pixelsPerSecond = (xMax - xMin) / (end - start);
+    
+    return pixelsPerSecond;
+}
+
 
 - (void)setupPlot {
     if (!self.graph) {
