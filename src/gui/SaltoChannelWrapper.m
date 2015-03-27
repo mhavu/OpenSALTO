@@ -31,6 +31,13 @@ static int typenum;
 @end
 
 
+@interface SaltoChannelWrapper ()
+
+@property (readonly) NSMutableArray *segments;
+
+@end
+
+
 @implementation SaltoChannelWrapper
 
 + (void)initialize {
@@ -76,7 +83,7 @@ static int typenum;
  
         // Form SaltoChannelSegment array.
         NSUInteger segmentCount = 2 * fillCount + 1;
-        NSMutableArray *segments = [NSMutableArray arrayWithCapacity:segmentCount];
+        _segments = [[NSMutableArray arrayWithCapacity:segmentCount] retain];
         NSUInteger sampleIndex = 0;
         NSUInteger expandedSampleIndex = 0;
         for (npy_intp i = 0; i < fillCount; i++) {
@@ -95,8 +102,8 @@ static int typenum;
                 .expandedLength = fill_lengths[i],
                 .value = fill_values[i] * ch->scale + ch->offset};
             expandedSampleIndex += fill_lengths[i];
-            [segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:2 * i];
-            [segments insertObject:[NSValue valueWithChannelSegment:fillSegment] atIndex:2 * i + 1];
+            [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:2 * i];
+            [_segments insertObject:[NSValue valueWithChannelSegment:fillSegment] atIndex:2 * i + 1];
         }
         SaltoChannelSegment dataSegment = {
             .location = sampleIndex,
@@ -104,11 +111,10 @@ static int typenum;
             .expandedLocation = expandedSampleIndex,
             .expandedLength = length - sampleIndex,
             .value = 0.0};
-        [segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:segmentCount - 1];
+        [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:segmentCount - 1];
 
-        // Initialize object properties.
+        // Initialize other object properties.
         _channel = ch;
-        _segments = [[NSArray arrayWithArray:segments] retain];
         _signalType = [[NSString stringWithUTF8String:_channel->type] retain];
         _samplerate = _channel->samplerate;
         _startTime = _channel->start_sec + _channel->start_nsec / 1e9;
@@ -226,59 +232,65 @@ static int typenum;
     NSUInteger start = round(MAX(self.visibleRangeStart - self.startTime, 0.0) * self.samplerate);
     NSUInteger end = round(MIN(start + appDelegate.visibleRange, self.duration) * self.samplerate);
     double pixelsPerSecond = [self pixelsPerSecond];
-    NSUInteger pointCount = 0;
-    for (NSValue *value in self.segments) {
-        SaltoChannelSegment segment = [value channelSegmentValue];
-        if (segment.expandedLocation + segment.expandedLength < start) {
-            continue;
+    __block NSUInteger pointCount = 0;
+    NSMutableArray *segments = [NSMutableArray arrayWithArray:self.segments];
+    [segments enumerateObjectsUsingBlock:^(NSValue *obj, NSUInteger idx, BOOL *stop) {
+        SaltoChannelSegment segment = [obj channelSegmentValue];
+        if (segment.expandedLocation + segment.expandedLength >= start) {
+            if (segment.length > 0) {
+                // Data segment
+                NSUInteger validPointCount;
+                if (segment.expandedLocation < start) {
+                    // The (first) segment starts from the middle.
+                    validPointCount = segment.expandedLocation + segment.expandedLength - start;
+                } else if (segment.location + segment.length > end) {
+                    // The (last) segment ends in the middle.
+                    validPointCount = end - segment.expandedLocation + 1;
+                } else {
+                    // The entire segment is visible.
+                    validPointCount = segment.length;
+                }
+                NSUInteger pixelCount = ceil(validPointCount / self.samplerate * pixelsPerSecond);
+                if (validPointCount / pixelCount <= maxPointsPerPixel) {
+                    // Show all data points.
+                    segment.pointCount = validPointCount;
+                } else {
+                    // Aggregate data points to two points (min and max) per pixel.
+                    segment.pointCount = 2 * pixelCount;
+                }
+            } else {
+                // Fill segment
+                segment.pointCount = 2;
+            }
+            [self.segments replaceObjectAtIndex:idx withObject:[NSValue valueWithChannelSegment:segment]];
+            pointCount += segment.pointCount;
         } else if (segment.expandedLocation > end) {
-            break;
+            *stop = YES;
         }
-        if (segment.length > 0) {
-            // Data segment
-            NSUInteger validPointCount;
-            if (segment.expandedLocation < start) {
-                // The (first) segment starts from the middle.
-                validPointCount = segment.expandedLocation + segment.expandedLength - start;
-            } else if (segment.location + segment.length > end) {
-                // The (last) segment ends in the middle.
-                validPointCount = end - segment.expandedLocation + 1;
-            } else {
-                // The entire segment is visible.
-                validPointCount = segment.length;
-            }
-            NSUInteger pixelCount = ceil(validPointCount / self.samplerate * pixelsPerSecond);
-            if (validPointCount / pixelCount <= maxPointsPerPixel) {
-                // Show all data points.
-                pointCount += validPointCount;
-            } else {
-                // Aggregate data points to two points (min and max) per pixel.
-                pointCount += 2 * pixelCount;
-            }
-        } else {
-            // Fill segment
-            pointCount += 2;
-        }
-    }
+    }];
     
     return pointCount;
 }
 
 - (double *)doublesForPlot:(CPTPlot *)plot field:(NSUInteger)fieldEnum recordIndexRange:(NSRange)range {
+    BOOL errorOccurred = NO;
     double *values = calloc(range.length, sizeof(double));
-    if (values) {
-        SaltoGuiDelegate *appDelegate = [NSApp delegate];
-        NSTimeInterval startTime = MAX(self.visibleRangeStart - self.startTime, 0.0);
-        NSTimeInterval endTime = MIN(startTime + appDelegate.visibleRange, self.duration);
-        NSUInteger start = round(startTime * self.samplerate);
-        NSUInteger end = round(endTime * self.samplerate);
-        
+    if (!values)
+        errorOccurred = YES;
+    
+    SaltoGuiDelegate *appDelegate = [NSApp delegate];
+    NSTimeInterval startTime = MAX(self.visibleRangeStart - self.startTime, 0.0);
+    NSTimeInterval endTime = MIN(startTime + appDelegate.visibleRange, self.duration);
+    NSUInteger start = round(startTime * self.samplerate);
+    NSUInteger end = round(endTime * self.samplerate);
+    
+    PyArrayObject *dataArray = NULL;
+    double *data = NULL;
+    NSUInteger dataOffset = 0;
+    if (!errorOccurred && fieldEnum == CPTScatterPlotFieldY) {
         // Convert the relevant slice of data to double.
-        PyArrayObject *dataArray = NULL;
-        double *data = NULL;
         PyObject *startPyObj = NULL;
         PyObject *endPyObj = NULL;
-        NSUInteger dataOffset = 0;
         PyGILState_STATE state = PyGILState_Ensure();
         npy_intp dataLength = PyArray_DIM(self.channel->data, 0);
         for (NSValue *value in self.segments) {
@@ -318,50 +330,69 @@ static int typenum;
             if (dataArray) {
                 data = PyArray_DATA(dataArray);
             }
+            if (!data) {
+                errorOccurred = YES;
+                NSLog(@"Failed to get Python objects in %@", NSStringFromSelector(_cmd));
+            }
         }
         Py_XDECREF(startPyObj);
         Py_XDECREF(endPyObj);
         PyGILState_Release(state);
-        
+    }
+    
+    if (!errorOccurred) {
         // Compute the data points.
         const double maxPointsPerPixel = 3.0;
         double pixelsPerSecond = [self pixelsPerSecond];
         NSUInteger pointIndex = 0;
-        if (data && fieldEnum == CPTScatterPlotFieldY) {
-            // Y axis (data values)
-            for (NSValue *value in self.segments) {
-                SaltoChannelSegment segment = [value channelSegmentValue];
-                if (segment.expandedLocation + segment.expandedLength < start) {
-                    continue;
-                } else if (segment.expandedLocation > end) {
-                    break;
+        for (NSValue *value in self.segments) {
+            SaltoChannelSegment segment = [value channelSegmentValue];
+            if (segment.pointCount == 0) {
+                continue;
+            } else if (pointIndex + segment.pointCount < range.location) {
+                pointIndex += segment.pointCount;
+                continue;
+            } else if (pointIndex >= range.location + range.length) {
+                break;
+            } else if (segment.expandedLocation > end) {
+                break;
+            }
+            if (segment.length > 0) {
+                // Data segment
+                NSUInteger sampleCount;
+                if (segment.expandedLocation < start) {
+                    // The (first) segment starts from the middle.
+                    sampleCount = segment.expandedLocation + segment.expandedLength - start;
+                } else if (segment.location + segment.length > end) {
+                    // The (last) segment ends in the middle.
+                    sampleCount = end - segment.expandedLocation + 1;
+                } else {
+                    // The entire segment is visible.
+                    sampleCount = segment.length;
                 }
-                if (segment.length > 0) {
-                    // Data segment
-                    NSUInteger validPointCount;
-                    if (segment.expandedLocation < start) {
-                        // The (first) segment starts from the middle.
-                        validPointCount = segment.expandedLocation + segment.expandedLength - start;
-                    } else if (segment.location + segment.length > end) {
-                        // The (last) segment ends in the middle.
-                        validPointCount = end - segment.expandedLocation + 1;
-                    } else {
-                        // The entire segment is visible.
-                        validPointCount = segment.length;
-                    }
-                    NSUInteger pixelCount = ceil(validPointCount / self.samplerate * pixelsPerSecond);
-                    if (validPointCount / pixelCount <= maxPointsPerPixel) {
+                NSUInteger pixelCount = ceil(sampleCount / self.samplerate * pixelsPerSecond);
+                NSUInteger pointCount = MIN(range.location + range.length - pointIndex,
+                                            segment.pointCount);
+                NSUInteger skipCount = 0;
+                if (pointIndex < range.location) {
+                    skipCount = range.location - pointIndex;
+                    pointIndex = range.location;
+                }
+               if (fieldEnum == CPTScatterPlotFieldY) {
+                    // Y axis (data values)
+                    if (sampleCount / pixelCount <= maxPointsPerPixel) {
                         // Show all data points.
-                        for (NSUInteger i = 0; i < validPointCount; i++) {
-                            values[pointIndex++] = data[segment.location + i - dataOffset] * self.channel->scale + self.channel->offset;
+                        for (NSUInteger i = skipCount; i < pointCount + skipCount; i++) {
+                            values[pointIndex - range.location] = data[segment.location + i - dataOffset] * self.channel->scale + self.channel->offset;
+                            pointIndex++;
                         }
                     } else {
                         // Aggregate data points to two points (min and max) per pixel.
                         NSUInteger i = 0;
-                        for (NSUInteger pixel = 0; pixel < pixelCount; pixel++) {
+                        for (NSUInteger p = skipCount; p < pointCount + skipCount; p++) {
                             double max = data[segment.location + i - dataOffset];
                             double min = max;
-                            while (i < pixel * validPointCount / pixelCount && i < validPointCount) {
+                            while (i < p / 2 * sampleCount / pixelCount && i < sampleCount) {
                                 if (data[segment.location + i - dataOffset] > max) {
                                     max = data[segment.location + i - dataOffset];
                                 } else if (data[segment.location + i - dataOffset] < min) {
@@ -369,72 +400,62 @@ static int typenum;
                                 }
                                 i++;
                             }
-                            values[pointIndex++] = max * self.channel->scale + self.channel->offset;
-                            values[pointIndex++] = min * self.channel->scale + self.channel->offset;
-                        }
-                    }
-                } else {
-                    // Fill segment
-                    values[pointIndex++] = segment.value;
-                    values[pointIndex++] = segment.value;
-                }
-            }
-        } else if (data) {
-            // X axis (time)
-            for (NSValue *value in self.segments) {
-                SaltoChannelSegment segment = [value channelSegmentValue];
-                if (segment.expandedLocation + segment.expandedLength < start) {
-                    continue;
-                } else if (segment.expandedLocation > end) {
-                    break;
-                }
-                if (segment.length > 0) {
-                    // Data segment
-                    NSUInteger validPointCount;
-                    if (segment.expandedLocation < start) {
-                        // The (first) segment starts from the middle.
-                        validPointCount = segment.expandedLocation + segment.expandedLength - start;
-                    } else if (segment.location + segment.length > end) {
-                        // The (last) segment ends in the middle.
-                        validPointCount = end - segment.expandedLocation + 1;
-                    } else {
-                        // The entire segment is visible.
-                        validPointCount = segment.length;
-                    }
-                    NSUInteger pixelCount = ceil(validPointCount / self.samplerate * pixelsPerSecond);
-                    if (validPointCount / pixelCount <= maxPointsPerPixel) {
-                        // Show all data points.
-                        for (NSUInteger i = 0; i < validPointCount; i++) {
-                            values[pointIndex++] = (segment.expandedLocation + i) / self.samplerate;
-                        }
-                    } else {
-                        // Aggregate data points to two points (min and max) per pixel.
-                        for (NSUInteger i = 0; i < pixelCount; i++) {
-                            values[pointIndex++] = (segment.expandedLocation + (i + 0.5) * validPointCount / pixelCount) / self.samplerate;
-                            values[pointIndex] = values[pointIndex - 1];
+                            values[pointIndex - range.location] = (p % 2) ? max : min;
+                            values[pointIndex - range.location] *= self.channel->scale;
+                            values[pointIndex - range.location] += self.channel->offset;
                             pointIndex++;
                         }
                     }
                 } else {
-                    // Fill segment
-                    values[pointIndex++] = segment.expandedLocation / self.samplerate;
-                    values[pointIndex++] = (segment.expandedLocation + segment.expandedLength) / self.samplerate;
+                    // X axis (time)
+                    if (sampleCount / pixelCount <= maxPointsPerPixel) {
+                        // Show all data points.
+                        for (NSUInteger i = skipCount; i < pointCount + skipCount; i++) {
+                            values[pointIndex - range.location] = (segment.expandedLocation + i) / self.samplerate;
+                            pointIndex++;
+                        }
+                    } else {
+                        // Aggregate data points to two points (min and max) per pixel.
+                        for (NSUInteger p = skipCount; p < pointCount + skipCount; p++) {
+                            values[pointIndex - range.location] = (segment.expandedLocation + (p / 2 + 0.5) * sampleCount / pixelCount) / self.samplerate;
+                            pointIndex++;
+                        }
+                    }
+                }
+            } else {
+                // Fill segment
+                if (fieldEnum == CPTScatterPlotFieldY) {
+                    // Y axis (data values)
+                    for (NSUInteger i = 0; i < 2; i++) {
+                        if (pointIndex >= range.location && pointIndex < range.location + range.length) {
+                            values[pointIndex - range.location] = segment.value;
+                        }
+                        pointIndex++;
+                    }
+                } else {
+                    // X axis (time)
+                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
+                        values[pointIndex - range.location] = segment.expandedLocation / self.samplerate;
+                    }
+                    pointIndex++;
+                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
+                        values[pointIndex - range.location] = (segment.expandedLocation + segment.expandedLength) / self.samplerate;
+                    }
+                    pointIndex++;
+                    // TODO: Convert times if necessary
+                    // (appDelegate.alignment == SaltoAlignTimeOfDay ||
+                    //  appDelegate.alignment == SaltoAlignCalendarDate)
                 }
             }
-            // TODO: Convert times if necessary
-            // (appDelegate.alignment == SaltoAlignTimeOfDay ||
-            //  appDelegate.alignment == SaltoAlignCalendarDate)
-        } else {
-            NSLog(@"Failed to get Python objects in %@", NSStringFromSelector(_cmd));
-        }
-        if (dataArray) {
-            // Clean up.
-            PyGILState_STATE state = PyGILState_Ensure();
-            Py_DECREF(dataArray);
-            PyGILState_Release(state);
         }
     }
-    
+    if (dataArray) {
+        // Clean up.
+        PyGILState_STATE state = PyGILState_Ensure();
+        Py_DECREF(dataArray);
+        PyGILState_Release(state);
+    }
+
     return values;
 }
 

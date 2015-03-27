@@ -18,6 +18,7 @@ typedef struct {
     NSUInteger expandedLocation;
     NSUInteger expandedLength;
     CGFloat value;
+    NSUInteger pointCount;
 } SaltoChannelSegment;
 
 @interface NSValue (SaltoChannelSegment)
@@ -33,7 +34,6 @@ typedef struct {
 @property (readonly) NSRect frame;
 @property (retain) NSString *label;
 @property (readonly) NSString *signalType;
-@property (readonly) NSArray *segments;
 @property (readonly) double samplerate;
 @property (assign) NSTimeInterval visibleRangeStart;
 @property (readonly) NSTimeInterval startTime;
