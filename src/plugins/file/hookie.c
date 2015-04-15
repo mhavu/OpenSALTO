@@ -69,7 +69,7 @@ static time_t bcdToTime(uint8_t *buffer) {
 int readFile(const char *filename, const char *chTable) {
     uint8_t buffer[512], *sample;
     off_t fileLength;
-    size_t length, i, *partLen, blk, nBlocks, fill, nParts, pos;
+    size_t length, i, *partLen, blk, nBlocks, fill, nParts, pos, blklen, corrupt = 0;
     int headerIsValid, isDynamic = 0;
     int16_t *fillValues;
     int ch;
@@ -78,10 +78,10 @@ int readFile(const char *filename, const char *chTable) {
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
     char serialno[28], tag[28], value[28], json[512] = "{ ";
-    double samplerate;
+    double samplerate, partDuration, excess;
     Error err = SUCCESS;
     struct timespec startTime;
-    time_t t, latestStart, *timecodes;
+    time_t t, *timecodes;
     const char *tmpTable;
     size_t *posArray = NULL, *lenArray = NULL;
 
@@ -181,7 +181,8 @@ int readFile(const char *filename, const char *chTable) {
     if (!err) {
         nParts = 1;
         for (blk = 0; blk < nBlocks; blk++) {
-            if (fread(buffer, 1, 512, fp) == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
+            blklen = fread(buffer, 1, 512, fp);
+            if (blklen == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
                 // Read the data.
                 timecodes[blk] = bcdToTime(&buffer[2]);
                 for (i = 0; i < samplesPerBlock; i++) {
@@ -192,28 +193,23 @@ int readFile(const char *filename, const char *chTable) {
                 }
                 // Check whether the device has entered sleep mode.
                 if (blk == 0) {
-                    latestStart = timecodes[0];
                     partLen[0] = 1;
-                } else if (timecodes[blk] - latestStart >
-                           round(partLen[nParts - 1] * samplesPerBlock / samplerate)) {
-                    partLen[nParts++]++;
-                    latestStart = timecodes[blk];
+                } else if (timecodes[blk] - timecodes[blk - 1] > 2 * samplesPerBlock / samplerate) {
+                    partLen[nParts++] = 1;
                 } else {
                     partLen[nParts - 1]++;
                 }
             } else {
-                // Clean up.
-                for (ch = 0; ch < nChannels; ch++) {
-                    free(channel[ch].buffer);
+                // Ignore packet.
+                if (blklen == 512) {
+                    fprintf(stderr, "readFile(): Corrupt data packet %zu ignored in %s\n",
+                            blk + corrupt++, filename);
+                } else {
+                    fprintf(stderr, "readFile(): Premature end of file in %s\n, corrupt data packet ignored", filename);
+                    break;
                 }
-                free(timecodes);
-                free(fillValues);
-                free(partLen);
-                deleteChannelTable(tmpTable);
-                free((void *)tmpTable);
-                fprintf(stderr, "readFile(): Corrupt data packet or premature end of file\n");
-                err = INVALID_FILE;
-                break;
+                nBlocks--;
+                blk--;
             }
         }
         fclose(fp);
@@ -240,6 +236,13 @@ int readFile(const char *filename, const char *chTable) {
                     lenArray[fill] = round(t * samplerate) - pos;
                     pos += lenArray[fill];
                 }
+                // Fix timecodes so that the last block is where the
+                // timestamp says it is.
+                partDuration = (nBlocks - blk) * samplesPerBlock / samplerate ;
+                excess = partDuration - (timecodes[nBlocks - 1] - timecodes[blk] + 1);
+                if (excess > 0.0 && lenArray[nParts - 2] > excess * samplerate) {
+                    lenArray[nParts - 2] -= excess * samplerate;
+                }
             } else {
                 err = ALLOCATION_FAILED;
             }
@@ -250,7 +253,7 @@ int readFile(const char *filename, const char *chTable) {
         for (ch = 0; ch < nChannels; ch++) {
             // Create the channels.
             channel[ch].data = newSparseInt16Channel(tmpTable, channel[ch].name, length, nParts);
-            memcpy(channel[ch].data, channel[ch].buffer, length);
+            memcpy(channel[ch].data, channel[ch].buffer, length * sizeof(uint16_t));
             if (nParts > 1) {
                 for (fill = 0; fill < nParts - 1; fill++) {
                     fillValues[fill] = isDynamic ? channel[ch].buffer[posArray[fill] - 1] : 0;
