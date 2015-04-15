@@ -17,7 +17,7 @@ typedef struct {
     NSUInteger length;
     NSUInteger expandedLocation;
     NSUInteger expandedLength;
-    CGFloat value;
+    double value;
     NSUInteger pointCount;
 } SaltoChannelSegment;
 
@@ -39,6 +39,8 @@ typedef struct {
 @property (readonly) NSTimeInterval startTime;
 @property (readonly) NSTimeInterval endTime;
 @property (readonly) NSTimeInterval duration;
+@property (readonly) double yMin;
+@property (readonly) double yMax;
 @property (readonly) double yVisibleRangeMin;
 @property (readonly) double yVisibleRangeMax;
 @property (assign, getter = isVisible) BOOL visible;

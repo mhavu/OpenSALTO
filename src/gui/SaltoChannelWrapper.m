@@ -73,11 +73,40 @@ static int typenum;
         Py_INCREF(ch);
         BOOL isSigned = PyArray_ISSIGNED((PyArrayObject *)ch->data);
         npy_intp length = PyArray_DIM(ch->data, 0);
+        PyArray_Descr *doubleDescr = PyArray_DescrFromType(NPY_DOUBLE);
+        if (doubleDescr) {
+            PyObject *scalar = PyArray_Min(ch->data, 0, NULL);  // new
+            if (scalar) {
+                PyArray_CastScalarToCtype(scalar, &_yMin, doubleDescr);
+                Py_DECREF(scalar);
+            }
+            scalar = PyArray_Max(ch->data, 0, NULL);  // new
+            if (scalar) {
+                PyArray_CastScalarToCtype(scalar, &_yMax, doubleDescr);
+                Py_DECREF(scalar);
+            }
+            Py_DECREF(doubleDescr);
+        }
         if (ch->fill_values) {
             fillCount = PyArray_DIM(ch->fill_values, 0);
             fill_positions = PyArray_DATA(ch->fill_positions);
             fill_lengths = PyArray_DATA(ch->fill_lengths);
-            fill_values = PyArray_DATA(ch->fill_values);
+            PyObject *castArray = PyArray_Cast(ch->fill_values, NPY_DOUBLE);  // new
+            double *cast_values = NULL;
+            if (castArray)
+                cast_values = PyArray_DATA((PyArrayObject *)castArray);
+            if (cast_values)
+                fill_values = calloc(fillCount, sizeof(double));
+            if (fill_values) {
+                for (npy_intp i = 0; i < fillCount; i++) {
+                    fill_values[i] = cast_values[i];
+                    if (fill_values[i] < _yMin)
+                        _yMin = fill_values[i];
+                    if (fill_values[i] > _yMax)
+                        _yMax = fill_values[i];
+                }
+            }
+            Py_XDECREF(castArray);
         }
         PyGILState_Release(state);
  
@@ -112,6 +141,7 @@ static int typenum;
             .expandedLength = length - sampleIndex,
             .value = 0.0};
         [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:segmentCount - 1];
+        free(fill_values);
 
         // Initialize other object properties.
         _channel = ch;
@@ -159,12 +189,17 @@ static int typenum;
         } else {
             _visibleRangeStart = _startTime;
         }
-        if (isSigned) {
+        _yMin = _yMin * _channel->scale + _channel->offset;
+        _yMax = _yMax * _channel->scale + _channel->offset;
+        if (_channel->resolution && isSigned) {
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
             _yVisibleRangeMin = -(1 << _channel->resolution) * _channel->scale + _channel->offset;
-        } else {
+        } else if (_channel->resolution) {
             _yVisibleRangeMax = (1 << _channel->resolution) * _channel->scale + _channel->offset;
             _yVisibleRangeMin = _channel->offset;
+        } else {
+            _yVisibleRangeMax = _yMax;
+            _yVisibleRangeMin = _yMin;
         }
     } else {
         self = nil;
@@ -281,6 +316,7 @@ static int typenum;
     SaltoGuiDelegate *appDelegate = [NSApp delegate];
     NSTimeInterval startTime = MAX(self.visibleRangeStart - self.startTime, 0.0);
     NSTimeInterval endTime = MIN(startTime + appDelegate.visibleRange, self.duration);
+    NSTimeInterval timeOffset = (appDelegate.alignment == SaltoAlignCalendarDate) ? self.startTime : 0.0;
     NSUInteger start = round(startTime * self.samplerate);
     NSUInteger end = round(endTime * self.samplerate);
     
@@ -411,13 +447,13 @@ static int typenum;
                     if (sampleCount / pixelCount <= maxPointsPerPixel) {
                         // Show all data points.
                         for (NSUInteger i = skipCount; i < pointCount + skipCount; i++) {
-                            values[pointIndex - range.location] = (segment.expandedLocation + i) / self.samplerate;
+                            values[pointIndex - range.location] = (segment.expandedLocation + i) / self.samplerate + timeOffset;
                             pointIndex++;
                         }
                     } else {
                         // Aggregate data points to two points (min and max) per pixel.
                         for (NSUInteger p = skipCount; p < pointCount + skipCount; p++) {
-                            values[pointIndex - range.location] = (segment.expandedLocation + (p / 2 + 0.5) * sampleCount / pixelCount) / self.samplerate;
+                            values[pointIndex - range.location] = (segment.expandedLocation + (p / 2 + 0.5) * sampleCount / pixelCount) / self.samplerate + timeOffset;
                             pointIndex++;
                         }
                     }
@@ -436,15 +472,14 @@ static int typenum;
                     // X axis (time)
                     if (pointIndex >= range.location && pointIndex < range.location + range.length) {
                         values[pointIndex - range.location] = segment.expandedLocation / self.samplerate;
+                        values[pointIndex - range.location] += timeOffset;
                     }
                     pointIndex++;
                     if (pointIndex >= range.location && pointIndex < range.location + range.length) {
                         values[pointIndex - range.location] = (segment.expandedLocation + segment.expandedLength) / self.samplerate;
+                        values[pointIndex - range.location] += timeOffset;
                     }
                     pointIndex++;
-                    // TODO: Convert times if necessary
-                    // (appDelegate.alignment == SaltoAlignTimeOfDay ||
-                    //  appDelegate.alignment == SaltoAlignCalendarDate)
                 }
             }
         }
@@ -578,7 +613,7 @@ static int typenum;
         plotSpace.globalXRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(appDelegate.maxVisibleRange)];
         x.visibleRange = [CPTPlotRange plotRangeWithLocation:CPTDecimalFromDouble(0.0) length:CPTDecimalFromDouble(self.duration)];
         x.orthogonalCoordinateDecimal = CPTDecimalFromDouble(0.0);
-        x.title = @"ms";
+        x.title = @"s";
         x.titleOffset = 10.0;
         x.labelingPolicy = CPTAxisLabelingPolicyAutomatic;
         x.labelOffset = 1.0;
