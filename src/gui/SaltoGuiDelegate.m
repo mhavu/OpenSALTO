@@ -273,7 +273,7 @@ static const double zoomFactor = 1.3;
 - (IBAction)openDocument:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel];
     // TODO: Get file types from plugin manager.
-    NSArray *allowedTypes = [NSArray arrayWithObjects:@"csv", @"dat", nil];
+    NSArray *allowedTypes = [NSArray arrayWithObjects:@"csv", @"dat", @"ats", nil];
     [panel setCanChooseDirectories:YES];
     [panel setAllowedFileTypes:allowedTypes];
     [panel setDelegate:(id)self];
