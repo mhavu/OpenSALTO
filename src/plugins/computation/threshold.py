@@ -74,3 +74,4 @@ class Plugin(salto.Plugin):
                         start = i
                     prev = i
                 self._addEvent(channel, start, prev)
+        return {}
