@@ -425,10 +425,10 @@ static int typenum;
                     } else {
                         // Aggregate data points to two points (min and max) per pixel.
                         NSUInteger i = 0;
-                        for (NSUInteger p = skipCount; p < pointCount + skipCount; p++) {
+                        for (NSUInteger p = skipCount; p < pointCount + skipCount; p += 2) {
                             double max = data[segment.location + i - dataOffset];
                             double min = max;
-                            while (i < p / 2 * sampleCount / pixelCount && i < sampleCount) {
+                            while (i < (p + 2) / 2 * sampleCount / pixelCount && i < sampleCount) {
                                 if (data[segment.location + i - dataOffset] > max) {
                                     max = data[segment.location + i - dataOffset];
                                 } else if (data[segment.location + i - dataOffset] < min) {
@@ -437,6 +437,10 @@ static int typenum;
                                 i++;
                             }
                             values[pointIndex - range.location] = (p % 2) ? max : min;
+                            values[pointIndex - range.location] *= self.channel->scale;
+                            values[pointIndex - range.location] += self.channel->offset;
+                            pointIndex++;
+                            values[pointIndex - range.location] = (p % 2) ? min : max;
                             values[pointIndex - range.location] *= self.channel->scale;
                             values[pointIndex - range.location] += self.channel->offset;
                             pointIndex++;
