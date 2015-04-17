@@ -32,8 +32,10 @@
     }
     _insertionPoint = [_textView.string length];
     [_textView scrollRangeToVisible:NSMakeRange(_insertionPoint, 0)];
-    // Mavericks doesn't honor quote substitution setting in IB.
+    // Mavericks doesn't honor automatic substitution settings in IB.
     _textView.automaticQuoteSubstitutionEnabled = NO;
+    _textView.automaticSpellingCorrectionEnabled = NO;
+    _textView.automaticTextReplacementEnabled = NO;
 }
 
 - (BOOL)textView:(NSTextView *)view shouldChangeTextInRange:(NSRange)range replacementString:(NSString *)string {
