@@ -944,8 +944,19 @@ except SystemExit:\n\
     pass\n\
 print(\"Exiting OpenSALTO\")";
 
-int saltoRun(void) {
-    return PyRun_SimpleString(saltoPyConsoleCode);
+int saltoRun(const char *filename) {
+    int result;
+    
+    if (filename) {
+        // Batch mode
+        FILE *fp = fopen(filename, "r");
+        result = PyRun_SimpleFileEx(fp, filename, 1);
+    } else {
+        // Interactive mode
+        result = PyRun_SimpleString(saltoPyConsoleCode);
+    }
+    
+    return result;
 }
 
 PyObject *saltoEval(const char *expr) {

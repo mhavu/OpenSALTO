@@ -11,10 +11,12 @@
 
 int main(int argc, char *argv[]) {
     int result;
+    const char *filename;
 
     result = saltoInit("salto.py", NULL);
     if (result == 0) {
-        result = saltoRun();
+        filename = (argc > 1) ? argv[1] : NULL;
+        result = saltoRun(filename);
         saltoEnd(NULL);
     }
 

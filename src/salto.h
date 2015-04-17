@@ -25,7 +25,7 @@ int addChannel(const char *chTable, const char *name, Channel *ch);
 const char *getUniqueName(const char *chTable, const char *name);
 int setCallback(void *obj, const char *type, const char *format, const char *funcname);
 int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void));
-int saltoRun(void);
+int saltoRun(const char *filename);
 PyObject *saltoEval(const char *expr);
 void saltoEnd(void *context);
 
