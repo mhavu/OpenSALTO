@@ -13,6 +13,7 @@ import importlib.machinery
 from datetime import datetime
 import ctypes as c
 import numpy as np
+from collections import OrderedDict
 
 # Extend the OpenSALTO C extension module with native Python classes.
 moduleName = __name__
@@ -39,7 +40,7 @@ class ChannelTable:
     """OpenSALTO channel table"""
     def __init__(self, gui = False):
         self.showsInGui = gui if hasattr(salto, 'gui') else False
-        self._channels = {}
+        self._channels = OrderedDict()
     @property
     def channels(self):
         return self._channels
