@@ -278,6 +278,9 @@ static int typenum;
                 if (segment.expandedLocation < start) {
                     // The (first) segment starts from the middle.
                     validPointCount = segment.expandedLocation + segment.expandedLength - start;
+                } else if (segment.expandedLocation > end) {
+                    // The entire segment is out of visible range.
+                    validPointCount = 0;
                 } else if (segment.location + segment.length > end) {
                     // The (last) segment ends in the middle.
                     validPointCount = end - segment.expandedLocation + 1;
@@ -286,7 +289,10 @@ static int typenum;
                     validPointCount = segment.length;
                 }
                 NSUInteger pixelCount = ceil(validPointCount / self.samplerate * pixelsPerSecond);
-                if (validPointCount / pixelCount <= maxPointsPerPixel) {
+                if (pixelCount == 0) {
+                    // Segment is not visible.
+                    segment.pointCount = 0;
+                } else if (validPointCount / pixelCount <= maxPointsPerPixel) {
                     // Show all data points.
                     segment.pointCount = validPointCount;
                 } else {
