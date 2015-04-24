@@ -48,7 +48,7 @@ class Plugin(salto.Plugin):
                 raise RuntimeError("Detecting the import file type failed")
             # Read the files, each to its own channel table.
             tableList = []
-            channels = set()
+            channels = []
             for file in extdict[dominantext]:
                 tmpTable = salto.ChannelTable()
                 salto.channelTables[tmpName] = tmpTable
@@ -56,7 +56,7 @@ class Plugin(salto.Plugin):
                 pm.read(os.path.join(dirname, file), fmt, tmpName)
                 salto.channelTables.pop(tmpName, None)
                 for name, ch in tmpTable.channels.items():
-                    channels.add(name)
+                    channels.append(name)
                     # Create an event for the file.
                     end = ch.end().timestamp()
                     end_sec = int(end)
