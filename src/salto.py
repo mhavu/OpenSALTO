@@ -41,6 +41,8 @@ class ChannelTable:
     def __init__(self, gui = False):
         self.showsInGui = gui if hasattr(salto, 'gui') else False
         self._channels = OrderedDict()
+    def __iter__(self):
+        yield from self._channels
     @property
     def channels(self):
         return self._channels
