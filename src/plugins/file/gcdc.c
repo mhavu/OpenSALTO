@@ -186,7 +186,7 @@ int readFile(const char *filename, const char *chTable) {
         if (strncmp(model, "X16-", 4) == 0) {
             // range: [-16.0 16.0] * 9.81 m/s^2
             resolution = 16;
-            scale = 9.81 / (2 * 1024);
+            scale = 9.81 / 2048;
         } else if (strncmp(model, "X6-", 3) == 0) {
             if (strncmp(gain, "high", 4) == 0) {
                 // range: [-2.0 2.0] * 9.81 m/s^2
@@ -195,7 +195,7 @@ int readFile(const char *filename, const char *chTable) {
                 // range: [-6.0 6.0] * 9.81 m/s^2
                 divisor = (resolution == 16) ? 5440 : 340;
             }
-            scale = 9.81 / (2 * divisor);
+            scale = 9.81 / divisor;
         } else if (strncmp(model, "X2-", 3) == 0) {
             resolution = 15;
             if (strncmp(gain, "high", 4) == 0) {
@@ -205,7 +205,7 @@ int readFile(const char *filename, const char *chTable) {
                 // range: [-2.0 2.0] * 9.81 m/s^2
                 divisor = 6554;
             }
-            scale = 9.81 / (2 * divisor);
+            scale = 9.81 / divisor;
         } else if (strncmp(model, "X50-", 4) == 0) {
             // range: [-50.0 50.0] * 9.81 m/s^2
             resolution = 14;
