@@ -55,6 +55,7 @@ static char *strsep(char **stringp, const char *delim) {
 typedef enum {
     SUCCESS = 0,
     FOPEN_FAILED,
+    FREAD_FAILED,
     INVALID_FORMAT,
     INVALID_HEADER,
     INVALID_FILE,
@@ -63,8 +64,8 @@ typedef enum {
 } Error;
 
 typedef struct {
-    double t;
-    int a[3];
+    float t;
+    int16_t a[3];
 } Sample;
 
 static off_t fsize(const char *filename) {
@@ -82,9 +83,10 @@ int readFile(const char *filename, const char *chTable) {
     Error err = SUCCESS;
     char header[4096], gain[256] = "", serial[256] = "unknown", device[256] = "GCDC ";
     char *model, *buffer, *line, *token;
-    size_t j, length, lines, nSamples, n;
+    size_t j, length, lines, nSamples, n, datapos;
     int i, resolution, result, divisor, nChannels;
-    double samplerate, duration, first, t, scale;
+    double samplerate, duration, t, scale;
+    float first;
     struct tm tm;
     struct timespec start;
     Sample *sample, *data;
@@ -230,28 +232,29 @@ int readFile(const char *filename, const char *chTable) {
     if (!err) {
         // Read the data.
         fseek(fp, -1, SEEK_CUR);
-        length = fsize(filename) - ftell(fp);
+        datapos = ftell(fp);
+        length = fsize(filename) - datapos;
         buffer = malloc(length);
         duration = 0.0;
         nSamples = 0;
         if (buffer) {
             if (fread(buffer, 1, length, fp) == length) {
                 lines = 1;
-                for (j = length; j > 0; j--) {
+                for (j = 0; j < length; j++) {
                     if (buffer[j] == '\n')
                         lines++;
                 }
                 data = calloc(lines, sizeof(Sample));
                 if (data) {
                     sample = data;
-                    line = buffer;
-                    while (sscanf(line, "%lf, %d, %d, %d%n", &sample->t,
-                                  &sample->a[0], &sample->a[1], &sample->a[2], &i) == 4) {
+                    fseek(fp, datapos, SEEK_SET);
+                    while (fscanf(fp, "%f, %hd, %hd, %hd", &sample->t,
+                                  &sample->a[0], &sample->a[1], &sample->a[2]) == 4) {
                         // Adjust sample times and start time so that first sample is at start time.
                         if (nSamples == 0) {
                             first = sample->t;
                             start.tv_sec += (int)first;
-                            start.tv_nsec += fmod(first, 1.0) * 1000000000;
+                            start.tv_nsec += fmodf(first, 1.0f) * 1000000000;
                             if (start.tv_nsec > 1000000000) {
                                 start.tv_sec++;
                                 start.tv_nsec -= 1000000000;
@@ -264,12 +267,14 @@ int readFile(const char *filename, const char *chTable) {
 
                         sample++;
                         nSamples++;
-                        line += i;
                     }
                 } else {
                     fprintf(stderr, "readFile(): Resource allocation failed\n");
                     err = ALLOCATION_FAILED;
                 }
+            } else {
+                perror("fread()");
+                err = FREAD_FAILED;
             }
             free(buffer);
         } else {
@@ -287,6 +292,7 @@ int readFile(const char *filename, const char *chTable) {
             // Create the channels.
             tmpTable = newChannelTable(NULL);
             if (tmpTable) {
+                j = 0;
                 for (i = 0; i < nChannels; i++) {
                     name[i] = getUniqueName(chTable, name[i]);
                     channel[i] = newInt16Channel(tmpTable, name[i], length);
@@ -334,6 +340,9 @@ const char *describeError(int err) {
             break;
         case FOPEN_FAILED:
             str = "Could not open file";
+            break;
+        case FREAD_FAILED:
+            str = "Could not read file";
             break;
         case INVALID_FORMAT:
             str = "Invalid file format";
