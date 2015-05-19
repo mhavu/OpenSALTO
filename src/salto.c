@@ -792,25 +792,23 @@ PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
     // Convert timespec to a Python datetime object.
     long long epoch;
     long nsec = 0;
-    int year, month, day, hour, minute, second;
-    PyObject *timestamp, *datetime = NULL;
+    PyObject *timestamp, *timedelta, *datetime, *result = NULL;
 
     if (PyArg_ParseTuple(args, "L|l:datetimeFromTimespec", &epoch, &nsec)) {
         timestamp = Py_BuildValue("(L)", epoch);  // new
         if (timestamp) {
             datetime = PyDateTime_FromTimestamp(timestamp);  // new
             if (datetime) {
-                year = PyDateTime_GET_YEAR(datetime);
-                month = PyDateTime_GET_MONTH(datetime);
-                day = PyDateTime_GET_DAY(datetime);
-                hour = PyDateTime_DATE_GET_HOUR(datetime);
-                minute = PyDateTime_DATE_GET_MINUTE(datetime);
-                second = PyDateTime_DATE_GET_SECOND(datetime);
-                Py_DECREF(datetime);
-                datetime = PyDateTime_FromDateAndTime(year, month, day,
-                                                      hour, minute, second,
-                                                      round(nsec / 1e3));
-                
+                if (nsec) {
+                    timedelta = PyDelta_FromDSU(0, 0, round(nsec / 1e3));  // new
+                    if (timedelta) {
+                        result = PyNumber_Add(datetime, timedelta);  // new
+                        Py_DECREF(timedelta);
+                    }
+                    Py_DECREF(datetime);
+                } else {
+                    result = datetime;
+                }
             }
             Py_DECREF(timestamp);
         }
@@ -818,7 +816,7 @@ PyObject *datetimeFromTimespec(PyObject *self, PyObject *args) {
         PyErr_SetString(PyExc_TypeError, "datetimeFromTimespec() takes POSIX time and an optional ns fraction as arguments");
     }
     
-    return datetime;
+    return result;
 }
 
 PyObject *timedeltaFromFloat(PyObject *self, PyObject *args) {
@@ -859,6 +857,7 @@ static PyObject *PyInit_salto(void) {
     PyObject *module = NULL;
     PyObject *path;
 
+    EventType.tp_hash = PyBaseObject_Type.tp_hash;
     if (PyType_Ready(&ChannelType) >= 0 && PyType_Ready(&EventType) >= 0) {
         module = PyModule_Create(&saltoModuleDef);
         if (module) {
