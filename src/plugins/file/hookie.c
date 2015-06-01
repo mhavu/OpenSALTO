@@ -69,7 +69,8 @@ static time_t bcdToTime(uint8_t *buffer) {
 int readFile(const char *filename, const char *chTable) {
     uint8_t buffer[512], *sample;
     off_t fileLength;
-    size_t length, i, *partLen, blk, nBlocks, fill, nParts, pos, blklen, corrupt = 0;
+    size_t length, i, *partLen, longestPart, blkForLongestPart, blk, nBlocks;
+    size_t fill, nParts, pos, blklen, corrupt = 0;
     int headerIsValid, isDynamic = 0;
     int16_t *fillValues;
     int ch;
@@ -78,7 +79,7 @@ int readFile(const char *filename, const char *chTable) {
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
     char serialno[28], tag[28], value[28], json[512] = "{ ";
-    double samplerate, partDuration, excess;
+    double samplerate, partDuration, timedelta;
     Error err = SUCCESS;
     struct timespec startTime;
     time_t t, *timecodes;
@@ -180,6 +181,8 @@ int readFile(const char *filename, const char *chTable) {
     
     if (!err) {
         nParts = 1;
+        longestPart = 0;
+        blkForLongestPart = 0;
         for (blk = 0; blk < nBlocks; blk++) {
             blklen = fread(buffer, 1, 512, fp);
             if (blklen == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
@@ -195,6 +198,10 @@ int readFile(const char *filename, const char *chTable) {
                 if (blk == 0) {
                     partLen[0] = 1;
                 } else if (timecodes[blk] - timecodes[blk - 1] > 2 * samplesPerBlock / samplerate) {
+                    if (partLen[nParts - 1] > partLen[longestPart]) {
+                        blkForLongestPart = blk - partLen[nParts - 1];
+                        longestPart = nParts - 1;
+                    }
                     partLen[nParts++] = 1;
                 } else {
                     partLen[nParts - 1]++;
@@ -219,6 +226,13 @@ int readFile(const char *filename, const char *chTable) {
         startTime.tv_sec = timecodes[0];
         startTime.tv_nsec = 0;
         json[strlen(json) - 1] = '}';
+        // Correct samplerate, if necessary.
+        partDuration = partLen[longestPart] * samplesPerBlock / samplerate;
+        timedelta = timecodes[blkForLongestPart + partLen[longestPart] - 1] - timecodes[blkForLongestPart];
+        if (timedelta + 1 < partDuration) {
+            samplerate *= partDuration / timedelta;
+        }
+        // Add fills, if necessary.
         if (nParts > 1) {
             posArray = calloc(nParts - 1, sizeof(size_t));
             lenArray = calloc(nParts - 1, sizeof(size_t));
@@ -235,13 +249,6 @@ int readFile(const char *filename, const char *chTable) {
                     t = timecodes[blk] - startTime.tv_sec;
                     lenArray[fill] = round(t * samplerate) - pos;
                     pos += lenArray[fill];
-                }
-                // Fix timecodes so that the last block is where the
-                // timestamp says it is.
-                partDuration = (nBlocks - blk) * samplesPerBlock / samplerate ;
-                excess = partDuration - (timecodes[nBlocks - 1] - timecodes[blk] + 1);
-                if (excess > 0.0 && lenArray[nParts - 2] > excess * samplerate) {
-                    lenArray[nParts - 2] -= excess * samplerate;
                 }
             } else {
                 err = ALLOCATION_FAILED;
