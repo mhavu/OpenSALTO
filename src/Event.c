@@ -8,6 +8,7 @@
 
 #include "Event.h"
 #include <structmember.h>
+#include "salto.h"
 
 // Define API functions.
 
@@ -128,13 +129,208 @@ static int Event_init(Event *self, PyObject *args, PyObject *kwds) {
     return result;
 }
 
+static PyObject *Event_richcmp(Event *self, PyObject *other, int op) {
+    // Compares event start times
+    PyObject *result;
+    long long o_sec;
+    long o_nsec;
+    
+    if (PyObject_TypeCheck(other, &EventType)) {
+        o_sec = ((Event *)other)->start_sec;
+        o_nsec = ((Event *)other)->start_nsec;
+        switch (op) {
+            case Py_LT:
+                if (self->start_sec > o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec >= o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_LE:
+                if (self->start_sec > o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec > o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_EQ:
+                result = (self->start_sec == o_sec && self->start_nsec == o_nsec) ? Py_True : Py_False;
+                break;
+            case Py_NE:
+                result = (self->start_sec == o_sec && self->start_nsec == o_nsec) ? Py_False : Py_True;
+                break;
+            case Py_GT:
+                if (self->start_sec < o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec <= o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            case Py_GE:
+                if (self->start_sec < o_sec) {
+                    result = Py_False;
+                } else if (self->start_sec == o_sec && self->start_nsec < o_nsec) {
+                    result = Py_False;
+                } else {
+                    result = Py_True;
+                }
+                break;
+            default:
+                result = Py_NotImplemented;
+        }
+    } else {
+        result = Py_NotImplemented;
+    }
+    Py_INCREF(result);
+    
+    return result;
+}
+
+static PyObject *Event_start(Event *self) {
+    PyObject *timespec, *result;
+    
+    timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);  // new
+    if (timespec) {
+        result = datetimeFromTimespec(NULL, timespec);
+        Py_DECREF(timespec);
+    } else {
+        result = NULL;
+    }
+    
+    return result;
+}
+
+static PyObject *Event_end(Event *self) {
+    PyObject *timespec, *result;
+    
+    timespec = Py_BuildValue("Ll", self->end_sec, self->end_nsec);  // new
+    if (timespec) {
+        result = datetimeFromTimespec(NULL, timespec);
+        Py_DECREF(timespec);
+    } else {
+        result = NULL;
+    }
+    
+    return result;
+}
+
 static PyObject *Event_duration(Event *self) {
     double duration = self->end_sec - self->start_sec + (self->end_nsec - self->start_nsec) / 1e9;
     return PyFloat_FromDouble(duration);
 }
 
+static PyObject *Event_union(Event *self, PyObject *args) {
+    PyObject *list, *result;
+    Event *e1, *e2;
+    Py_ssize_t size, i;
+    
+    list = PySequence_List(args);  // new
+    result = PySet_New(NULL);  // new
+    if (list && result) {
+        PyList_Sort(list);  // new
+        size = PyList_GET_SIZE(list);
+        e1 = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls", self->type,
+                                            self->subtype, self->start_sec, self->start_nsec,
+                                            self->end_sec, self->end_nsec, self->description);  // new
+        for (i = 0; i < size; i++) {
+            e2 = (Event *)PyList_GET_ITEM(list, i);  // borrowed
+            if (e2->type != self->type || strcmp(e2->subtype, self->subtype) ||
+                e2->end_sec < e1->start_sec || e2->start_sec > e1->end_sec ||
+                (e2->end_sec == e1->start_sec && e2->end_nsec < e1->start_nsec) ||
+                (e2->start_sec == e1->end_sec && e2->start_nsec > e1->end_nsec)) {
+                // Events are of different type, or they do not overlap. Keep both.
+                PySet_Add(result, (PyObject *)e2);
+            } else {
+                // Events overlap. Modify e1, and discard e2.
+                if (e2->start_sec < e1->start_sec || (e2->start_sec == e1->start_sec &&
+                                                      e2->start_nsec < e1->start_nsec)) {
+                    e1->start_sec = e2->start_sec;
+                    e1->start_nsec = e2->start_nsec;
+                }
+                if (e2->end_sec > e1->end_sec || (e2->end_sec == e1->end_sec &&
+                                                  e2->end_nsec > e1->end_nsec)) {
+                    e1->end_sec = e2->end_sec;
+                    e1->end_nsec = e2->end_nsec;
+                }
+            }
+        }
+        PySet_Add(result, (PyObject *)e1);
+    } else {
+        Py_XDECREF(result);
+        result = NULL;
+    }
+    Py_XDECREF(list);
+    
+    return result;
+}
+
+static PyObject *Event_intersection(Event *self, PyObject *args) {
+    PyObject *list, *result;
+    Event *other, *copy;
+    Py_ssize_t size, i;
+    
+    list = PySequence_List(args);  // new
+    result = PySet_New(NULL);  // new
+    if (list && result) {
+        PyList_Sort(list);  // new
+        size = PyList_GET_SIZE(list);
+        for (i = 0; i < size; i++) {
+            other = (Event *)PyList_GET_ITEM(list, i);  // borrowed
+            if (other->end_sec < self->start_sec ||
+                (other->end_sec == self->start_sec && other->end_nsec < self->start_nsec)) {
+                // Events do not overlap.
+                continue;
+            } else if (other->start_sec > self->end_sec ||
+                       (other->start_sec == self->end_sec && other->start_nsec > self->end_nsec)) {
+                // Events do not overlap.
+                break;
+            } else {
+                // Events overlap.
+                Py_INCREF(other);
+                if (other->start_sec < self->start_sec ||
+                    (other->start_sec == self->start_sec && other->start_nsec < self->start_nsec)) {
+                    copy = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls",
+                                                          other->type, other->subtype,
+                                                          self->start_sec, self->start_nsec,
+                                                          other->end_sec, other->end_nsec,
+                                                          other->description);  // new
+                    Py_DECREF(other);
+                    other = copy;
+                }
+                if (other->end_sec > self->end_sec ||
+                    (other->end_sec == self->end_sec && other->end_nsec > self->end_nsec)) {
+                    copy = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls",
+                                                          other->type, other->subtype,
+                                                          other->start_sec, other->start_nsec,
+                                                          self->end_sec, self->end_nsec,
+                                                          other->description);  // new
+                    Py_DECREF(other);
+                    other = copy;
+                }
+                PySet_Add(result, (PyObject *)other);
+            }
+        }
+    } else {
+        Py_XDECREF(result);
+        result = NULL;
+    }
+    Py_XDECREF(list);
+    
+    return result;
+}
+
 static PyMethodDef Event_methods[] = {
+    {"start", (PyCFunction)Event_start, METH_NOARGS, "event start time as a datetime object"},
     {"duration", (PyCFunction)Event_duration, METH_NOARGS, "event duration in seconds"},
+    {"end", (PyCFunction)Event_end, METH_NOARGS, "event end time as a datetime object"},
+    {"union", (PyCFunction)Event_union, METH_VARARGS, "Return the union of events as a new set of events."},
+    {"intersection", (PyCFunction)Event_intersection, METH_VARARGS, "Return the intersection of events as a new set of events."},
     {NULL}  // sentinel
 };
 
@@ -151,7 +347,7 @@ static PyMemberDef Event_members[] = {
 };
 
 PyTypeObject EventType = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyObject_HEAD_INIT(NULL)
     "salto.Event",               // tp_name
     sizeof(Event),               // tp_basicsize
     0,                           // tp_itemsize
@@ -175,7 +371,7 @@ PyTypeObject EventType = {
     "OpenSALTO Event",           // tp_doc
     0,		                     // tp_traverse
     0,		                     // tp_clear
-    0,		                     // tp_richcompare
+    (richcmpfunc)Event_richcmp,  // tp_richcompare
     0,		                     // tp_weaklistoffset
     0,		                     // tp_iter
     0,		                     // tp_iternext
