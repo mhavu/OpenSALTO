@@ -78,8 +78,6 @@ int16_t *newSparseInt16Channel(const char *chTable, const char *name, size_t len
 int32_t *newSparseInt32Channel(const char *chTable, const char *name, size_t length, size_t nParts);
 float *newSparseFloatChannel(const char *chTable, const char *name, size_t length, size_t nParts);
 double *newSparseDoubleChannel(const char *chTable, const char *name, size_t length, size_t nParts);
-int collateChannelsFromTable(const char *chTable, const char *name, const char *fromChannelTable, void *fillValues);
-int collateChannels(const char *chTable, const char *name, size_t count, void *channelArray, void *fillValues);
 void deleteChannel(const char *chTable, const char *name);
 int moveChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
 int copyChannel(const char *fromChannelTable, const char *name, const char *toChannelTable);
