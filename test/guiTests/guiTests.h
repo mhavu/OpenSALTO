@@ -6,8 +6,8 @@
 //  GNU General Public License version 3 or later.
 //
 
-#import <SenTestingKit/SenTestingKit.h>
+#import <XCTest/XCTest.h>
 
-@interface guiTests : SenTestCase
+@interface guiTests : XCTestCase
 
 @end
