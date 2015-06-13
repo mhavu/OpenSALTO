@@ -49,9 +49,10 @@ class ChannelTable:
     def add(self, name, ch):
         if not isinstance(ch, salto.Channel):
             raise TypeError("%r is not a Channel object" % ch)
-        inTable = self._channels.setdefault(name, ch)
-        if self.showsInGui and inTable is ch:
-            salto.gui.addChannel(ch, name)
+        if name not in self._channels:
+            self._channels[name] = ch
+            if self.showsInGui:
+                salto.gui.addChannel(ch, name)
     def remove(self, name):
         removed = self._channels.pop(name, None)
         if self.showsInGui and removed:
@@ -253,18 +254,38 @@ class PluginManager:
         plugin = self._computations.get(compname)
         if plugin:
             return plugin.compute(compname, inputs)
+    def detect(self, filename):
+        _, ext = os.path.splitext(filename)
+        formatsWithExt = self.query(ext = ext, mode = 'r')
+        if len(formatsWithExt) == 1:
+            format = formatsWithExt.pop()
+        elif os.path.isdir(filename):
+            format = 'directory'
+        else:
+            # If file extension matches more than one format,
+            # detect the format by trial and error.
+            chTableName = salto.makeUniqueKey(salto.channelTables, "temporary")
+            tmpTable = salto.ChannelTable()
+            salto.channelTables[chTableName] = tmpTable
+            for fmt in formatsWithExt:
+                try:
+                    plugin = self._importFormats[fmt]
+                    plugin.read(filename, fmt, chTableName)
+                    format = fmt
+                    break
+                except:
+                    pass
+            else:
+                format = None
+            salto.channelTables.pop(chTableName, None)
+        return format
     def read(self, filename, format, chTableName = None):
         if chTableName is None:
             format, chTableName = (None, format)
         if format is None:
-            _, ext = os.path.splitext(filename)
-            formatsWithExt = self.query(ext = ext, mode = 'r')
-            if len(formatsWithExt) == 1:
-                format = formatsWithExt.pop()
-            elif os.path.isdir(filename):
-                format = 'directory'
-            else:
-                raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
+            format = self.detect(filename)
+        if format is None:
+            raise KeyError("Could not determine file format by file extension. Try specifying the format explicitly.")
         plugin = self._importFormats[format]
         plugin.read(filename, format, chTableName)
     def write(self, filename, format, chTableName = None):
@@ -304,7 +325,7 @@ del moduleName
 def main():
     salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
     salto.units = pint.UnitRegistry()
-    salto.Q = salto.units.Quantity
+    salto.Q_ = salto.units.Quantity
     salto.channelTables = {'main': salto.ChannelTable(gui = True)}
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
