@@ -102,7 +102,7 @@ int readFile(const char *filename, const char *chTable) {
         nBlocks = betoh32(&header[8]);
         blockLength = betoh16(&header[12]);
         time.tm_year = betoh16(&header[14]) - 1900;
-        time.tm_mon = header[16];
+        time.tm_mon = header[16] - 1;
         time.tm_mday = header[17];
         time.tm_hour = header[18];
         time.tm_min = header[19];

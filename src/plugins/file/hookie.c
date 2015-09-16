@@ -57,7 +57,7 @@ static time_t bcdToTime(uint8_t *buffer) {
     struct tm time;
 
     time.tm_mday = 10 * (buffer[0] >> 4) + (buffer[0] & 0x0F);
-    time.tm_mon = 10 * (buffer[1] >> 4) + (buffer[1] & 0x0F);
+    time.tm_mon = 10 * (buffer[1] >> 4) + (buffer[1] & 0x0F) - 1;
     time.tm_year = 100 + 10 * (buffer[2] >> 4) + (buffer[2] & 0x0F);
     time.tm_hour = 10 * (buffer[3] >> 4) + (buffer[3] & 0x0F);
     time.tm_min = 10 * (buffer[4] >> 4) + (buffer[4] & 0x0F);
