@@ -32,7 +32,7 @@ int setEventType(Event *event, EventVariety type, const char *subtype) {
         ptr = event->subtype;
         length = strlen(subtype) + 1;
         event->subtype = malloc(length);
-        strlcpy(event->subtype, subtype, length);
+        strcpy(event->subtype, subtype);
         free(ptr);
     } else {
         result = -1;
@@ -71,7 +71,7 @@ int setEventDescription(Event *event, const char *description) {
         ptr = event->description;
         length = strlen(description) + 1;
         event->description = malloc(length);
-        strlcpy(event->description, description, length);
+        strcpy(event->description, description);
         free(ptr);
     } else {
         result = -1;
@@ -111,19 +111,19 @@ static int Event_init(Event *self, PyObject *args, PyObject *kwds) {
         size = strlen(self->subtype) + 1;
         tmp = self->subtype;
         self->subtype = malloc(size);
-        strlcpy(self->subtype, tmp, size);
+        strcpy(self->subtype, tmp);
     } else {
         self->subtype = malloc(8);
-        strlcpy(self->subtype, "unknown", 8);
+        strcpy(self->subtype, "unknown");
     }
     if (self->description) {
         size = strlen(self->description) + 1;
         tmp = self->description;
         self->description = malloc(size);
-        strlcpy(self->description, tmp, size);
+        strcpy(self->description, tmp);
     } else {
         self->description = malloc(1);
-        strlcpy(self->description, "", 1);
+        strcpy(self->description, "");
     }
 
     return result;

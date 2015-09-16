@@ -101,7 +101,12 @@ int readFile(const char *filename, const char *chTable) {
             for (i = strlen(headerTop); i < 480; i += 32) {
                 if (sscanf((const char *)&buffer[i], "* %28[^\x0A:*]: %28s *\x0A", tag, value) > 0) {
                     if (strcmp(tag, "S/N") == 0) {
-                        strlcpy(serialno, value, sizeof(serialno));
+                        if (strlen(value) + 1 > sizeof(serialno)) {
+                            memcpy(serialno, value, sizeof(serialno) - 1);
+                            serialno[sizeof(serialno) - 1] = 0;
+                        } else {
+                            strcpy(serialno, value);
+                        }
                     } else if (strcmp(tag, "Data rate") == 0) {
                         if (sscanf(value, "%lfHz", &samplerate) <= 0) {
                             fclose(fp);

@@ -403,7 +403,7 @@ const char *getUniqueName(const char *chTable, const char *name) {
             buffer = PyUnicode_AsUTF8AndSize(unique, (Py_ssize_t *)&length);
         if (buffer) {
             s = malloc(++length);
-            strlcpy(s, buffer, length);
+            strcpy(s, buffer);
         }
         Py_XDECREF(unique);
     }
@@ -433,7 +433,7 @@ const char *newChannelTable(const char *name) {
             buffer = PyUnicode_AsUTF8AndSize(unique, (Py_ssize_t *)&length);
             if (buffer) {
                 s = malloc(++length);
-                strlcpy(s, buffer, length);
+                strcpy(s, buffer);
             }
             Py_DECREF(unique);
         }
@@ -699,6 +699,10 @@ Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
     PyGILState_Release(state);
 
     return event;
+}
+
+PyObject *unitRegistry(void) {
+    return PyDict_GetItemString(saltoDict, "units");  // borrowed;
 }
 
 

@@ -20,9 +20,11 @@ static void Channel_dealloc(Channel* self) {
     free(self->unit);
     free(self->type);
     free(self->json);
-    Py_XDECREF(self->data);
+    Py_DECREF(self->data);
     Py_XDECREF(self->dict);
-    Py_XDECREF(self->fill_values);
+    Py_DECREF(self->fill_positions);
+    Py_DECREF(self->fill_lengths);
+    Py_DECREF(self->fill_values);
     Py_XDECREF(self->events);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
@@ -38,6 +40,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
             self->dict = NULL;
             self->events = NULL;
             self->fill_positions = NULL;
+            self->fill_lengths = NULL;
             self->fill_values = NULL;
             Py_INCREF(data);
             self->data = (PyArrayObject *)data;
@@ -84,13 +87,58 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                                          &(self->device), &(self->serial_no),
                                          &(self->resolution), &(self->json),
                                          &events);
+    if (self->device) {
+        size = strlen(self->device) + 1;
+        tmp = self->device;
+        self->device = malloc(size);
+        strcpy(self->device, tmp);
+    } else {
+        self->device = malloc(8);
+        strcpy(self->device, "unknown");
+    }
+    if (self->serial_no) {
+        size = strlen(self->serial_no) + 1;
+        tmp = self->serial_no;
+        self->serial_no = malloc(size);
+        strcpy(self->serial_no, tmp);
+    } else {
+        self->serial_no = malloc(8);
+        strcpy(self->serial_no, "unknown");
+    }
+    if (self->unit) {
+        size = strlen(self->unit) + 1;
+        tmp = self->unit;
+        self->unit = malloc(size);
+        strcpy(self->unit, tmp);
+    } else {
+        self->unit = malloc(1);
+        self->unit[0] = 0;
+    }
+    if (self->type) {
+        size = strlen(self->type) + 1;
+        tmp = self->type;
+        self->type = malloc(size);
+        strcpy(self->type, tmp);
+    } else {
+        self->type = malloc(8);
+        strcpy(self->type, "unknown");
+    }
+    if (self->json) {
+        size = strlen(self->json) + 1;
+        tmp = self->json;
+        self->json = malloc(size);
+        strcpy(self->json, tmp);
+    } else {
+        self->json = malloc(3);
+        strcpy(self->json, "{}");
+    }
     if (!error && (self->start_nsec < 0 || self->start_nsec > 999999999)) {
         error = -1;
         PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
     }
     if (!error) {
         if (self->fill_positions && self->fill_lengths && self->fill_values) {
-            if (PyArray_DTYPE(self->fill_values) == PyArray_DTYPE(self->data)) {
+            if (PyArray_TYPE(self->fill_values) == PyArray_TYPE(self->data)) {
                 if (PyArray_NDIM(self->fill_positions) == 1 &&
                     PyArray_NDIM(self->fill_lengths) == 1 &&
                     PyArray_NDIM(self->fill_values) == 1) {
@@ -121,9 +169,14 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                 error = -1;
                 PyErr_SetString(PyExc_TypeError, "fill_values must be of same type as data");
             }
-        } else if (self->fill_positions || self->fill_values) {
+        } else if (self->fill_positions || self->fill_lengths || self->fill_values) {
             error = -1;
             PyErr_SetString(PyExc_ValueError, "fill_positions, fill_lengths and fill_values must be either all specified or all null");
+        } else {
+            nFills = 0;
+            self->fill_positions = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            self->fill_lengths = (PyArrayObject *)PyArray_EMPTY(1, &nFills, NPY_INTP, 0);  // new
+            self->fill_values = (PyArrayObject *)PyArray_EMPTY(1, &nFills, PyArray_TYPE(self->data), 0);  // new
         }
     }
     if (!error) {
@@ -136,55 +189,12 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
             PyErr_SetString(PyExc_RuntimeError, "creating events failed");
         }
     }
-    if (!error) {
-        if (self->device) {
-            size = strlen(self->device) + 1;
-            tmp = self->device;
-            self->device = malloc(size);
-            strlcpy(self->device, tmp, size);
-        } else {
-            self->device = malloc(8);
-            strlcpy(self->device, "unknown", 8);
-        }
-        if (self->serial_no) {
-            size = strlen(self->serial_no) + 1;
-            tmp = self->serial_no;
-            self->serial_no = malloc(size);
-            strlcpy(self->serial_no, tmp, size);
-        } else {
-            self->serial_no = malloc(8);
-            strlcpy(self->serial_no, "unknown", 8);
-        }
-        if (self->unit) {
-            size = strlen(self->unit) + 1;
-            tmp = self->unit;
-            self->unit = malloc(size);
-            strlcpy(self->unit, tmp, size);
-        }
-        if (self->type) {
-            size = strlen(self->type) + 1;
-            tmp = self->type;
-            self->type = malloc(size);
-            strlcpy(self->type, tmp, size);
-        } else {
-            self->type = malloc(8);
-            strlcpy(self->type, "unknown", 8);
-        }
-        if (self->json) {
-            size = strlen(self->json) + 1;
-            tmp = self->json;
-            self->json = malloc(size);
-            strlcpy(self->json, tmp, size);
-        } else {
-            self->json = malloc(3);
-            strlcpy(self->json, "{}", 3);
-        }
-    }
 
     return error;
 }
 
 static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
+    // Compares channel start times
     PyObject *result;
     long long o_sec;
     long o_nsec;
@@ -342,7 +352,7 @@ static PyObject *Channel_matches(Channel *self, PyObject *args) {
             self->scale == other->scale &&
             self->offset == other->offset &&
             strcmp(self->unit, other->unit) == 0 &&
-            PyArray_DTYPE(self->data)->type_num == PyArray_DTYPE(other->data)->type_num &&
+            PyArray_TYPE(self->data) == PyArray_TYPE(other->data) &&
             PyArray_DIM(self->data, 0) == PyArray_DIM(other->data, 0))
         {
             if (!self->fill_positions && !other->fill_positions) {

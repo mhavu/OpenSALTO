@@ -28,5 +28,6 @@ int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void));
 int saltoRun(const char *filename);
 PyObject *saltoEval(const char *expr);
 void saltoEnd(void *context);
+PyObject *unitRegistry(void);
 
 #endif

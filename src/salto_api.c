@@ -139,7 +139,7 @@ int setUnit(const char *chTable, const char *name, const char *unit) {
         ptr = ch->unit;
         length = strlen(unit) + 1;
         ch->unit = malloc(length);
-        strlcpy(ch->unit, unit, length);
+        strcpy(ch->unit, unit);
         free(ptr);
     } else {
         result = -1;
@@ -173,12 +173,12 @@ int setDevice(const char *chTable, const char *name, const char *device, const c
         ptr = ch->device;
         length = strlen(device) + 1;
         ch->device = malloc(length);
-        strlcpy(ch->device, device, length);
+        strcpy(ch->device, device);
         free(ptr);
         ptr = ch->serial_no;
         length = strlen(serial) + 1;
         ch->serial_no = malloc(length);
-        strlcpy(ch->serial_no, serial, length);
+        strcpy(ch->serial_no, serial);
         free(ptr);
     } else {
         result = -1;
@@ -329,7 +329,7 @@ int setMetadata(const char *chTable, const char *name, const char *json) {
         ptr = ch->json;
         length = strlen(json) + 1;
         ch->json = malloc(length);
-        strlcpy(ch->json, json, length);
+        strcpy(ch->json, json);
         free(ptr);
         // TODO: handle standard fields
     } else {
@@ -365,7 +365,7 @@ int setSignalType(const char *chTable, const char *name, const char *type) {
         ptr = ch->type;
         length = strlen(type) + 1;
         ch->type = malloc(length);
-        strlcpy(ch->type, type, length);
+        strcpy(ch->type, type);
         free(ptr);
     } else {
         result = -1;
