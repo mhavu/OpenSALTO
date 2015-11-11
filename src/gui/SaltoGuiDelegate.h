@@ -53,5 +53,6 @@ typedef NS_OPTIONS(NSInteger, SaltoChannelAlignment) {
 - (IBAction)interruptExecution:(id)sender;
 - (IBAction)scrollAction:(id)sender;
 - (IBAction)refresh:(id)sender;
+- (IBAction)useTool:(id)sender;
 
 @end

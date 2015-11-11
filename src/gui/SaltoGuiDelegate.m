@@ -374,6 +374,13 @@ static const double zoomFactor = 1.3;
     }
 }
 
+- (IBAction)useTool:(id)sender {
+    if ([[(NSToolbarItem *)sender itemIdentifier] isEqual:@"saltoMarkInactivity"]) {
+        NSString *command = @"chTables = salto.channelTables\nm = chTables['main']\npm = salto.pluginManager\npm.compute('inclination', {'channelTable': 'main'})\nchTables['x'] = salto.ChannelTable()\nchTables['x'].add('X inclination', chTables['inclination'].channels['X inclination'])\nchTables['z'] = salto.ChannelTable()\nchTables['z'].add('Z inclination', chTables['inclination'].channels['Z inclination'])\npm.compute('threshold', {'channelTable': 'x', 'upper': 0.75*np.pi, 'minduration': 5.0})\npm.compute('threshold', {'channelTable': 'z', 'upper': 0.25*np.pi, 'minduration': 5.0})\nchTables['inclination'].channels['norm'].events = salto.Channel.eventUnion(chTables['inclination'].channels['X inclination'], chTables['inclination'].channels['Z inclination'])\nm.add('norm', chTables['inclination'].channels['norm'])\nevents = list(m.channels['norm'].events)\nevents.sort()\nprint(\"%s  1  %f\" % (m.channels['norm'].start().isoformat(' '), (events[0].start() - m.channels['norm'].start()).total_seconds()))\nprint(\"%s  0  %f\" % (events[0].start().isoformat(' '), events[0].duration()))\nfor i, e in enumerate(events[1:]):\n  print(\"%s  1  %f\" % (events[i].end().isoformat(' '), (e.start() - events[i].end()).total_seconds()))\n  print(\"%s  0  %f\" % (e.start().isoformat(' '), e.duration()))\nprint(\"%s  1  %f\" % (e.end().isoformat(' '), (m.channels['norm'].end() - e.end()).total_seconds()))";//\ndel(chTables['x'])\ndel(chTables['z'])
+        [_consoleController.console execute:command];
+    }
+}
+
 #pragma mark - Other delegate messages
 
 - (void)tableView:(NSTableView *)view didAddRowView:(NSTableRowView *)rowView forRow:(NSInteger)row {

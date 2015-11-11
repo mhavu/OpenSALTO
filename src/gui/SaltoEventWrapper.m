@@ -124,7 +124,7 @@ static NSMutableSet *allEvents = nil;
     if (strcmp(_event->subtype, buffer) != 0) {
         free(_event->subtype);
         _event->subtype = malloc(len);
-        strlcpy(_event->subtype, buffer, len);
+        strcpy(_event->subtype, buffer);
     }
 }
 
@@ -138,7 +138,7 @@ static NSMutableSet *allEvents = nil;
     if (strcmp(_event->description, buffer) != 0) {
         free(_event->description);
         _event->description = malloc(len);
-        strlcpy(_event->description, buffer, len);
+        strcpy(_event->description, buffer);
     }
 }
 

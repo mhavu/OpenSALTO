@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="6250" systemVersion="13F34" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
+<document type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="3.0" toolsVersion="6751" systemVersion="13F1077" targetRuntime="MacOSX.Cocoa" propertyAccessControl="none" useAutolayout="YES">
     <dependencies>
         <deployment identifier="macosx"/>
         <development version="5100" identifier="xcode"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="6250"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.CocoaPlugin" version="6751"/>
     </dependencies>
     <objects>
         <customObject id="-2" userLabel="File's Owner" customClass="NSApplication">
@@ -348,7 +348,7 @@
             <value key="minSize" type="size" width="320" height="115"/>
             <view key="contentView" id="745">
                 <rect key="frame" x="0.0" y="0.0" width="358" height="200"/>
-                <autoresizingMask key="autoresizingMask"/>
+                <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                 <subviews>
                     <scrollView borderType="none" autohidesScrollers="YES" horizontalLineScroll="102" horizontalPageScroll="10" verticalLineScroll="102" verticalPageScroll="10" hasHorizontalScroller="NO" translatesAutoresizingMaskIntoConstraints="NO" id="UCI-9R-5CY">
                         <rect key="frame" x="-1" y="14" width="360" height="187"/>
@@ -500,9 +500,14 @@
                     <toolbarItem implicitItemIdentifier="14EE868D-672E-425B-9087-14B20C0D0AF0" label="Zoom" paletteLabel="Zoom" toolTip="Zoom" tag="-1" image="zoom" selectable="YES" id="1025"/>
                     <toolbarItem implicitItemIdentifier="NSToolbarSpaceItem" id="747"/>
                     <toolbarItem implicitItemIdentifier="NSToolbarFlexibleSpaceItem" id="750"/>
+                    <toolbarItem implicitItemIdentifier="CC7BEDE5-9E01-4D30-9A1D-10FA98165AAB" explicitItemIdentifier="saltoMarkInactivity" label="Mark Inactivity" paletteLabel="Mark Inactivity" toolTip="Mark Inactivity" tag="-1" image="inact" id="DeJ-NF-Pjx">
+                        <connections>
+                            <action selector="useTool:" target="690" id="M7l-F4-2mc"/>
+                        </connections>
+                    </toolbarItem>
                 </allowedToolbarItems>
                 <defaultToolbarItems>
-                    <toolbarItem reference="1025"/>
+                    <toolbarItem reference="DeJ-NF-Pjx"/>
                 </defaultToolbarItems>
             </toolbar>
             <connections>
@@ -525,6 +530,7 @@
         </arrayController>
     </objects>
     <resources>
+        <image name="inact" width="32" height="32"/>
         <image name="zoom" width="287" height="281"/>
     </resources>
 </document>
