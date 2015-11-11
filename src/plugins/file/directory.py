@@ -29,34 +29,26 @@ class Plugin(salto.Plugin):
             pm = salto.pluginManager
             # For directories with more than one type of file, process
             # the type with most files.
-            dominantext = max(extdict, key = lambda x: len(extdict[x]))
-            formats = pm.query(ext = dominantext, mode = 'r')
-            file = extdict[dominantext].pop()
-            # If file extension matches more than one format,
-            # detect the format by trial and error.
-            tmpName = salto.makeUniqueKey(salto.channelTables, "temporary")
-            tmpTable = salto.ChannelTable()
-            salto.channelTables[tmpName] = tmpTable
-            for fmt in formats:
-                try:
-                    pm.read(os.path.join(dirname, file), fmt, tmpName)
-                    break
-                except IOError:
-                    pass
-            else:
-                salto.channelTables.pop(tmpName, None)
-                raise RuntimeError("Detecting the import file type failed")
+            dominantExt = max(extdict, key = lambda x: len(extdict[x]))
+            formats = pm.query(ext = dominantExt, mode = 'r')
+            file = extdict[dominantExt][0]
+            # Try to detect the file format.
+            fmt = pm.detect(os.path.join(dirname, file))
+            if fmt is None:
+                raise RuntimeError("Detecting import file type failed")
             # Read the files, each to its own channel table.
             tableList = []
             channels = []
-            for file in extdict[dominantext]:
+            tmpName = salto.makeUniqueKey(salto.channelTables, "temporary")
+            for file in extdict[dominantExt]:
                 tmpTable = salto.ChannelTable()
                 salto.channelTables[tmpName] = tmpTable
                 tableList.append(tmpTable)
                 pm.read(os.path.join(dirname, file), fmt, tmpName)
                 salto.channelTables.pop(tmpName, None)
                 for name, ch in tmpTable.channels.items():
-                    channels.append(name)
+                    if name not in channels:
+                        channels.append(name)
                     # Create an event for the file.
                     end = ch.end().timestamp()
                     end_sec = int(end)
@@ -68,8 +60,8 @@ class Plugin(salto.Plugin):
             # Combine the files to sparse channels.
             for chName in channels:
                 parts = [table.channels.get(chName) for table in tableList
-                         if chName in table.channels.keys()]
-                ch = salto.Channel.collate(parts)
+                         if chName in table.channels]
+                ch = salto.Channel.collate(*parts)
                 chTable.add(chTable.getUnique(chName), ch)
         else:
             raise NotADirectoryError
