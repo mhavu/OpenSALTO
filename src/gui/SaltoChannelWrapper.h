@@ -17,7 +17,6 @@ typedef struct {
     NSUInteger length;
     NSUInteger expandedLocation;
     NSUInteger expandedLength;
-    double value;
     NSUInteger pointCount;
 } SaltoChannelSegment;
 

@@ -33,26 +33,17 @@ class Plugin(salto.Plugin):
         chTable = salto.ChannelTable()
         normArray = np.linalg.norm([ch.scale * ch.data + ch.offset
                                     for ch in iChannels.values()], axis = 0)
-        fillNormArray = np.linalg.norm([ch.scale * ch.fill_values + ch.offset
-                                        for ch in iChannels.values()], axis = 0)
-        allEvents = set()
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             for name, ch in iChannels.items():
-                allEvents = allEvents.union(ch.events)
                 inclination = salto.Channel(np.arccos((ch.scale * ch.data + ch.offset) / normArray),
-                                            ch.samplerate,
-                                            ch.fill_positions, ch.fill_lengths,
-                                            np.arccos((ch.scale * ch.fill_values + ch.offset) / fillNormArray),
+                                            ch.samplerate, ch.fills,
                                             unit = "rad", type = "angle",
-                                            start_sec = ch.start_sec, start_nsec = ch.start_nsec,
-                                            events = ch.events)
+                                            start_sec = ch.start_sec, start_nsec = ch.start_nsec)
                 chTable.add(name + " inclination", inclination)
-        norm = salto.Channel(normArray, channel.samplerate,
-                             ch.fill_positions, ch.fill_lengths, fillNormArray,
+        norm = salto.Channel(normArray, channel.samplerate, ch.fills,
                              unit = channel.unit, type = channel.type,
-                             start_sec = channel.start_sec, start_nsec = channel.start_nsec,
-                             events = allEvents)
+                             start_sec = channel.start_sec, start_nsec = channel.start_nsec)
         chTable.add("norm", norm)
         salto.channelTables[tableName] = chTable
         outputs = {'channelTable': tableName}

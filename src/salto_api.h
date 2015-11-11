@@ -85,8 +85,8 @@ int copyChannel(const char *fromChannelTable, const char *name, const char *toCh
 void *getChannelData(const char *chTable, const char *name, size_t *length);
 const char *getChannelName(const char *chTable, void *dataPtr);
 
-int setFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths, void *values);
-int getFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths, void *values);
+int setFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths);
+int getFills(const char *chTable, const char *ch, size_t *positions, size_t *lengths);
 size_t numberOfFills(const char *chTable, const char *ch);
 int setScaleAndOffset(const char *chTable, const char *ch, double scale, double offset);
 double scale(const char *chTable, const char *ch);

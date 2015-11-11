@@ -19,9 +19,7 @@ typedef struct {
     PyObject_HEAD
     PyObject *dict;
     PyArrayObject *data;
-    PyArrayObject *fill_positions;
-    PyArrayObject *fill_lengths;
-    PyArrayObject *fill_values;
+    PyArrayObject *fills;
     double samplerate;
     double scale;
     double offset;
@@ -35,5 +33,10 @@ typedef struct {
     char *json;
     PySetObject *events;
 } Channel;
+
+typedef struct {
+    npy_intp pos;
+    npy_intp len;
+} Channel_Fill;
 
 #endif

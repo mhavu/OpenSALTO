@@ -72,7 +72,6 @@ int readFile(const char *filename, const char *chTable) {
     size_t length, i, *partLen, longestPart, blkForLongestPart, blk, nBlocks;
     size_t fill, nParts, pos, blklen, corrupt = 0;
     int headerIsValid, isDynamic = 0;
-    int16_t *fillValues;
     int ch;
     const int samplesPerBlock = 84;
     const int nChannels = 3;
@@ -143,6 +142,9 @@ int readFile(const char *filename, const char *chTable) {
         // Allocate resources.
         nBlocks = fileLength / 512 - 1;
         length = samplesPerBlock * nBlocks;
+        if (!isDynamic) {
+            length += nBlocks - 1;
+        }
         for (ch = 0; ch < nChannels; ch++) {
             channel[ch].buffer = calloc(length, sizeof(uint16_t));
             if (channel[ch].buffer) {
@@ -155,21 +157,18 @@ int readFile(const char *filename, const char *chTable) {
             }
         }
         timecodes = calloc(nBlocks, sizeof(time_t));
-        fillValues = calloc(nBlocks - 1, sizeof(uint16_t));
         partLen = calloc(nBlocks, sizeof(size_t));
-        if (timecodes && fillValues && partLen) {
+        if (timecodes && partLen) {
             tmpTable = newChannelTable(NULL);
             if (tmpTable) {
                 bzero(partLen, nBlocks * sizeof(size_t));
             } else {
                 free(timecodes);
-                free(fillValues);
                 free(partLen);
                 err = ALLOCATION_FAILED;
             }
         } else {
             free(timecodes);
-            free(fillValues);
             free(partLen);
             err = ALLOCATION_FAILED;
         }
@@ -248,12 +247,16 @@ int readFile(const char *filename, const char *chTable) {
                 pos = 0;  // sample (including skipped ones)
                 for (fill = 0; fill < nParts - 1; fill++) {
                     i += partLen[fill] * samplesPerBlock;
-                    posArray[fill] = i;
                     blk += partLen[fill];
                     pos += partLen[fill] * samplesPerBlock;
                     t = timecodes[blk] - startTime.tv_sec;
                     lenArray[fill] = round(t * samplerate) - pos;
                     pos += lenArray[fill];
+                    if (!isDynamic) {
+                        i++;
+                        lenArray[fill]--;
+                    }
+                    posArray[fill] = i - 1;
                 }
             } else {
                 err = ALLOCATION_FAILED;
@@ -267,10 +270,12 @@ int readFile(const char *filename, const char *chTable) {
             channel[ch].data = newSparseInt16Channel(tmpTable, channel[ch].name, length, nParts);
             memcpy(channel[ch].data, channel[ch].buffer, length * sizeof(uint16_t));
             if (nParts > 1) {
-                for (fill = 0; fill < nParts - 1; fill++) {
-                    fillValues[fill] = isDynamic ? channel[ch].buffer[posArray[fill] - 1] : 0;
+                if (!isDynamic) {
+                    for (fill = 0; fill < nParts - 1; fill++) {
+                        channel[ch].buffer[posArray[fill]] = 0;
+                    }
                 }
-                setFills(tmpTable, channel[ch].name, posArray, lenArray, fillValues);
+                setFills(tmpTable, channel[ch].name, posArray, lenArray);
             }
             // range: [-16 16] * 9.81 m/s^2
             setScaleAndOffset(tmpTable, channel[ch].name, 16.0 / 4096 * 9.81, 0.0);
@@ -288,7 +293,6 @@ int readFile(const char *filename, const char *chTable) {
         free(posArray);
         free(lenArray);
         free(timecodes);
-        free(fillValues);
         free(partLen);
         deleteChannelTable(tmpTable);
         free((void *)tmpTable);

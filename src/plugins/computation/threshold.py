@@ -57,7 +57,6 @@ class Plugin(salto.Plugin):
             lower = (inputs['lower'] - channel.offset) / channel.scale
             upper = (inputs['upper'] - channel.offset) / channel.scale
             positions = self._position(channel.data, lower, upper, inputs['includelower'], inputs['includeupper'])
-            fills = self._position(channel.fill_values, lower, upper, inputs['includelower'], inputs['includeupper'])
             if positions.size > 0:
                 # Recode the positions as slices.
                 starts = np.insert(np.where(np.diff(positions) != 1)[0] + 1, 0, 0)
@@ -65,22 +64,22 @@ class Plugin(salto.Plugin):
                 positions = list(zip(positions[starts], lengths))
             pos = 0
             fill = 0
-            while fill < channel.fill_positions.size and pos < len(positions):
-                if (channel.fill_positions[fill] >= positions[pos][0]) and (channel.fill_positions[fill] < sum(positions[pos])):
+            while fill < channel.fills.size and pos < len(positions):
+                if (channel.fills[fill]['pos'] >= positions[pos][0]) and (channel.fills[fill]['pos'] < sum(positions[pos])):
                     if fill not in fills:
                         # Add a break.
-                        samples = channel.fill_positions[fill] - positions[pos][0]
+                        samples = channel.fills[fill]['pos'] - positions[pos][0]
                         duration = samples / channel.samplerate
                         if duration >= inputs['minduration']:
                             self._addEvent(channel, positions[pos][0], duration = duration)
-                        positions[pos] = (channel.fill_positions[fill], positions[pos][1] - samples)
+                        positions[pos] = (channel.fills[fill]['pos'], positions[pos][1] - samples)
                     fill += 1
-                elif channel.fill_positions[fill] < positions[pos][0]:
+                elif channel.fills[fill]['pos'] < positions[pos][0]:
                     if fill in fills:
                         # Add event for the fill.
-                        duration = channel.fill_lengths[fill] / channel.samplerate
+                        duration = channel.fills[fill]['len'] / channel.samplerate
                         if duration >= inputs['minduration']:
-                            self._addEvent(channel, channel.fill_positions[fill], duration = duration)
+                            self._addEvent(channel, channel.fills[fill]['pos'], duration = duration)
                     fill += 1
                 else:
                     pos += 1

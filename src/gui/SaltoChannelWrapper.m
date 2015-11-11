@@ -64,9 +64,7 @@ static int typenum;
     self = [super init];
     if (self && ch) {
         npy_intp fillCount = 0;
-        npy_intp *fill_positions = NULL;
-        npy_intp *fill_lengths = NULL;
-        double *fill_values = NULL;
+        Channel_Fill *fills = NULL;
  
         // Get Python object data.
         PyGILState_STATE state = PyGILState_Ensure();
@@ -87,61 +85,42 @@ static int typenum;
             }
             Py_DECREF(doubleDescr);
         }
-        if (ch->fill_values) {
-            fillCount = PyArray_DIM(ch->fill_values, 0);
-            fill_positions = PyArray_DATA(ch->fill_positions);
-            fill_lengths = PyArray_DATA(ch->fill_lengths);
-            PyObject *castArray = PyArray_Cast(ch->fill_values, NPY_DOUBLE);  // new
-            double *cast_values = NULL;
-            if (castArray)
-                cast_values = PyArray_DATA((PyArrayObject *)castArray);
-            if (cast_values)
-                fill_values = calloc(fillCount, sizeof(double));
-            if (fill_values) {
-                for (npy_intp i = 0; i < fillCount; i++) {
-                    fill_values[i] = cast_values[i];
-                    if (fill_values[i] < _yMin)
-                        _yMin = fill_values[i];
-                    if (fill_values[i] > _yMax)
-                        _yMax = fill_values[i];
-                }
-            }
-            Py_XDECREF(castArray);
-        }
         PyGILState_Release(state);
  
         // Form SaltoChannelSegment array.
         NSUInteger segmentCount = 2 * fillCount + 1;
         _segments = [[NSMutableArray arrayWithCapacity:segmentCount] retain];
+        NSUInteger segmentIndex = 0;
         NSUInteger sampleIndex = 0;
         NSUInteger expandedSampleIndex = 0;
         for (npy_intp i = 0; i < fillCount; i++) {
             SaltoChannelSegment dataSegment = {
                 .location = sampleIndex,
-                .length = fill_positions[i] - sampleIndex,
+                .length = fills[i].pos - sampleIndex - 1,
                 .expandedLocation = expandedSampleIndex,
-                .expandedLength = fill_positions[i] - sampleIndex,
-                .value = 0.0};
-            sampleIndex = fill_positions[i];
+                .expandedLength = fills[i].pos - sampleIndex - 1};
+            sampleIndex = fills[i].pos;
             expandedSampleIndex += dataSegment.length;
+            if (dataSegment.length > 0) {
+                [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment]
+                                atIndex:segmentIndex++];
+            }
             SaltoChannelSegment fillSegment = {
                 .location = sampleIndex,
                 .length = 0,
                 .expandedLocation = expandedSampleIndex,
-                .expandedLength = fill_lengths[i],
-                .value = fill_values[i] * ch->scale + ch->offset};
-            expandedSampleIndex += fill_lengths[i];
-            [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:2 * i];
-            [_segments insertObject:[NSValue valueWithChannelSegment:fillSegment] atIndex:2 * i + 1];
+                .expandedLength = fills[i].len};
+            expandedSampleIndex += fills[i].len;
+            [_segments insertObject:[NSValue valueWithChannelSegment:fillSegment]
+                            atIndex:segmentIndex++];
         }
         SaltoChannelSegment dataSegment = {
             .location = sampleIndex,
             .length = length - sampleIndex,
             .expandedLocation = expandedSampleIndex,
-            .expandedLength = length - sampleIndex,
-            .value = 0.0};
-        [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment] atIndex:segmentCount - 1];
-        free(fill_values);
+            .expandedLength = length - sampleIndex};
+        [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment]
+                        atIndex:segmentIndex++];
 
         // Initialize other object properties.
         _channel = ch;
@@ -303,7 +282,8 @@ static int typenum;
                 // Fill segment
                 segment.pointCount = 2;
             }
-            [self.segments replaceObjectAtIndex:idx withObject:[NSValue valueWithChannelSegment:segment]];
+            [self.segments replaceObjectAtIndex:idx
+                                     withObject:[NSValue valueWithChannelSegment:segment]];
             pointCount += segment.pointCount;
         } else if (segment.expandedLocation > end) {
             *stop = YES;
@@ -474,22 +454,19 @@ static int typenum;
                     // Y axis (data values)
                     for (NSUInteger i = 0; i < 2; i++) {
                         if (pointIndex >= range.location && pointIndex < range.location + range.length) {
-                            values[pointIndex - range.location] = segment.value;
+                            values[pointIndex - range.location] = data[segment.location - dataOffset];
                         }
                         pointIndex++;
                     }
                 } else {
                     // X axis (time)
-                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
-                        values[pointIndex - range.location] = segment.expandedLocation / self.samplerate;
-                        values[pointIndex - range.location] += timeOffset;
+                    for (NSUInteger i = 0; i < 2; i++) {
+                        if (pointIndex >= range.location && pointIndex < range.location + range.length) {
+                            values[pointIndex - range.location] = (segment.expandedLocation + i * segment.expandedLength) / self.samplerate;
+                            values[pointIndex - range.location] += timeOffset;
+                        }
+                        pointIndex++;
                     }
-                    pointIndex++;
-                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
-                        values[pointIndex - range.location] = (segment.expandedLocation + segment.expandedLength) / self.samplerate;
-                        values[pointIndex - range.location] += timeOffset;
-                    }
-                    pointIndex++;
                 }
             }
         }

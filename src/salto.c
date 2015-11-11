@@ -33,26 +33,25 @@ double duration(const char *chTable, const char *name) {
     return duration;
 }
 
-int setFills(const char *chTable, const char *name, size_t *positions, size_t *lengths, void *values) {
+int setFills(const char *chTable, const char *name, size_t *positions, size_t *lengths) {
     Channel *ch;
     int result = 0;
-    npy_intp nFills, fill, size;
-    npy_intp *posArray, *lenArray;
-    void *fillArray;
+    npy_intp nFills, i;
+    Channel_Fill *fills;
     PyGILState_STATE state;
     
     ch = getChannel(chTable, name);
-    if (ch && ch->fill_values) {
+    if (ch) {
         state = PyGILState_Ensure();
-        nFills = PyArray_DIM(ch->fill_values, 0);
-        posArray = PyArray_DATA(ch->fill_positions);
-        lenArray = PyArray_DATA(ch->fill_lengths);
-        fillArray = PyArray_DATA(ch->fill_values);
-        size = PyArray_NBYTES(ch->fill_values);
-        memcpy(fillArray, values, size);
-        for (fill = 0; fill < nFills; fill++) {
-            posArray[fill] = positions[fill];
-            lenArray[fill] = lengths[fill];
+        nFills = PyArray_DIM(ch->fills, 0);
+        fills = PyArray_DATA(ch->fills);
+        if (fills) {
+            for (i = 0; i < nFills; i++) {
+                fills[i].pos = positions[i];
+                fills[i].len = lengths[i];
+            }
+        } else {
+            result = -1;
         }
         PyGILState_Release(state);
     } else {
@@ -62,26 +61,25 @@ int setFills(const char *chTable, const char *name, size_t *positions, size_t *l
     return result;
 }
 
-int getFills(const char *chTable, const char *name, size_t *positions, size_t *lengths, void *values) {
+int getFills(const char *chTable, const char *name, size_t *positions, size_t *lengths) {
     Channel *ch;
     int result = 0;
-    npy_intp nFills, fill, size;
-    npy_intp *posArray, *lenArray;
-    void *fillArray;
+    npy_intp nFills, i;
+    Channel_Fill *fills;
     PyGILState_STATE state;
     
     ch = getChannel(chTable, name);
-    if (ch && ch->fill_values) {
+    if (ch) {
         state = PyGILState_Ensure();
-        nFills = PyArray_DIM(ch->fill_values, 0);
-        posArray = PyArray_DATA(ch->fill_positions);
-        lenArray = PyArray_DATA(ch->fill_lengths);
-        fillArray = PyArray_DATA(ch->fill_values);
-        size = PyArray_NBYTES(ch->fill_values);
-        memcpy(values, fillArray, size);
-        for (fill = 0; fill < nFills; fill++) {
-            positions[fill] = posArray[fill];
-            lengths[fill] = lenArray[fill];
+        nFills = PyArray_DIM(ch->fills, 0);
+        fills = PyArray_DATA(ch->fills);
+        if (fills) {
+            for (i = 0; i < nFills; i++) {
+                positions[i] = fills[i].pos;
+                lengths[i] = fills[i].len;
+            }
+        } else {
+            result = -1;
         }
         PyGILState_Release(state);
     } else {
@@ -97,9 +95,9 @@ size_t numberOfFills(const char *chTable, const char *name) {
     PyGILState_STATE state;
     
     ch = getChannel(chTable, name);
-    if (ch && ch->fill_values) {
+    if (ch) {
         state = PyGILState_Ensure();
-        nFills = PyArray_DIM(ch->fill_values, 0);  // Casts npy_intp to size_t
+        nFills = PyArray_DIM(ch->fills, 0);  // Casts npy_intp to size_t
         PyGILState_Release(state);
     }
     
@@ -145,7 +143,8 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *dataArray, *fillArray, *posArray, *lenArray;
+    PyObject *dataArray, *fillArray, *tempObj;
+    PyArray_Descr *fillDescr;
     npy_intp nFills[1], nSamples[1];
     PyGILState_STATE state;
 
@@ -161,12 +160,13 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
                                                           dataArray, 0.0);  // new
                 } else {
                     nFills[0] = nParts - 1;
-                    fillArray = PyArray_ZEROS(1, nFills, typenum, 0);  // new
-                    posArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
-                    lenArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    // TODO: Move this to a single place.
+                    tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
+                    PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
+                    Py_DECREF(tempObj);
+                    fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOO",
-                                                          dataArray, 0.0,
-                                                          posArray, lenArray, fillArray);  // new
+                                                          dataArray, 0.0, fillArray);  // new
                 }
                 if (ch && addChannel(chTable, name, ch) == 0) {
                     ptr = PyArray_DATA((PyArrayObject *)ch->data);
@@ -189,7 +189,8 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *dataArray, *fillArray, *posArray, *lenArray;
+    PyObject *dataArray, *fillArray, *tempObj;
+    PyArray_Descr *fillDescr;
     npy_intp nFills[1], nSamples[1];
     PyGILState_STATE state;
 
@@ -207,11 +208,13 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
                     ch->offset = nan(NULL);
                 } else {
                     nFills[0] = nParts - 1;
-                    fillArray = PyArray_ZEROS(1, nFills, typenum, 0);  // new
-                    posArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
-                    lenArray = PyArray_ZEROS(1, nFills, NPY_INTP, 0);  // new
+                    // TODO: Move this to a single place.
+                    tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
+                    PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
+                    Py_DECREF(tempObj);
+                    fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOdd",
-                                                          dataArray, 0.0, posArray, lenArray, fillArray,
+                                                          dataArray, 0.0, fillArray,
                                                           nan(NULL), nan(NULL));  // new
                 }
                 if (ch && addChannel(chTable, name, ch) == 0) {
@@ -255,15 +258,17 @@ struct timespec channelEndTime(Channel *ch) {
     double duration;
     size_t length;
     npy_intp nFills, i, total;
+    Channel_Fill *fills;
     PyGILState_STATE state;
 
     if (ch) {
         total = 0;
-        if (ch->fill_values) {
+        if (ch->fills) {
             state = PyGILState_Ensure();
-            nFills = PyArray_DIM(ch->fill_lengths, 0);
+            nFills = PyArray_DIM(ch->fills, 0);
+            fills = PyArray_DATA(ch->fills);
             for (i = 0; i < nFills; i++) {
-                total += *(npy_intp *)PyArray_GETPTR1(ch->fill_lengths, i);
+                total += fills[i].len;
             }
             PyGILState_Release(state);
         }
