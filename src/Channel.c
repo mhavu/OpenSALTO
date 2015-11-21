@@ -50,7 +50,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *data = NULL, *events = NULL, *tempObj, *fills;
+    PyObject *data = NULL, *events = NULL, *tempObj, *fills = NULL;
     int error;
     size_t size;
     npy_intp nFills;
@@ -148,7 +148,7 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
          PyObject *metadata = NULL;
          NpyAuxData *c_metadata = NULL;
          */
-        PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
+        PyArray_DescrAlignConverter(tempObj, &fillDescr);  // new fillDescr
         Py_DECREF(tempObj);
         if (fills) {
             if (PyArray_Check(fills)) {
@@ -162,7 +162,7 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                 }
                 Py_DECREF(fillDescr);
             } else {
-                self->fills = (PyArrayObject *)PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new
+                self->fills = (PyArrayObject *)PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
                 if (!self->fills) {
                     error = -1;
                     PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
