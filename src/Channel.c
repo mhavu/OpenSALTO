@@ -133,17 +133,41 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         // Check that fills has the correct type descriptor.
         // TODO: Move this to a single place.
         tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
+        /*
+         char kind = 'V';
+         char type = 'V';
+         char byteorder = '|';
+         char flags = '\x10';
+         int type_num = 20;
+         int elsize = 16;
+         int alignment = 1;
+         _arr_descr *subarray = NULL;
+         PyObject *fields = {'pos': (dtype('int64'), 0), 'len': (dtype('int64'), 8)};
+         PyObject *names = ('pos', 'len');
+         PyArray_ArrFuncs *f = ?;
+         PyObject *metadata = NULL;
+         NpyAuxData *c_metadata = NULL;
+         */
         PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
         Py_DECREF(tempObj);
-        if (self->fills) {
-            argDescr = PyArray_DESCR(self->fills);  // borrowed
-            if (PyArray_EquivTypes(fillDescr, argDescr)) {
-                Py_INCREF(self->fills);
+        if (fills) {
+            if (PyArray_Check(fills)) {
+                argDescr = PyArray_DESCR((PyArrayObject *)fills);  // borrowed
+                if (PyArray_EquivTypes(fillDescr, argDescr)) {
+                    self->fills = (PyArrayObject *)fills;
+                    Py_INCREF(self->fills);
+                } else {
+                    error = -1;
+                    PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+                }
+                Py_DECREF(fillDescr);
             } else {
-                error = -1;
-                PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+                self->fills = (PyArrayObject *)PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new
+                if (!self->fills) {
+                    error = -1;
+                    PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+                }
             }
-            Py_DECREF(fillDescr);
         } else {
             nFills = 0;
             self->fills = (PyArrayObject *)PyArray_Empty(1, &nFills, fillDescr, 0);  // new, steals fillDescr
