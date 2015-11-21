@@ -50,7 +50,7 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *data = NULL, *events = NULL, *tempObj;
+    PyObject *data = NULL, *events = NULL, *tempObj, *fills;
     int error;
     size_t size;
     npy_intp nFills;
@@ -73,7 +73,7 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     error = !PyArg_ParseTupleAndKeywords(args, kwds, "Od|OddssLlssisO", kwlist,
                                          &data,
                                          &(self->samplerate),
-                                         &(self->fills),
+                                         &fills,
                                          &(self->scale), &(self->offset),
                                          &(self->unit), &(self->type),
                                          &(self->start_sec), &(self->start_nsec),
