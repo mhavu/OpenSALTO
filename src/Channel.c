@@ -852,6 +852,7 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
     start = 0;
     stop = PyArray_SIZE(self->data);
     include_fills = 0;
+    nFills = 0;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "|LLp:values", kwlist, &start, &stop, &include_fills)) {
         data = PySequence_GetSlice((PyObject *)self->data, start, stop);  // new
         if (data) {
@@ -906,7 +907,7 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
             fill = 0;
             extra = 0;
             for (npy_intp i = 0; i < stop - start; i++) {
-                if (include_fills) {
+                if (fill < nFills) {
                     if (i == fills[fill].pos) {
                         for (npy_intp j = 0; j < fills[fill].len; j++) {
                             out[i + extra++] = self->scale * in[i] + self->offset;
