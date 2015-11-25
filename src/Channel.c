@@ -703,11 +703,11 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
                     n -= fills[i].len;
                 } else if (fills[i].pos < n) {
                     if (strcasecmp(method, "nearest") == 0) {
-                        n = (n - fills[i].pos > fills->len / 2) ? fills[i].pos : fills[i].pos - 1;
+                        n = (n - fills[i].pos > fills->len / 2) ? fills[i].pos + 1 : fills[i].pos;
                     } else  if (strcasecmp(method, "next") == 0) {
-                        n = fills[i].pos;
+                        n = fills[i].pos + 1;
                     } else  if (strcasecmp(method, "previous") == 0) {
-                        n = fills[i].pos - 1;
+                        n = fills[i].pos;
                     } else if (strcasecmp(method, "exact") == 0) {
                         n = nan(NULL);
                     }
@@ -725,12 +725,12 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
             } else if (index >= len) {
                 index = len - 1;
             }
-        } else  if (strcasecmp(method, "next") == 0) {
+        } else if (strcasecmp(method, "next") == 0) {
             index = (n < 0) ? 0 : ceil(n);
             if (index >= len) {
                 ok = 0;
             }
-        } else  if (strcasecmp(method, "previous") == 0) {
+        } else if (strcasecmp(method, "previous") == 0) {
             index = (n < len) ? floor(n) : len - 1;
             if (index < 0) {
                 ok = 0;
