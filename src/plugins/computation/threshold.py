@@ -62,30 +62,15 @@ class Plugin(salto.Plugin):
                 starts = np.insert(np.where(np.diff(positions) != 1)[0] + 1, 0, 0)
                 lengths = np.diff(np.append(starts, len(positions)) - 1)
                 positions = list(zip(positions[starts], lengths))
-            pos = 0
             fill = 0
-            while fill < channel.fills.size and pos < len(positions):
-                if (channel.fills[fill]['pos'] >= positions[pos][0]) and (channel.fills[fill]['pos'] < sum(positions[pos])):
-                    if fill not in fills:
-                        # Add a break.
-                        samples = channel.fills[fill]['pos'] - positions[pos][0]
-                        duration = samples / channel.samplerate
-                        if duration >= inputs['minduration']:
-                            self._addEvent(channel, positions[pos][0], duration = duration)
-                        positions[pos] = (channel.fills[fill]['pos'], positions[pos][1] - samples)
-                    fill += 1
-                elif channel.fills[fill]['pos'] < positions[pos][0]:
-                    if fill in fills:
-                        # Add event for the fill.
-                        duration = channel.fills[fill]['len'] / channel.samplerate
-                        if duration >= inputs['minduration']:
-                            self._addEvent(channel, channel.fills[fill]['pos'], duration = duration)
-                    fill += 1
-                else:
-                    pos += 1
             for start, length in positions:
                 # TODO: Implement minbreak.
-                duration = length / channel.samplerate
+                extra = 0
+                while (fill < channel.fills.size) and (channel.fills[fill]['pos'] < start + length):
+                    if channel.fills[fill]['pos'] == start + length - 1:
+                        extra = channel.fills[fill]['len']
+                    fill += 1
+                duration = (length + extra) / channel.samplerate
                 if inputs['minduration'] is None or duration >= inputs['minduration']:
                     self._addEvent(channel, start, duration = duration)
         return {}
