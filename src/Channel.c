@@ -861,17 +861,15 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
                 fills = PyArray_DATA(self->fills);
                 if (fills) {
                     nFills = PyArray_DIM(self->fills, 0);
-                    for (fill = 0; fill < nFills; fill++) {
+                    fill = 0;
+                    while (fill < nFills) {
                         if (fills[fill].pos < start) {
-                            fills += 2;
+                            fills++;
                             nFills--;
-                            fill--;
-                            continue;
                         } else if (fills[fill].pos < stop) {
                             size += fills[fill].len;
                         } else {
                             nFills = fill;
-                            break;
                         }
                     }
                 } else {
