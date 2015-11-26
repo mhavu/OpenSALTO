@@ -751,7 +751,7 @@ PyObject *timedeltaFromFloat(PyObject *self, PyObject *args) {
     double t, s, days;
     
     if (PyArg_ParseTuple(args, "d:timedeltaFromFloat", &t)) {
-        useconds = round(modf(t, &s) / 1e6);
+        useconds = round(modf(t, &s) * 1e6);
         seconds = modf(s / 86400, &days) * 86400;
         if (days <= INT_MAX) {
             delta = PyDelta_FromDSU((int)days, seconds, useconds);  // new
