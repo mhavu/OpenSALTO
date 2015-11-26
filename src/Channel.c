@@ -651,8 +651,45 @@ static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds
     return (PyObject *)events;
 }
 
+static double timeAsOffset(Channel *self, PyObject *time) {
+    // Returns offset from the beginning of the channel in seconds. If time
+    // is float or timedelta, it is converted to double. If time is datetime,
+    // the offset is calculated.
+    PyObject *obj, *start, *delta, *sec;
+    double offset;
+    
+    offset = -1.0;
+    if (PyFloat_Check(time)) {
+        offset = PyFloat_AsDouble(time);
+    } else {
+        start = Channel_start(self);  // new
+        delta = PyNumber_Subtract(time, start);  // new
+        Py_XDECREF(start);
+        // If the subtraction succeeds, time argument is a datetime.
+        // If not, let us assume for a while that it is a timedelta.
+        if (!delta) {
+            PyErr_Clear();
+            delta = time;
+        }
+        obj = Py_BuildValue("(d)", 1.0);  // new
+        sec = timedeltaFromFloat(NULL, obj);  // new
+        Py_XDECREF(obj);
+        obj = PyNumber_TrueDivide(delta, sec);  // new
+        Py_XDECREF(delta);
+        Py_XDECREF(sec);
+        if (obj) {
+            offset = PyFloat_AsDouble(obj);
+            Py_DECREF(obj);
+        } else {
+            PyErr_SetString(PyExc_TypeError, "Argument 'time' needs to be a datetime object, or a float or timedelta specifying time offset from channel start");
+        }
+    }
+    
+    return offset;
+}
+
 static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *obj, *start, *delta, *sec, *time = NULL, *result = NULL;
+    PyObject *time = NULL, *result = NULL;
     double n, offset, tolerance;
     npy_intp nFills, i, index, len;
     Channel_Fill *fills;
@@ -664,46 +701,24 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
     tolerance = 0.1 / self->samplerate;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "O|sd:sampleIndex", kwlist,
                                     &time, &method, &tolerance)) {
-        if PyFloat_Check(time) {
-            n = PyFloat_AsDouble(time) * self->samplerate;
-        } else {
-            start = Channel_start(self);  // new
-            delta = PyNumber_Subtract(time, start);  // new
-            Py_XDECREF(start);
-            // If the subtraction succeeds, time argument is a datetime.
-            // If not, let us assume for a while that it is a timedelta.
-            if (!delta) {
-                PyErr_Clear();
-                delta = time;
-            }
-            obj = Py_BuildValue("(d)", 1.0);  // new
-            sec = timedeltaFromFloat(NULL, obj);  // new
-            Py_XDECREF(obj);
-            obj = PyNumber_TrueDivide(delta, sec);  // new
-            Py_XDECREF(delta);
-            Py_XDECREF(sec);
-            if (obj) {
-                offset = PyFloat_AsDouble(obj);
-                n = offset * self->samplerate;
-                Py_DECREF(obj);
-            } else {
-                ok = 0;
-                PyErr_SetString(PyExc_TypeError, "Argument 'time' needs to be a datetime object or a float or timedelta specifying time offset from channel start");
-            }
+        offset = timeAsOffset(self, time);
+        if (PyErr_Occurred()) {
+            ok = 0;
         }
     } else {
         ok = 0;
     }
     if (ok) {
+        n = offset * self->samplerate;
         if (self->fills) {
             nFills = PyArray_DIM(self->fills, 0);
             fills = PyArray_DATA(self->fills);
             for (i = 0; i < nFills; i++) {
-                if (fills[i].pos + fills[i].len < n) {
+                if (fills[i].pos + fills[i].len < n - 0.5) {
                     n -= fills[i].len;
                 } else if (fills[i].pos < n) {
                     if (strcasecmp(method, "nearest") == 0) {
-                        n = (n - fills[i].pos > fills->len / 2) ? fills[i].pos + 1 : fills[i].pos;
+                        n = (fills[i].pos + fills[i].len < n + 0.5) ? fills[i].pos + 1: fills[i].pos;
                     } else  if (strcasecmp(method, "next") == 0) {
                         n = fills[i].pos + 1;
                     } else  if (strcasecmp(method, "previous") == 0) {
@@ -756,31 +771,45 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
     return result;
 }
 
+double Channel_sampleOffsetAsDouble(Channel *self, npy_intp index) {
+    // Returns time offset since channel start in seconds.
+    npy_intp n, nFills, i, len;
+    Channel_Fill *fills;
+    double result;
+    
+    len = PyArray_DIM(self->data, 0);
+    index = (index < 0) ? len + index : index;
+    if (index >= 0 && index < len) {
+        n = index;
+        if (self->fills) {
+            nFills = PyArray_DIM(self->fills, 0);
+            fills = PyArray_DATA(self->fills);
+            for (i = 0; i < nFills; i++) {
+                if (fills[i].pos < index) {
+                    n += fills[i].len;
+                } else {
+                    break;
+                }
+            }
+        }
+        result = n / self->samplerate;  // new
+    } else {
+        PyErr_SetString(PyExc_IndexError, "Sample index out of range");
+        result = nan(NULL);
+    }
+    
+    return result;
+}
+
 static PyObject *Channel_sampleOffset(Channel *self, PyObject *args) {
     // Returns time offset since channel start in seconds.
-    npy_intp n, index, nFills, i, len;
-    Channel_Fill *fills;
+    npy_intp index;
+    double offset;
     PyObject *result = NULL;
     
     if (PyArg_ParseTuple(args, "n:sampleOffset", &index)) {
-        len = PyArray_DIM(self->data, 0);
-        n = (index < 0) ? len + index : index;
-        if (n >= 0 && n < len) {
-            if (self->fills) {
-                nFills = PyArray_DIM(self->fills, 0);
-                fills = PyArray_DATA(self->fills);
-                for (i = 0; i < nFills; i++) {
-                    if (fills[i].pos <= index) {
-                        n += fills[i].len;
-                    } else {
-                        break;
-                    }
-                }
-            }
-            result = PyFloat_FromDouble(n / self->samplerate);  // new
-        } else {
-            PyErr_SetString(PyExc_IndexError, "Sample index out of range");
-        }
+        offset = Channel_sampleOffsetAsDouble(self, index);
+        result = PyFloat_FromDouble(offset);  // new
     }
     
     return result;
@@ -791,8 +820,7 @@ static PyObject *Channel_sampleTime(Channel *self, PyObject *args) {
     
     offset = Channel_sampleOffset(self, args);
     if (offset) {
-        argTuple = PyTuple_New(1);  // new
-        PyTuple_SET_ITEM(argTuple, 0, offset);  // stolen
+        argTuple = PyTuple_Pack(1, offset);  // new
         delta = timedeltaFromFloat(NULL, argTuple);  // new
         start = Channel_start(self);  // new
         if (start && delta) {
@@ -839,90 +867,184 @@ static PyObject *Channel_getSample(Channel *self, PyObject *args, PyObject *kwds
     return sample;
 }
 
-static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
+static PyObject *Channel_valuesFromIndex(Channel *self,
+                                         Py_ssize_t start, Py_ssize_t stop,
+                                         int include_fills, Py_ssize_t *fill_pos) {
+    // Returns the sample values between start and stop, optionally including
+    // fills. If fills are included, fill_pos (array of size 2) can be used for
+    // specifying the positions where to start the beginning fill and end the
+    // end fill.
     PyObject *data, *castData = NULL, *result = NULL;
-    Py_ssize_t start, stop;
-    int include_fills;
+    PyArrayObject *fillCopy = NULL;
     npy_intp size, fill, nFills, extra;
     Channel_Fill *fills;
     double *in = NULL, *out = NULL;
+    int error = 0;
+    
+    nFills = 0;
+    data = PySequence_GetSlice((PyObject *)self->data, start, stop);  // new
+    if (data) {
+        size = PyArray_DIM((PyArrayObject *)data, 0);
+        if (include_fills) {
+            // Get pointer to fills that are inside the slice.
+            fillCopy = (PyArrayObject *)PyArray_Copy(self->fills);  // new
+            fills = PyArray_DATA(fillCopy);
+            if (fills) {
+                nFills = PyArray_DIM(self->fills, 0);
+                fill = 0;
+                while (fill < nFills) {
+                    if (fills[fill].pos < start) {
+                        fills++;
+                        nFills--;
+                    } else if (fills[fill].pos < stop) {
+                        if (fills[fill].pos == stop - 1) {
+                            fills[fill].len = fill_pos[1];
+                        }
+                        if (fills[fill].pos == start) {
+                            fills[fill].len -= fill_pos[0];
+                        }
+                        size += fills[fill].len;
+                        fill++;
+                    } else {
+                        nFills = fill;
+                    }
+                }
+            } else {
+                PyErr_SetString(PyExc_RuntimeError, "Failed to get pointers to fill data");
+                error = -1;
+            }
+        }
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to get a view to the data slice");
+        error = -1;
+    }
+    if (!error) {
+        // Cast the view to data array to double.
+        castData = PyArray_Cast((PyArrayObject *)data, NPY_DOUBLE);  // new
+        Py_DECREF(data);
+        if (castData) {
+            in = PyArray_DATA((PyArrayObject *)castData);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to cast data array to double");
+            error = -1;
+        }
+    }
+    if (!error) {
+        // Create the result array.
+        result = PyArray_EMPTY(1, &size, NPY_DOUBLE, 0);  // new
+        if (result) {
+            out = PyArray_DATA((PyArrayObject *)result);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Failed to create result array");
+            error = -1;
+        }
+    }
+    if (!error && in && out) {
+        fill = 0;
+        extra = 0;
+        for (npy_intp i = 0; i < stop - start; i++) {
+            if (fill < nFills) {
+                if (start + i == fills[fill].pos) {
+                    for (npy_intp j = 0; j < fills[fill].len; j++) {
+                        out[i + extra++] = self->scale * in[i] + self->offset;
+                    }
+                    fill++;
+                }
+            }
+            out[i + extra] = self->scale * in[i] + self->offset;
+        }
+    }
+    Py_XDECREF(castData);
+    Py_XDECREF(fillCopy);
+    if (result && !out) {
+        Py_DECREF(result);
+        result = NULL;
+        PyErr_SetString(PyExc_RuntimeError, "Failed to get a pointer to result array");
+    }
+    
+    return result;
+}
+
+static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_pos) {
+    // Checks that object o is an integer or converts it to integer, if it is
+    // a datetime or timedelta. If the offset specified by o is inside a fill,
+    // fill_pos is set to the number samples between the fill position and the
+    // specified offset.
+    PyObject *argTuple, *tempObj;
+    npy_intp len, fill, nFills;
+    Py_ssize_t index;
+    Channel_Fill *fills;
+    double tGiven, tFill;
+    
+    index = -1;
+    len = PyArray_DIM(self->data, 0);
+    argTuple = PyTuple_Pack(1, o);  // new
+    if (argTuple) {
+        tempObj = Channel_sampleIndex(self, argTuple, NULL);  // new
+        if (tempObj) {
+            // Object o was a datetime, timedelta, or float.
+            index = PyLong_AsSsize_t(tempObj);
+            index = (index < 0) ? len + index : index;
+            // Calculate fill length.
+            *fill_pos = 0;
+            nFills = PyArray_DIM(self->fills, 0);
+            fills = PyArray_DATA(self->fills);
+            for (fill = 0; fill < nFills; fill++) {
+                if (fills[fill].pos == index) {
+                    tGiven = timeAsOffset(self, o);
+                    tFill = Channel_sampleOffsetAsDouble(self, index);
+                    *fill_pos = round((tGiven - tFill) * self->samplerate);
+                    break;
+                }
+            }
+        } else if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+            // Object o was not a datetime, timedelta, or float.
+            PyErr_Clear();
+            if (PyLong_Check(o)) {
+                index = PyLong_AsSsize_t(o);
+                index = (index < 0) ? len + index : index;
+                *fill_pos = 0;
+            } else {
+                PyErr_SetString(PyExc_TypeError, "Argument o in convertToIndex() must be integer, float, timedelta, or datetime");
+            }
+        }
+        Py_DECREF(argTuple);
+    }
+
+    return index;
+}
+
+static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
+    // Returns the sample values between start and stop. Start and stop can be
+    // array indices, datetimes, or timedeltas or floats that specify the offset
+    // from the beginning of the channel.
+    PyObject *result = NULL;
+    PyObject *startObj = NULL, *stopObj = NULL;
+    Py_ssize_t start, stop, fillPos[2];
+    int include_fills;
     static char *kwlist[] = {"start", "stop", "include_fills", NULL};
     int error = 0;
     
     start = 0;
     stop = PyArray_SIZE(self->data);
     include_fills = 0;
-    nFills = 0;
-    if (PyArg_ParseTupleAndKeywords(args, kwds, "|LLp:values", kwlist, &start, &stop, &include_fills)) {
-        data = PySequence_GetSlice((PyObject *)self->data, start, stop);  // new
-        if (data) {
-            size = PyArray_DIM((PyArrayObject *)data, 0);
-            if (include_fills) {
-                // Get pointer to fills that are inside the slice.
-                fills = PyArray_DATA(self->fills);
-                if (fills) {
-                    nFills = PyArray_DIM(self->fills, 0);
-                    fill = 0;
-                    while (fill < nFills) {
-                        if (fills[fill].pos < start) {
-                            fills++;
-                            nFills--;
-                        } else if (fills[fill].pos < stop) {
-                            size += fills[fill].len;
-                        } else {
-                            nFills = fill;
-                        }
-                    }
-                } else {
-                    PyErr_SetString(PyExc_RuntimeError, "Failed to get pointers to fill data");
-                    error = -1;
-                }
-            }
-        } else {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to get a view to the data slice");
-            error = -1;
-        }
-        if (!error) {
-            // Cast the view to data array to double.
-            castData = PyArray_Cast((PyArrayObject *)data, NPY_DOUBLE);  // new
-            Py_DECREF(data);
-            if (castData) {
-                in = PyArray_DATA((PyArrayObject *)castData);
-            } else {
-                PyErr_SetString(PyExc_RuntimeError, "Failed to cast data array to double");
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "|OOp:values", kwlist, &startObj, &stopObj, &include_fills)) {
+        if (startObj) {
+            start = convertToIndex(self, startObj, &fillPos[0]);
+            if (start < 0) {
                 error = -1;
             }
         }
-        if (!error) {
-            // Create the result array.
-            result = PyArray_EMPTY(1, &size, NPY_DOUBLE, 0);  // new
-            if (result) {
-                out = PyArray_DATA((PyArrayObject *)result);
-            } else {
-                PyErr_SetString(PyExc_RuntimeError, "Failed to create result array");
+        if (!error && stopObj) {
+            stop = convertToIndex(self, stopObj, &fillPos[1]);
+            if (stop < 0) {
                 error = -1;
+            } else {
+                stop++;
             }
         }
-        if (!error && in && out) {
-            fill = 0;
-            extra = 0;
-            for (npy_intp i = 0; i < stop - start; i++) {
-                if (fill < nFills) {
-                    if (i == fills[fill].pos) {
-                        for (npy_intp j = 0; j < fills[fill].len; j++) {
-                            out[i + extra++] = self->scale * in[i] + self->offset;
-                        }
-                        fill++;
-                    }
-                }
-                out[i + extra] = self->scale * in[i] + self->offset;
-            }
-        }
-        Py_XDECREF(castData);
-        if (result && !out) {
-            Py_DECREF(result);
-            result = NULL;
-            PyErr_SetString(PyExc_RuntimeError, "Failed to get a pointer to result array");
+        if (!error) {
+            result = Channel_valuesFromIndex(self, start, stop, include_fills, fillPos);  // new
         }
     }
     
