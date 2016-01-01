@@ -9,8 +9,12 @@
 #define PY_ARRAY_UNIQUE_SYMBOL Py_Array_API_OpenSALTO
 #define NO_IMPORT_ARRAY
 #include "Channel.h"
+#include <complex.h>
+#include <fftw3.h>
 #include <structmember.h>
 #include "salto.h"
+
+#define roundToNext(a, b) ((b) * ceil((double)(a) / (b)))
 
 // Define Channel class methods.
 
@@ -1068,6 +1072,460 @@ static PyObject *Channel_quantities(Channel *self, PyObject *args, PyObject *kwd
     return result;
 }
 
+static PyObject *Channel_filteredLength(Channel *self, PyObject *args) {
+    // Returns the length and fills of a filtered channel, given fftSize,
+    // windowSize, and stepSize.
+    npy_intp length, nFills, fill, extra, rem, start, margin;
+    npy_intp fftSize, windowSize, stepSize;
+    PyArrayObject *fillArray;
+    PyObject *valid, *fillObj = NULL;
+    Channel_Fill *fills;
+    
+    if (!PyArg_ParseTuple(args, "nnn:filteredLength", &fftSize, &windowSize, &stepSize)) {
+        return NULL;
+    }
+    if (fftSize < 1 || windowSize < 1 || stepSize < 1) {
+        PyErr_SetString(PyExc_ValueError, "Size arguments must be positive integers");
+        return NULL;
+    }
+    if (fftSize < windowSize) {
+        PyErr_SetString(PyExc_ValueError, "Window size may not exceed FFT size");
+        return NULL;
+    }
+    if (stepSize > windowSize) {
+        PyErr_SetString(PyExc_ValueError, "Step size may not exceed window size");
+        return NULL;
+    }
+    fillArray = (PyArrayObject *)PyArray_Copy(self->fills);  // new
+    if (fillArray) {
+        fills = PyArray_DATA(fillArray);
+        nFills = PyArray_DIM(fillArray, 0);
+        length = PyArray_DIM(self->data, 0);
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "Error copying fills in filteredLength()");
+        return NULL;
+    }
+    
+    // Calculate new fill lengths.
+    margin = roundToNext(fftSize - windowSize, stepSize);
+    extra = 0;
+    rem = 0;
+    start = 0;
+    for (fill = 0; fill < nFills; fill++) {
+        rem = (rem + fills[fill].pos - start) % stepSize;
+        rem = rem ? stepSize - rem : 0;
+        start = fills[fill].pos;
+        if (fills[fill].len > rem + 2 * margin + windowSize) {
+            // Fill is sufficiently long. Adjust length.
+            fills[fill].len -= rem + 2 * margin;
+            fills[fill].pos += rem + margin;
+            extra += rem + 2 * margin;
+            rem = margin;
+        } else {
+            // Fill is too short. Replace with individual samples.
+            extra += fills[fill].len;
+            rem += fills[fill].len;
+            fills[fill].pos = 0;
+            fills[fill].len = 0;
+        }
+    }
+    // Add padding to the end.
+    rem = (rem + length - start) % fftSize;
+    extra += rem ? fftSize - rem : 0;
+    
+    // Remove zero-length fills.
+    valid = PyArray_Nonzero(fillArray);
+    if (valid) {
+        fillObj = PyObject_GetItem((PyObject *)fillArray, valid);  // new
+        Py_DECREF(valid);
+    }
+    Py_DECREF(fillArray);
+    if (!fillObj) {
+        PyErr_SetString(PyExc_RuntimeError, "Error removing zero-length fills in filteredLength()");
+    }
+    
+    return Py_BuildValue("nO", length + extra, fillObj);  // new
+}
+
+struct stft {
+    size_t n;         // current position
+    size_t wlen;      // window length
+    size_t size;      // FFT size
+    size_t step;      // step size
+    size_t op;        // overlap-add position
+    double *t_in;     // time domain
+    double *t_out;    // result of inverse FFT
+    double *w;        // window
+    double *ola;      // overlap-add buffer
+    fftw_complex *F;  // frequency domain
+    fftw_complex *H;  // transfer function
+    fftw_plan forward;
+    fftw_plan inverse;
+    void (*callback_post)(struct stft *);
+};
+
+static void stft_destroy(struct stft *stft) {
+    fftw_destroy_plan(stft->forward);
+    fftw_destroy_plan(stft->inverse);
+    fftw_free(stft->t_in);
+    if (stft->t_out != stft->t_in) {
+        fftw_free(stft->t_out);
+    }
+    fftw_free(stft->F);
+    fftw_free(stft->H);
+    fftw_free(stft->w);
+    stft->forward = NULL;
+    stft->inverse = NULL;
+    stft->t_in = NULL;
+    stft->t_out = NULL;
+    stft->F = NULL;
+    stft->H = NULL;
+    stft->w = NULL;
+    stft->ola = NULL;
+    stft->callback_post = NULL;
+    stft->size = 0;
+    stft->n = 0;
+    stft->op = 0;
+}
+
+static int stft_init(struct stft *stft, size_t size, double *kernel, size_t klen,
+                     double *w, size_t wlen, size_t step) {
+    int success = 1;
+    
+    if (size < 1 || klen < 1 || wlen < 1 || step < 1 || step > wlen || wlen >= size) {
+        return 0;
+    }
+    stft->n = 0;
+    stft->wlen = wlen;
+    stft->size = size;
+    stft->step = step;
+    stft->op = 0;
+    stft->ola = NULL;
+    stft->callback_post = NULL;
+    stft->t_in = (double *)fftw_alloc_real(size);
+    stft->F = (fftw_complex *)fftw_alloc_complex(size / 2 + 1);
+    if (step < wlen) {
+        stft->t_out = (double *)fftw_alloc_real(size);
+    } else {
+        stft->t_out = stft->t_in;
+    }
+    if (stft->t_in && stft->t_out && stft->F) {
+        stft->forward = fftw_plan_dft_r2c_1d((int)size, stft->t_in, stft->F, FFTW_MEASURE);
+        stft->inverse = fftw_plan_dft_c2r_1d((int)size, stft->F, stft->t_out, FFTW_MEASURE);
+        if (!stft->forward || !stft->inverse) {
+            success = 0;
+        }
+    } else {
+        success = 0;
+    }
+    
+    if (success && kernel) {
+        stft->H = (fftw_complex *)fftw_alloc_complex(size / 2 + 1);
+        if (stft->H) {
+            memcpy(stft->t_in, kernel, klen * sizeof(double));
+            memset(stft->t_in + klen, 0, (stft->size - klen) * sizeof(double));
+            fftw_execute(stft->forward);
+            for (size_t i = 0; i < size / 2 + 1; i++) {
+                stft->H[i] = stft->F[i] / size;
+            }
+        } else {
+            success = 0;
+        }
+    } else {
+        stft->w = NULL;
+    }
+    if (success && w) {
+        stft->w = (double *)fftw_alloc_real(wlen);
+        if (stft->w) {
+            memcpy(stft->w, w, wlen * sizeof(double));
+        } else {
+            success = 0;
+        }
+    } else {
+        stft->w = NULL;
+    }
+    
+    if (!success) {
+        stft_destroy(stft);
+    }
+    
+    return success;
+}
+
+static void stft_execute(struct stft *stft) {
+    npy_intp i;
+    
+    if (stft->w) {
+        // Apply the window.
+        for (i = 0; i < stft->wlen; i++) {
+            stft->t_in[i] *= stft->w[i];
+        }
+    }
+    fftw_execute(stft->forward);
+    if (stft->callback_post) {
+        stft->callback_post(stft);
+    }
+    if (stft->H) {
+        // Compute the circular convolution.
+        for (i = 0; i < stft->size / 2 + 1; i++) {
+            stft->F[i] = stft->F[i] * stft->H[i] / stft->size;
+        }
+        fftw_execute(stft->inverse);
+        
+        // Overlap-add.
+        if (stft->ola) {
+            for (i = 0; i < stft->size; i++) {
+                stft->ola[stft->op + i] += stft->t_out[i];
+            }
+        }
+    }
+    // Step forward reusing samples from input buffer, if possible.
+    stft->op += stft->step;
+    stft->n = stft->wlen - stft->step;
+    if (stft->n) {
+        memmove(stft->t_in, stft->t_in + stft->step, stft->n * sizeof(double));
+    }
+}
+
+static void stft_zeropad(struct stft *stft) {
+    memset(stft->t_in + stft->n, 0, (stft->size - stft->n) * sizeof(double));
+    stft_execute(stft);
+}
+
+static size_t stft_copy(struct stft *stft, double *src, size_t len) {
+    if (stft->n + len > stft->wlen) {
+        len = stft->wlen - stft->n;
+    }
+    memcpy(stft->t_in + stft->n, src, len * sizeof(double));
+    stft->n += len;
+    if (stft->n == stft->wlen) {
+        stft_zeropad(stft);
+    }
+    return len;
+}
+
+static size_t stft_add(struct stft *stft, double value, size_t n) {
+    if (stft->n + n > stft->wlen) {
+        n = stft->wlen - stft->n;
+    }
+    for (size_t i = 0; i < n; i++) {
+        stft->t_in[stft->n++] = value;
+    }
+    if (stft->n == stft->wlen) {
+        stft_zeropad(stft);
+    }
+    return n;
+}
+
+static PyObject *stft_fun = NULL;
+
+static void stft_apply(struct stft *stft) {
+    npy_intp dims[1];
+    PyObject *F;
+    
+    if (stft_fun) {
+        // Apply the optional STFT function.
+        dims[0] = stft->size;
+        F = PyArray_SimpleNewFromData(1, dims, NPY_DOUBLE, stft->F);  // new
+        if (F) {
+            // TODO: Save the result.
+            PyObject_CallFunctionObjArgs(stft_fun, F, NULL);  // new
+            Py_DECREF(stft);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Wrapping STFT result as PyArray_Object failed");
+        }
+    }
+}
+
+static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
+    // Fast convolution using overlap-add (OLA) algorithm.
+    // The optional argument stft_function can be used for frequency-domain
+    // computations. The stft result is passed to the stft_function as
+    // PyArray_Object. The call to stft_function must not alter the reference
+    // count of this array object, since the memory it points to will be freed
+    // upon exiting Channel_filter regardless of the reference count.
+    Channel *newChannel = NULL;
+    Channel_Fill *fills;
+    PyObject *kernel, *obj, *constant, *values, *newArray, *newFills;
+    PyObject *window = NULL, *fun = NULL;
+    npy_intp chLen, fill;
+    npy_intp margin, left;
+    npy_intp  nFills, pos;
+    double *data, *kernelData, *newData, *windowData, fillValue;
+    int b, error = 0;
+    static char *kwlist[] = {"kernel", "window", "overlap", "stft_function", "ensure_cola", NULL};
+    npy_intp kernelSize = 0, windowSize, stepSize, overlap = 0;
+    int fftSize, isCola = 0, ensureCola = 1;
+    Py_ssize_t dims[1];
+    struct stft stft;
+    
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "O|OiOp:filter", kwlist,
+                                    &kernel, &window, &overlap, &fun, &ensureCola)) {
+        if (fun && !PyCallable_Check(fun)) {
+            PyErr_SetString(PyExc_ValueError, "Argument stft_function must be callable");
+            return NULL;
+        }
+        kernel = PyArray_FROMANY(kernel, NPY_DOUBLE, 1, 1, NPY_ARRAY_CARRAY_RO);  // new
+        if (!kernel) {
+            PyErr_SetString(PyExc_ValueError, "Kernel in filter() must be array-like");
+            return NULL;
+        }
+        kernelSize = PyArray_SIZE((PyArrayObject *)kernel);
+        if (overlap > kernelSize - 1) {
+            PyErr_SetString(PyExc_ValueError, "Overlap in filter() must be less than kernel size");
+            return NULL;
+        }
+    }
+    
+    // Make fftSize a power of two 4 - 8 times kernelSize.
+    // TODO: Find optimal fftSize.
+    b = 1;
+    while (b < 4 * kernelSize) {
+        b <<= 1;
+    }
+    fftSize = b;
+    // Set the maximum windowSize.
+    windowSize = fftSize - kernelSize + 1;
+    stepSize = windowSize - overlap;
+    
+    if (window && window != Py_None) {
+        window = PyArray_FROMANY(window, NPY_DOUBLE, 1, 1, NPY_ARRAY_CARRAY_RO);  // new
+        if (window) {
+            windowData = PyArray_DATA((PyArrayObject *)window);
+            windowSize = PyArray_DIM((PyArrayObject *)window, 0);
+            stepSize = windowSize - overlap;
+            while (windowSize > fftSize - kernelSize + 1) {
+                // The window is too long. Double fftSize until the convolution fits.
+                // TODO: Warn about unoptimal fftSize.
+                fftSize <<= 1;
+            }
+            // Check if the window is COLA.
+            obj = Py_BuildValue("OO", window, stepSize);  //new
+            if (obj) {
+                constant = cola(NULL, obj);  // new
+                Py_DECREF(obj);
+                if (constant) {
+                    if (PyObject_IsTrue(constant)) {
+                        isCola = 1;
+                    } else if (ensureCola) {
+                        PyErr_SetString(PyExc_ValueError, "Window does not satisfy constant-overlap-add constraint.");
+                        error = -1;
+                    }
+                    Py_DECREF(constant);
+                }
+            } else {
+                PyErr_SetString(PyExc_RuntimeError, "Failed to build argument tuple in filter()");
+                error = -1;
+            }
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Window conversion in filter() failed");
+            error = -1;
+        }
+    } else {
+        // Use rectangular window.
+        windowData = NULL;
+    }
+    
+    if (!error) {
+        // Allocate space for the result.
+        obj = PyObject_CallMethod((PyObject *)self, "filteredLength", "nnn",
+                                  fftSize, windowSize, stepSize);  // new
+        if (obj) {
+            if (PyArg_ParseTuple(obj, "nO", dims, &newFills)) {
+                newArray = PyArray_ZEROS(1, dims, NPY_DOUBLE, 0);
+                newData = PyArray_DATA((PyArrayObject *)newArray);
+            } else {
+                error = -1;
+            }
+            Py_DECREF(obj);
+        } else {
+            error = -1;
+        }
+    }
+    
+    if (!error) {
+        // Extract values.
+        // TODO: Optimize memory usage.
+        values = PyObject_CallMethod((PyObject *)self, "values", "", NULL);  // new
+        if (values) {
+            data = PyArray_DATA((PyArrayObject *)values);
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Could not extract data in filter()");
+            error = -1;
+        }
+    }
+    
+    if (!error) {
+        // Initialize FFTW.
+        kernelData = PyArray_DATA((PyArrayObject *)kernel);
+        error = !stft_init(&stft, fftSize, kernelData, kernelSize,
+                           windowData, windowSize, stepSize);
+        Py_DECREF(kernel);
+        stft.ola = newData;
+
+        // Compute STFT.
+        chLen = PyArray_DIM(self->data, 0);
+        fills = PyArray_DATA(self->fills);
+        nFills = PyArray_DIM(self->fills, 0);
+        margin = roundToNext(fftSize - windowSize, stepSize);
+        pos = 0;
+        for (fill = 0; fill < nFills; fill++) {
+            while (pos <= fills[fill].pos) {
+                left = fills[fill].pos - pos + 1;
+                pos += stft_copy(&stft, data + pos, left);
+            }
+            fillValue = data[fills[fill].pos];
+            left = (windowSize - stft.n) % windowSize;
+            if (fills[fill].len > left + 2 * margin + windowSize) {
+                // Fill is sufficiently long to keep after adjusting length.
+                left += margin;
+                while (left > 0) {
+                    left -= stft_add(&stft, fillValue, left);
+                }
+                stft.n = 0;
+                left = margin;
+                while (left > 0) {
+                    left -= stft_add(&stft, fillValue, left);
+                }
+            } else {
+                // Fill is too short. Replace with individual samples.
+                left = fills[fill].len;
+                while (left > 0) {
+                    left -= stft_add(&stft, fillValue, left);
+                }
+            }
+        }
+        while (pos < chLen) {
+            left = chLen - pos;
+            pos += stft_copy(&stft, data + pos, left);
+        }
+        left = stft.n / stepSize;
+        while (left > 0) {
+            stft_zeropad(&stft);
+            left--;
+        }
+
+        // Clean up after FFTW.
+        stft_destroy(&stft);
+    }
+    if (!error) {
+        // TODO: move start time by overlap, which is (fftSize - windowSize) samples
+        // (NB causal vs zero-phase window)
+        newChannel = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType,
+                                                      "OdOddssLlssisO",
+                                                      newArray, self->samplerate,
+                                                      newFills, 1.0, 0.0,
+                                                      self->unit, self->type,
+                                                      self->start_sec, self->start_nsec,
+                                                      self->device, self->serial_no,
+                                                      self->resolution,
+                                                      self->json, self->events);  // new
+    }
+    Py_XDECREF(window);
+    
+    return (PyObject *)newChannel;
+}
+
 static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *chList, *item, *obj, *events, *argTuple;
     PyArray_Descr *fillDescr;
@@ -1423,7 +1881,8 @@ static PyMethodDef Channel_methods[] = {
     {"sampleOffset", (PyCFunction)Channel_sampleOffset, METH_VARARGS, "sample time as offset from the channel start"},
     {"sampleTime", (PyCFunction)Channel_sampleTime, METH_VARARGS, "sample time as a datetime object"},
     {"getSample", (PyCFunction)Channel_getSample, METH_VARARGS | METH_KEYWORDS, "get the sample at specified time"},
-//    {"convolve", (PyCFunction)Channel_convolve, METH_VARARGS | METH_KEYWORDS, "convolution of the channel and a NumPy array"},
+    {"filter", (PyCFunction)Channel_filter, METH_VARARGS | METH_KEYWORDS, "convolution of the channel and a NumPy array"},
+    {"filteredLength", (PyCFunction)Channel_filteredLength, METH_VARARGS, "length and fills of the channel when filtered"},
     {"values", (PyCFunction)Channel_values, METH_VARARGS | METH_KEYWORDS, "channel data values"},
     {"quantities", (PyCFunction)Channel_quantities, METH_VARARGS | METH_KEYWORDS, "channel data quantities"},
     {NULL}  // sentinel

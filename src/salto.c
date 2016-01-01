@@ -763,9 +763,74 @@ PyObject *timedeltaFromFloat(PyObject *self, PyObject *args) {
     return delta;
 }
 
+PyObject *cola(PyObject *self, PyObject *args) {
+    // Checks the constant-overlap-add constraint. Returns the constant,
+    // or False, if the constraint is not satisfied.
+    PyArrayObject *window;
+    PyObject *constant = NULL;
+    npy_intp step, windowLen, n;
+    double *buffer = NULL, *data = NULL;
+    
+    // Check arguments.
+    if (!PyArg_ParseTuple(args, "O!n:cola", &PyArray_Type, &window, &step)) {
+        return NULL;
+    }
+    if (PyArray_TYPE(window) != NPY_DOUBLE) {
+        PyErr_SetString(PyExc_TypeError, "Window array has to be double-valued.");
+        return NULL;
+    }
+    windowLen = PyArray_DIM(window, 0);
+    if (step < 1 || step > windowLen) {
+        PyErr_SetString(PyExc_ValueError, "Step size needs to be between 1 and window length.");
+        return NULL;
+    }
+    
+    // Check COLA constraint.
+    if (step == 1) {
+        // Always COLA
+        constant = PyArray_Sum(window, 0, NPY_NOTYPE, NULL);  // new
+    } else if (step == windowLen) {
+        // No overlap
+        data = PyArray_DATA(window);
+    } else {
+        // Allocate a zero-filled buffer for overlap-add test.
+        buffer = calloc(3 * windowLen, sizeof(double));
+        if (!buffer) {
+            PyErr_SetString(PyExc_RuntimeError, "Memory allocation failed in cola().");
+            return NULL;
+        }
+        // Overlap-add the window to itself.
+        n = 0;
+        data = PyArray_DATA(window);
+        while (n < 2 * windowLen) {
+            for (npy_intp i = 0; i < windowLen; i++) {
+                buffer[n + i] += data[i];
+            }
+            n += step;
+        }
+        data = buffer + windowLen;
+    }
+    if (data) {
+        for (n = 1; n < windowLen; n++) {
+            if (data[n] != data[0]) {
+                constant = Py_False;
+                Py_INCREF(constant);
+                break;
+            }
+        }
+        if (!constant) {
+            constant = PyFloat_FromDouble(data[0]);  // new
+        }
+    }
+    free(buffer);
+
+    return constant;
+}
+
 static PyMethodDef saltoMethods[] = {
     {"datetimeFromTimespec", datetimeFromTimespec, METH_VARARGS, "Convert timespec to a Python datetime object"},
     {"timedeltaFromFloat", timedeltaFromFloat, METH_VARARGS, "Convert seconds to a Python datetime.timedelta"},
+    {"constantOverlapAdd", cola, METH_VARARGS, "Checks the constant-overlap-add constraint. Returns the constant, or False, if the constraint is not satisfied."},
     {NULL, NULL, 0, NULL}  // sentinel
 };
 
