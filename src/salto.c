@@ -165,7 +165,7 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
                     PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
                     Py_DECREF(tempObj);
                     fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
-                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOO",
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdO",
                                                           dataArray, 0.0, fillArray);  // new
                 }
                 if (ch && addChannel(chTable, name, ch) == 0) {
@@ -213,7 +213,7 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
                     PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
                     Py_DECREF(tempObj);
                     fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
-                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOOOdd",
+                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOdd",
                                                           dataArray, 0.0, fillArray,
                                                           nan(NULL), nan(NULL));  // new
                 }
