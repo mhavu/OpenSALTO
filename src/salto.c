@@ -139,13 +139,51 @@ static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
     return typenum;
 }
 
+
+PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
+    PyObject *fillArray, *tempObj;
+    PyArray_Descr *fillDescr;
+
+    /*
+     TODO: Register a new data type for fill arrays:
+     int PyArray_RegisterDataType(PyArray_Descr* dtype)
+     
+     char kind = 'V';
+     char type = 'V';
+     char byteorder = '|';
+     char flags = '\x10';
+     int type_num = 20;
+     int elsize = 16;
+     int alignment = 1;
+     _arr_descr *subarray = NULL;
+     PyObject *fields = {'pos': (dtype('int64'), 0), 'len': (dtype('int64'), 8)};
+     PyObject *names = ('pos', 'len');
+     PyArray_ArrFuncs *f = ?;
+     PyObject *metadata = NULL;
+     NpyAuxData *c_metadata = NULL;
+     */
+    
+    tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
+    PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
+    Py_DECREF(tempObj);
+    if (fills) {
+        fillArray = PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
+        if (!fillArray) {
+            PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+        }
+    } else {
+        fillArray = PyArray_Zeros(1, &nFills, fillDescr, 0);  // new, steals fillDescr
+    }
+    
+    return fillArray;
+}
+
 void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int isSigned, size_t nParts) {
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *dataArray, *fillArray, *tempObj;
-    PyArray_Descr *fillDescr;
-    npy_intp nFills[1], nSamples[1];
+    PyObject *dataArray, *fillArray;
+    npy_intp nSamples[1];
     PyGILState_STATE state;
 
     if (nParts > 0) {
@@ -159,12 +197,7 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "Od",
                                                           dataArray, 0.0);  // new
                 } else {
-                    nFills[0] = nParts - 1;
-                    // TODO: Move this to a single place.
-                    tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
-                    PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
-                    Py_DECREF(tempObj);
-                    fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
+                    fillArray = newFillArray(NULL, nParts - 1);  //new
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdO",
                                                           dataArray, 0.0, fillArray);  // new
                 }
@@ -189,9 +222,8 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
     int typenum;
     Channel *ch;
     void *ptr = NULL;
-    PyObject *dataArray, *fillArray, *tempObj;
-    PyArray_Descr *fillDescr;
-    npy_intp nFills[1], nSamples[1];
+    PyObject *dataArray, *fillArray;
+    npy_intp nSamples[1];
     PyGILState_STATE state;
 
     if (nParts > 0) {
@@ -207,12 +239,7 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
                     ch->scale = nan(NULL);
                     ch->offset = nan(NULL);
                 } else {
-                    nFills[0] = nParts - 1;
-                    // TODO: Move this to a single place.
-                    tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
-                    PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
-                    Py_DECREF(tempObj);
-                    fillArray = PyArray_Zeros(1, nFills, fillDescr, 0);  // new, steals fillDescr
+                    fillArray = newFillArray(NULL, nParts - 1);  //new
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOdd",
                                                           dataArray, 0.0, fillArray,
                                                           nan(NULL), nan(NULL));  // new

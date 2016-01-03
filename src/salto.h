@@ -16,6 +16,7 @@
 PyObject *datetimeFromTimespec(PyObject *self, PyObject *args);
 PyObject *timedeltaFromFloat(PyObject *self, PyObject *args);
 PyObject *cola(PyObject *self, PyObject *args);
+PyObject *newFillArray(PyObject *fills, npy_intp nFills);
 void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int isSigned, size_t nParts);
 void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size, size_t nParts);
 Channel *getChannel(const char *chTable, const char *name);

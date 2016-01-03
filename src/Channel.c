@@ -54,11 +54,9 @@ static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 }
 
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *data = NULL, *events = NULL, *tempObj, *fills = NULL;
+    PyObject *data = NULL, *events = NULL, *fills = NULL;
     int error;
     size_t size;
-    npy_intp nFills;
-    PyArray_Descr *fillDescr, *argDescr;
     char *tmp;
     static char *kwlist[] = {"data", "samplerate", "fills",
         "scale", "offset", "unit", "type",
@@ -135,54 +133,16 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     }
     if (!error) {
         // Check that fills has the correct type descriptor.
-        // TODO: Move this to a single place.
-        tempObj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
-        /*
-         char kind = 'V';
-         char type = 'V';
-         char byteorder = '|';
-         char flags = '\x10';
-         int type_num = 20;
-         int elsize = 16;
-         int alignment = 1;
-         _arr_descr *subarray = NULL;
-         PyObject *fields = {'pos': (dtype('int64'), 0), 'len': (dtype('int64'), 8)};
-         PyObject *names = ('pos', 'len');
-         PyArray_ArrFuncs *f = ?;
-         PyObject *metadata = NULL;
-         NpyAuxData *c_metadata = NULL;
-         */
-        PyArray_DescrAlignConverter(tempObj, &fillDescr);  // new fillDescr
-        Py_DECREF(tempObj);
-        if (fills) {
-            if (PyArray_Check(fills)) {
-                argDescr = PyArray_DESCR((PyArrayObject *)fills);  // borrowed
-                if (PyArray_EquivTypes(fillDescr, argDescr)) {
-                    self->fills = (PyArrayObject *)fills;
-                    Py_INCREF(self->fills);
-                } else {
-                    error = -1;
-                    PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
-                }
-                Py_DECREF(fillDescr);
-            } else {
-                self->fills = (PyArrayObject *)PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
-                if (!self->fills) {
-                    error = -1;
-                    PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
-                }
+        self->fills = (PyArrayObject *)newFillArray(fills, 0);
+        if (self->fills) {
+            self->events = (PySetObject *)PySet_New(events);  // new
+            if (!self->events) {
+                Py_DECREF(self->fills);
+                error = -1;
+                PyErr_SetString(PyExc_RuntimeError, "Creating events failed");
             }
         } else {
-            nFills = 0;
-            self->fills = (PyArrayObject *)PyArray_Empty(1, &nFills, fillDescr, 0);  // new, steals fillDescr
-        }
-    }
-    if (!error) {
-        self->events = (PySetObject *)PySet_New(events);  // new
-        if (!self->events) {
-            Py_DECREF(self->fills);
             error = -1;
-            PyErr_SetString(PyExc_RuntimeError, "Creating events failed");
         }
     }
 
