@@ -1228,7 +1228,7 @@ static void stft_execute(struct stft *stft) {
     if (stft->H) {
         // Compute the circular convolution.
         for (i = 0; i < stft->size / 2 + 1; i++) {
-            stft->F[i] = stft->F[i] * stft->H[i] / stft->size;
+            stft->F[i] = stft->F[i] * stft->H[i];
         }
         fftw_execute(stft->inverse);
         
@@ -1420,10 +1420,12 @@ static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
         kernelData = PyArray_DATA((PyArrayObject *)kernel);
         error = !stft_init(&stft, fftSize, kernelData, kernelSize,
                            windowData, windowSize, stepSize);
-        Py_DECREF(kernel);
-        stft.ola = newData;
-
+    }
+    Py_DECREF(kernel);
+    
+    if (!error) {
         // Compute STFT.
+        stft.ola = newData;
         chLen = PyArray_DIM(self->data, 0);
         fills = PyArray_DATA(self->fills);
         nFills = PyArray_DIM(self->fills, 0);
@@ -1460,7 +1462,7 @@ static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
             pos += stft_copy(&stft, data + pos, left);
         }
         left = stft.n / stepSize;
-        while (left > 0) {
+        while (left >= 0) {
             stft_zeropad(&stft);
             left--;
         }
