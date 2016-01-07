@@ -58,10 +58,13 @@
                        _executing = NO;
                        if (output) {
                            [_outputArray addObject:[NSMutableString string]];
+                           PyGILState_STATE state = PyGILState_Ensure();
                            NSString *string = [NSString stringWithUTF8String:PyUnicode_AsUTF8(output)];
+                           Py_DECREF(output);
+                           PyGILState_Release(state);
                            dispatch_async(dispatch_get_main_queue(),
                                           ^{ [appDelegate.consoleController insertOutput:string]; });
-                       }
+                       }                    
                    });
     [_inputArray addObject:statement];
     // TODO: handle output
