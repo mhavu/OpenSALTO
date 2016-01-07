@@ -52,7 +52,7 @@ class Plugin(salto.Plugin):
                     # Create an event for the file.
                     end = ch.end().timestamp()
                     end_sec = int(end)
-                    end_nsec = int(math.fmod(end, 1.0))
+                    end_nsec = int(math.fmod(end, 1.0) * 1e9)
                     e = salto.Event(salto.MARKER_EVENT, file, ch.start_sec,
                                     ch.start_nsec, end_sec, end_nsec,
                                     os.path.join(dirname, file))
