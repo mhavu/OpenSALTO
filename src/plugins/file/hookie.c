@@ -77,8 +77,8 @@ int readFile(const char *filename, const char *chTable) {
     const int nChannels = 3;
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
-    char serialno[28], tag[28], value[28], json[512] = "{ ";
-    double samplerate, partDuration, timedelta;
+    char serialno[28], tag[28], value[28], json[512] = "{";
+    double samplerate, partDuration, timedelta, clockRatio;
     Error err = SUCCESS;
     struct timespec startTime;
     time_t t, *timecodes;
@@ -116,16 +116,19 @@ int readFile(const char *filename, const char *chTable) {
                     } else if (strcmp(tag, "Data compression") == 0 ||
                                strcmp(tag, "Activity threshold") == 0 ||
                                strcmp(tag, "Inactivity threshold") == 0 ||
-                               strcmp(tag, "Inactivity time") == 0 ||
-                               strcmp(tag, "Acceleration coupling") == 0) {
-                        snprintf(strchr(json, 0), sizeof(json) - strlen(json), "\"%s\": %s,", tag, value);
+                               strcmp(tag, "Inactivity time") == 0) {
+                        snprintf(strchr(json, 0), sizeof(json) - strlen(json),
+                                 "\"%s\": %d,", tag, atoi(value));
                         if (strcmp(tag, "Data compression") == 0 && atoi(value) != 0) {
                             fclose(fp);
                             fprintf(stderr, "readFile(): Data compression %s not supported\n", value);
                             err = UNSUPPORTED_COMPRESSION;
                             break;
                         }
-                        if (strcmp(tag, "Acceleration coupling") == 0 && strcmp(value, "AC") == 0) {
+                    } else if (strcmp(tag, "Acceleration coupling") == 0) {
+                        snprintf(strchr(json, 0), sizeof(json) - strlen(json),
+                                 "\"%s\": \"%s\",", tag, value);
+                        if (strcmp(value, "AC") == 0) {
                             isDynamic = 1;
                         }
                    }
@@ -229,13 +232,11 @@ int readFile(const char *filename, const char *chTable) {
     if (!err) {
         startTime.tv_sec = timecodes[0];
         startTime.tv_nsec = 0;
-        json[strlen(json) - 1] = '}';
-        // Correct samplerate, if necessary.
+        // Compute drift between RTC and sampling clock.
         partDuration = partLen[longestPart] * samplesPerBlock / samplerate;
         timedelta = timecodes[blkForLongestPart + partLen[longestPart] - 1] - timecodes[blkForLongestPart];
-        if (timedelta + 1 < partDuration) {
-            samplerate *= partDuration / timedelta;
-        }
+        clockRatio = partDuration / timedelta;
+        snprintf(strchr(json, 0), sizeof(json) - strlen(json), "\"Clock drift\": %.6f}", clockRatio - 1.0);
         // Add fills, if necessary.
         if (nParts > 1) {
             posArray = calloc(nParts - 1, sizeof(size_t));
@@ -249,7 +250,9 @@ int readFile(const char *filename, const char *chTable) {
                     i += partLen[fill] * samplesPerBlock;
                     blk += partLen[fill];
                     pos += partLen[fill] * samplesPerBlock;
-                    t = timecodes[blk] - startTime.tv_sec;
+                    // Adjust for the drift as if it were the RTC that drifts.
+                    // This way we can correct the samplerate later.
+                    t = (timecodes[blk] - startTime.tv_sec) * clockRatio;
                     lenArray[fill] = round(t * samplerate) - pos;
                     pos += lenArray[fill];
                     if (!isDynamic) {
