@@ -862,9 +862,9 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
     PyObject *data, *castData = NULL, *result = NULL;
     PyArrayObject *fillCopy = NULL;
     npy_intp size, fill, nFills, extra;
-    Channel_Fill *fills;
+    Channel_Fill *fills = NULL;
     double *in = NULL, *out = NULL;
-    int error = 0, fillGoesHere;
+    int error = 0;
     
     nFills = 0;
     data = PySequence_GetSlice((PyObject *)self->data, start, stop);  // new
@@ -873,24 +873,30 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
         if (include_fills) {
             // Get pointer to fills that are inside the slice.
             fillCopy = (PyArrayObject *)PyArray_Copy(self->fills);  // new
-            fills = PyArray_DATA(fillCopy);
+            if (fillCopy) {
+                fills = PyArray_DATA(fillCopy);
+            }
             if (fills) {
                 nFills = PyArray_DIM(self->fills, 0);
                 fill = 0;
                 while (fill < nFills) {
                     if (fills[fill].pos < start) {
+                        // Discard fills before starting position.
                         fills++;
                         nFills--;
                     } else if (fills[fill].pos < stop) {
                         if (fills[fill].pos == stop - 1) {
+                            // Ends in a fill. Set to specified length.
                             fills[fill].len = fill_pos[1];
                         }
                         if (fills[fill].pos == start) {
+                            // Begins with a fill. Set to specified length.
                             fills[fill].len -= fill_pos[0];
                         }
                         size += fills[fill].len;
                         fill++;
                     } else {
+                        // The fill is after the end position. Discard and stop here.
                         nFills = fill;
                     }
                 }
@@ -928,14 +934,14 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
         fill = 0;
         extra = 0;
         for (npy_intp i = 0; i < stop - start; i++) {
-            fillGoesHere = (start + i == fills[fill].pos);
-            if (fill < nFills && fillGoesHere) {
+            out[i + extra] = self->scale * in[i] + self->offset;
+            if (fill < nFills && i == fills[fill].pos - start) {
                 for (npy_intp j = 0; j < fills[fill].len; j++) {
-                    out[i + extra++] = self->scale * in[i] + self->offset;
+                    out[i + extra + j + 1] = out[i + extra];
                 }
+                extra += fills[fill].len;
                 fill++;
             }
-            out[i + extra] = self->scale * in[i] + self->offset;
         }
     }
     Py_XDECREF(castData);
@@ -998,7 +1004,7 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
     // from the beginning of the channel.
     PyObject *result = NULL;
     PyObject *startObj = NULL, *stopObj = NULL;
-    Py_ssize_t start, stop, fillPos[2];
+    Py_ssize_t start, stop, fillPos[2] = {0, 0};
     int include_fills;
     static char *kwlist[] = {"start", "stop", "include_fills", NULL};
     int error = 0;
@@ -1085,15 +1091,16 @@ static PyObject *Channel_filteredLength(Channel *self, PyObject *args) {
     rem = 0;
     start = 0;
     for (fill = 0; fill < nFills; fill++) {
-        rem = (rem + fills[fill].pos - start) % stepSize;
+        rem = (rem + fills[fill].pos + 1 - start) % stepSize;
         rem = rem ? stepSize - rem : 0;
         start = fills[fill].pos;
         if (fills[fill].len > rem + 2 * margin + windowSize) {
             // Fill is sufficiently long. Adjust length.
             fills[fill].len -= rem + 2 * margin;
-            fills[fill].pos += rem + margin;
-            extra += rem + 2 * margin;
+            extra += rem + margin;
+            fills[fill].pos += extra;
             rem = margin;
+            extra += margin;
         } else {
             // Fill is too short. Replace with individual samples.
             extra += fills[fill].len;
@@ -1103,8 +1110,8 @@ static PyObject *Channel_filteredLength(Channel *self, PyObject *args) {
         }
     }
     // Add padding to the end.
-    rem = (rem + length - start) % fftSize;
-    extra += rem ? fftSize - rem : 0;
+    rem = (rem + length - start) % stepSize;
+    extra += rem ? fftSize - rem : fftSize - stepSize;
     
     // Remove zero-length fills.
     valid = PyArray_Nonzero(fillArray);
@@ -1475,10 +1482,10 @@ static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
             pos += stft_copy(&stft, data + pos, left);
         }
         left = stft.n / stepSize;
-        while (left >= 0) {
+        do {
             stft_zeropad(&stft);
             left--;
-        }
+        } while (left > 0);
 
         // Clean up after FFTW.
         stft_destroy(&stft);
