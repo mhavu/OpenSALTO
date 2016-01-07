@@ -142,7 +142,7 @@ static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
 
 PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
     PyObject *fillArray, *tempObj;
-    PyArray_Descr *fillDescr;
+    PyArray_Descr *fillDescr, *argDescr;
 
     /*
      TODO: Register a new data type for fill arrays:
@@ -167,9 +167,15 @@ PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
     PyArray_DescrConverter(tempObj, &fillDescr);  // new fillDescr
     Py_DECREF(tempObj);
     if (fills) {
-        fillArray = PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
-        if (!fillArray) {
-            PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+        argDescr = PyArray_DESCR((PyArrayObject *)fills);  // borrowed
+        if (PyArray_Check(fills) && PyArray_EquivTypes(fillDescr, argDescr)) {
+            fillArray = fills;
+            Py_INCREF(fillArray);
+        } else {
+            fillArray = PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
+            if (!fillArray) {
+                PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+            }
         }
     } else {
         fillArray = PyArray_Zeros(1, &nFills, fillDescr, 0);  // new, steals fillDescr
@@ -236,13 +242,13 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
                 if (nParts == 1) {
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "Od",
                                                           dataArray, 0.0);  // new
-                    ch->scale = nan(NULL);
-                    ch->offset = nan(NULL);
+                    ch->scale = NAN;
+                    ch->offset = NAN;
                 } else {
                     fillArray = newFillArray(NULL, nParts - 1);  //new
                     ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOdd",
                                                           dataArray, 0.0, fillArray,
-                                                          nan(NULL), nan(NULL));  // new
+                                                          NAN, NAN);  // new
                 }
                 if (ch && addChannel(chTable, name, ch) == 0) {
                     ptr = PyArray_DATA((PyArrayObject *)ch->data);
@@ -324,7 +330,7 @@ double channelDuration(Channel *ch) {
     if (end.tv_nsec >= 0) {
         duration = end.tv_sec - ch->start_sec + (end.tv_nsec - ch->start_nsec) / 1e9;
     } else {
-        duration = nan(NULL);
+        duration = NAN;
     }
 
     return duration;
@@ -997,7 +1003,7 @@ PyObject *saltoEval(const char *expr) {
     } else {
         PyErr_Clear();
         if (PyRun_SimpleString(expr) == 0)
-            result = PyUnicode_FromString("");
+            result = PyUnicode_FromString("");  // new
     }
     PyGILState_Release(state);
 
