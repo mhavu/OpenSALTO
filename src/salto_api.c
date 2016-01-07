@@ -332,6 +332,7 @@ int setMetadata(const char *chTable, const char *name, const char *json) {
         strcpy(ch->json, json);
         free(ptr);
         // TODO: handle standard fields
+        // TODO: parse JSON (add the fields to the Python object)
     } else {
         result = -1;
     }

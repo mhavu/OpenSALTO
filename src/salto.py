@@ -153,6 +153,7 @@ class Plugin:
     def unregisterComputation(self, name):
         self._computations.pop(name, None)
     def compute(self, name, inputs):
+        # TODO: Raise an exception if an unregistered plugin is called.
         func, inputSpec, outputSpec, dtypes = self._computations.get(name)
         minChannels, maxChannels = inputSpec[0][2:4]
         chTable = inputs.get('channelTable')
