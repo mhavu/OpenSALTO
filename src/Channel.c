@@ -618,29 +618,37 @@ static PyObject *Channel_getEvents(Channel *self, PyObject *args, PyObject *kwds
 static double timeAsOffset(Channel *self, PyObject *time) {
     // Returns offset from the beginning of the channel in seconds. If time
     // is float or timedelta, it is converted to double. If time is datetime,
-    // the offset is calculated.
-    PyObject *obj, *start, *delta, *sec;
+    // the offset is calculated. Returns NAN if an error occurred.
+    PyObject *obj, *start, *delta = NULL, *sec = NULL;
     double offset;
     
-    offset = -1.0;
+    offset = NAN;
     if (PyFloat_Check(time)) {
         offset = PyFloat_AsDouble(time);
     } else {
         start = Channel_start(self);  // new
-        delta = PyNumber_Subtract(time, start);  // new
-        Py_XDECREF(start);
-        // If the subtraction succeeds, time argument is a datetime.
-        // If not, let us assume for a while that it is a timedelta.
-        if (!delta) {
-            PyErr_Clear();
-            delta = time;
+        if (start) {
+            delta = PyNumber_Subtract(time, start);  // new
+            Py_DECREF(start);
+            // If the subtraction succeeds, time argument is a datetime.
+            // If not, let us assume for a while that it is a timedelta.
+            if (!delta) {
+                PyErr_Clear();
+                delta = time;
+                Py_INCREF(delta);
+            }
         }
         obj = Py_BuildValue("(d)", 1.0);  // new
-        sec = timedeltaFromFloat(NULL, obj);  // new
-        Py_XDECREF(obj);
-        obj = PyNumber_TrueDivide(delta, sec);  // new
+        if (obj) {
+            sec = timedeltaFromFloat(NULL, obj);  // new
+            Py_DECREF(obj);
+            obj = NULL;
+        }
+        if (sec) {
+            obj = PyNumber_TrueDivide(delta, sec);  // new
+            Py_DECREF(sec);
+        }
         Py_XDECREF(delta);
-        Py_XDECREF(sec);
         if (obj) {
             offset = PyFloat_AsDouble(obj);
             Py_DECREF(obj);
@@ -654,10 +662,10 @@ static double timeAsOffset(Channel *self, PyObject *time) {
 
 static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *time = NULL, *result = NULL;
-    double n, offset, tolerance;
+    double n, t, offset, tolerance;
     npy_intp nFills, i, index, len;
     Channel_Fill *fills;
-    int ok = 1;
+    int ok = 0;
     const char *method = "nearest";
     static char *kwlist[] = {"time", "method", "tolerance", NULL};
     
@@ -665,37 +673,49 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
     tolerance = 0.1 / self->samplerate;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "O|sd:sampleIndex", kwlist,
                                     &time, &method, &tolerance)) {
-        offset = timeAsOffset(self, time);
-        if (PyErr_Occurred()) {
-            ok = 0;
+        t = timeAsOffset(self, time);
+        if (!PyErr_Occurred()) {
+            ok = 1;
         }
-    } else {
-        ok = 0;
     }
     if (ok) {
-        n = offset * self->samplerate;
+        n = t * self->samplerate;
         if (self->fills) {
             nFills = PyArray_DIM(self->fills, 0);
             fills = PyArray_DATA(self->fills);
             for (i = 0; i < nFills; i++) {
                 if (fills[i].pos + fills[i].len < n - 0.5) {
+                    // The entire fill is before n.
                     n -= fills[i].len;
                 } else if (fills[i].pos < n) {
+                    // The fill contains n.
                     if (strcasecmp(method, "nearest") == 0) {
+                        // At the end of the fill, the nearest sample is the
+                        // next one after the fill. Everywhere else it is the
+                        // one before, since that is the fill value.
                         n = (fills[i].pos + fills[i].len < n + 0.5) ? fills[i].pos + 1: fills[i].pos;
                     } else  if (strcasecmp(method, "next") == 0) {
                         n = fills[i].pos + 1;
                     } else  if (strcasecmp(method, "previous") == 0) {
                         n = fills[i].pos;
                     } else if (strcasecmp(method, "exact") == 0) {
-                        n = nan(NULL);
+                        if (fills[i].pos + fills[i].len / 2.0 < n) {
+                            n = fills[i].pos;
+                            offset = n - fills[i].pos;
+                        } else {
+                            n = fills[i].pos + 1;
+                            offset = fills[i].pos + fills[i].len - n;
+                        }
                     }
                     break;
                 } else {
+                    offset = n - round(n);
                     break;
                 }
             }
         }
+    }
+    if (ok) {
         len = PyArray_DIM(self->data, 0);
         if (strcasecmp(method, "nearest") == 0) {
             index = round(n);
@@ -706,26 +726,28 @@ static PyObject *Channel_sampleIndex(Channel *self, PyObject *args, PyObject *kw
             }
         } else if (strcasecmp(method, "next") == 0) {
             index = (n < 0) ? 0 : ceil(n);
-            if (index >= len) {
-                ok = 0;
-            }
         } else if (strcasecmp(method, "previous") == 0) {
             index = (n < len) ? floor(n) : len - 1;
-            if (index < 0) {
-                ok = 0;
-            }
         } else if (strcasecmp(method, "exact") == 0) {
-            offset = n - round(n);
             if (abs(offset) <= tolerance) {
                 index = round(n);
-                if (index < 0 || index >= len) {
-                    ok = 0;
-                }
             } else {
+                PyErr_SetString(PyExc_ValueError, "Sample time is not within tolerance");
                 ok = 0;
             }
         } else {
             PyErr_SetString(PyExc_ValueError, "Valid values for method are nearest, next, previous, and exact");
+            ok = 0;
+        }
+    }
+    if (ok) {
+        if (index < 0) {
+            PyErr_SetString(PyExc_IndexError, "Sample time preceeds channel start");
+            ok = 0;
+        }
+        if (index >= len) {
+            PyErr_SetString(PyExc_IndexError, "Sample time exceeds channel end");
+            ok = 0;
         }
     }
     if (ok) {
@@ -759,7 +781,7 @@ double Channel_sampleOffsetAsDouble(Channel *self, npy_intp index) {
         result = n / self->samplerate;  // new
     } else {
         PyErr_SetString(PyExc_IndexError, "Sample index out of range");
-        result = nan(NULL);
+        result = NAN;
     }
     
     return result;
@@ -816,7 +838,6 @@ static PyObject *Channel_getSample(Channel *self, PyObject *args, PyObject *kwds
             sample = NULL;
             value *= self->scale;
             value += self->offset;
-            // TODO: Pint uses eval, which is unsafe. Fix this!
             sample = PyObject_CallMethod(unitRegistry(), "Quantity", "ds", value, self->unit);  // new
             if (!sample) {
                 PyErr_SetString(PyExc_RuntimeError, "Failed to get sample quantity");
@@ -843,7 +864,7 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
     npy_intp size, fill, nFills, extra;
     Channel_Fill *fills;
     double *in = NULL, *out = NULL;
-    int error = 0;
+    int error = 0, fillGoesHere;
     
     nFills = 0;
     data = PySequence_GetSlice((PyObject *)self->data, start, stop);  // new
@@ -907,13 +928,12 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
         fill = 0;
         extra = 0;
         for (npy_intp i = 0; i < stop - start; i++) {
-            if (fill < nFills) {
-                if (start + i == fills[fill].pos) {
-                    for (npy_intp j = 0; j < fills[fill].len; j++) {
-                        out[i + extra++] = self->scale * in[i] + self->offset;
-                    }
-                    fill++;
+            fillGoesHere = (start + i == fills[fill].pos);
+            if (fill < nFills && fillGoesHere) {
+                for (npy_intp j = 0; j < fills[fill].len; j++) {
+                    out[i + extra++] = self->scale * in[i] + self->offset;
                 }
+                fill++;
             }
             out[i + extra] = self->scale * in[i] + self->offset;
         }
@@ -933,8 +953,7 @@ static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_po
     // Checks that object o is an integer or converts it to integer, if it is
     // a datetime or timedelta. If the offset specified by o is inside a fill,
     // fill_pos is set to the number samples between the fill position and the
-    // specified offset.
-    PyObject *argTuple, *tempObj;
+    // specified offset. Returns -1 if an error occurs.
     npy_intp len, fill, nFills;
     Py_ssize_t index;
     Channel_Fill *fills;
@@ -942,37 +961,32 @@ static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_po
     
     index = -1;
     len = PyArray_DIM(self->data, 0);
-    argTuple = PyTuple_Pack(1, o);  // new
-    if (argTuple) {
-        tempObj = Channel_sampleIndex(self, argTuple, NULL);  // new
-        if (tempObj) {
-            // Object o was a datetime, timedelta, or float.
-            index = PyLong_AsSsize_t(tempObj);
-            index = (index < 0) ? len + index : index;
-            // Calculate fill length.
-            *fill_pos = 0;
-            nFills = PyArray_DIM(self->fills, 0);
-            fills = PyArray_DATA(self->fills);
-            for (fill = 0; fill < nFills; fill++) {
-                if (fills[fill].pos == index) {
-                    tGiven = timeAsOffset(self, o);
-                    tFill = Channel_sampleOffsetAsDouble(self, index);
-                    *fill_pos = round((tGiven - tFill) * self->samplerate);
-                    break;
-                }
-            }
-        } else if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-            // Object o was not a datetime, timedelta, or float.
-            PyErr_Clear();
-            if (PyLong_Check(o)) {
-                index = PyLong_AsSsize_t(o);
-                index = (index < 0) ? len + index : index;
-                *fill_pos = 0;
-            } else {
-                PyErr_SetString(PyExc_TypeError, "Argument o in convertToIndex() must be integer, float, timedelta, or datetime");
+    if (PyLong_Check(o)) {
+        // Argument o is already an index.
+        Py_INCREF(o);
+        nFills = 0;
+    } else {
+        // Convert float, timedelta, or datetime to an index.
+        o = PyObject_CallMethod((PyObject *)self, "sampleIndex", "O", o);  // new
+        nFills = PyArray_DIM(self->fills, 0);
+        fills = PyArray_DATA(self->fills);
+    }
+    if (o) {
+        index = PyLong_AsSsize_t(o);
+        Py_DECREF(o);
+        index = (index < 0) ? len + index : index;
+        // Calculate fill length.
+        *fill_pos = 0;
+        for (fill = 0; fill < nFills; fill++) {
+            if (fills[fill].pos == index) {
+                tGiven = timeAsOffset(self, o);
+                tFill = Channel_sampleOffsetAsDouble(self, index);
+                *fill_pos = round((tGiven - tFill) * self->samplerate);
+                break;
             }
         }
-        Py_DECREF(argTuple);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "Argument o in convertToIndex() must be integer, float, timedelta, or datetime");
     }
 
     return index;
@@ -1020,7 +1034,6 @@ static PyObject *Channel_quantities(Channel *self, PyObject *args, PyObject *kwd
     
     values = Channel_values(self, args, kwds);
     if (values) {
-        // TODO: Pint uses eval, which is unsafe. Fix this!
         result = PyObject_CallMethod(unitRegistry(), "Quantity", "Os", values, self->unit);
         if (!result) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to get channel quantities");
@@ -1490,7 +1503,6 @@ static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
 
 static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) {
     PyObject *chList, *item, *obj, *events, *argTuple;
-    PyArray_Descr *fillDescr;
     PyObject *unit = NULL, *dimensionality = NULL, *conversionFactorList =  NULL;
     PyObject *localUnit, *localDimensionality, *conversionFactor, *fillValues;
     PyArray_Dims dims;
@@ -1499,7 +1511,7 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
     Channel *ch, *result = NULL;
     Py_ssize_t length, i, nParts, fillLen;
     int thisType, otherType, error = 0;
-    npy_intp sample, j, fill, nFillSamples, nDiscardedFills;
+    npy_intp sample, j, fill, nFillSamples;
     npy_intp size, nFills = 0, nLocalFills, nNonlocalFills;
     Channel_Fill *fillSrc, *fillDst;
     double samplerate, t0, t, scale, offset, oldScale, oldOffset;
@@ -1587,7 +1599,6 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
                             PyErr_SetString(PyExc_ValueError, "Samplerates do not match");
                             break;
                         }
-                        // TODO: Pint uses eval, which is unsafe. Fix this!
                         localUnit = PyObject_CallMethod(unitRegistry(), "parse_expression", "s", ch->unit);  // new
                         conversionFactor = NULL;
                         obj = localUnit ? PyObject_CallMethod(localUnit, "to", "O", unit) : NULL;  // new
@@ -1676,11 +1687,7 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
         }
         if (!error) {
             data = (PyArrayObject *)PyArray_EMPTY(1, &length, thisType, 0);  // new
-            // TODO: Move this to a single place.
-            obj = Py_BuildValue("[(s, s), (s, s)]", "pos", "p", "len", "p");  // new
-            PyArray_DescrConverter(obj, &fillDescr);  // new fillDescr
-            Py_DECREF(obj);
-            fills = (PyArrayObject *)PyArray_Empty(1, &nFills, fillDescr, 0);  // new, steals fillDescr
+            fills = (PyArrayObject *)newFillArray(NULL, nFills);
             if (!fills) {
                 PyErr_SetString(PyExc_RuntimeError, "Error creating fill array in collate()");
                 error = -1;
@@ -1691,7 +1698,6 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
             fill = 0;
             nFillSamples = 0;
             sample = 0;
-            nDiscardedFills = 0;
             events = PySet_New(NULL);  // new
             argTuple = PyTuple_New(0);  // new
             for (i = 0; i < nParts; i++) {
@@ -1719,10 +1725,11 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
                             error = -1;
                             break;
                         }
-                    } else if (fillLen > -2.0 * samplerate) {
-                        // Allow overlap of 2.0 s in case the file timestamps
-                        // are in full seconds.
-                        nDiscardedFills += 1;
+                    } else if (fillLen == 0) {
+                        // TODO: Allow some overlap to account for rounding errors.
+                        // TODO: Remove the fill completely.
+                        fillDst[fill].pos = sample;
+                        fillDst[fill].len = 0;
                     } else {
                         fprintf(stderr, "Channels overlap by %zd samples\n", -fillLen);
                         PyErr_SetString(PyExc_ValueError, "Can not collate() Channel objects that overlap");
@@ -1762,18 +1769,17 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
                     // Copy the fills from all sparse channels.
                     nLocalFills = PyArray_DIM(ch->fills, 0);
                     fillSrc = PyArray_DATA(ch->fills);
-                    fillDst = PyArray_DATA(fills);
                     for (j = 0; j < nLocalFills; j++) {
-                        fillDst[j].pos = sample + fillSrc[j].pos;
-                        fillDst[j].len = fillSrc[j].len;
+                        fillDst[fill].pos = sample + fillSrc[j].pos;
+                        fillDst[fill++].len = fillSrc[j].len;
                         nFillSamples += fillSrc[j].len;
                     }
-                    fill += nLocalFills;
                 }
                 sample += PyArray_DIM(ch->data, 0);
-                obj = PyObject_CallMethod(events, "update", "O", ch->events);
+                obj = PyObject_CallMethod(events, "update", "O", ch->events);  // new
                 if (obj) {
                     Py_DECREF(obj);
+                    obj = NULL;
                 } else {
                     PyErr_SetString(PyExc_ValueError, "Updating events in collate() failed");
                     error = -1;
@@ -1781,30 +1787,6 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
                 }
             }
             Py_DECREF(argTuple);
-        }
-        if (!error) {
-            if (nDiscardedFills > 0) {
-                // Resize data.
-                length -= nDiscardedFills;
-                dims.ptr = &length;
-                dims.len = 1;
-                obj = PyArray_Resize(data, &dims, 0, NPY_CORDER);  // new
-                Py_DECREF(data);
-                data = (PyArrayObject *)obj;
-                
-                // Resize fills.
-                nFills -= nDiscardedFills;
-                dims.ptr = &nFills;
-                dims.len = 1;
-                obj = PyArray_Resize(fills, &dims, 0, NPY_CORDER);  // new
-                Py_DECREF(fills);
-                fills = (PyArrayObject *)obj;
-                
-                if (!data || !fills) {
-                    PyErr_SetString(PyExc_RuntimeError, "Error resizing arrays in collate()");
-                    error = -1;
-                }
-            }
         }
         if (!error) {
             // Create a new channel.
