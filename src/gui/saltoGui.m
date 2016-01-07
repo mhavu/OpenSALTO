@@ -62,21 +62,23 @@ static PyObject *readLinesFromConsole(PyObject *pyself, PyObject *args) {
 
 static PyObject *writeToConsole(PyObject *pyself, PyObject *args) {
     const char *str;
+    PyObject *result = NULL;
 
     if (PyArg_ParseTuple(args, "s:write", &str)) {
         NSString *string = [NSString stringWithUTF8String:str];
         SaltoConsoleController *consoleController = [[NSApp delegate] consoleController];
         // TODO: Use NSParagraphStyle
         dispatch_async(dispatch_get_main_queue(), ^{ [consoleController insertOutput:string]; });
+        result = Py_BuildValue("i", strlen(str));  // new
     } else {
         PyErr_SetString(PyExc_TypeError, "write() takes a string argument");
     }
 
-    return Py_BuildValue("i", strlen(str));
+    return result;
 }
 
 static PyObject *writeLinesToConsole(PyObject *pyself, PyObject *args) {
-    PyObject *iterable, *iterator, *o, *s;
+    PyObject *iterable, *iterator, *o, *s, *result = NULL;
     NSString *string;
     NSRange range;
 
@@ -103,12 +105,13 @@ static PyObject *writeLinesToConsole(PyObject *pyself, PyObject *args) {
             Py_DECREF(o);
         }
         Py_XDECREF(iterator);
+        Py_INCREF(Py_None);
+        result = Py_None;
     } else {
         PyErr_SetString(PyExc_TypeError, "writelines() takes an iterable of strings as an argument");
     }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    return result;
 }
 
 static PyObject *consoleEncoding(PyObject *pyself, PyObject *args) {
@@ -136,6 +139,7 @@ static PyObject *returnFalse(PyObject *pyself, PyObject *args) {
 
 PyObject *saltoGuiAddChannel(PyObject *pyself, PyObject *args) {
     Channel *ch;
+    PyObject *result = NULL;
     const char *name;
     
     if (PyArg_ParseTuple(args, "O!s:addChannel", &ChannelType, &ch, &name)) {
@@ -143,27 +147,30 @@ PyObject *saltoGuiAddChannel(PyObject *pyself, PyObject *args) {
         [channel setLabel:[NSString stringWithUTF8String:name]];
         [[NSApp delegate] performSelectorOnMainThread:@selector(addChannel:)
                                            withObject:channel waitUntilDone:NO];
+        Py_INCREF(Py_None);
+        result = Py_None;
     } else {
         PyErr_SetString(PyExc_TypeError, "addChannel() takes a Channel argument");
     }
     
-    Py_INCREF(Py_None);
-    return Py_None;
+    return result;
 }
 
 PyObject *saltoGuiRemoveChannel(PyObject *pyself, PyObject *args) {
     Channel *ch;
-
+    PyObject *result = NULL;
+    
     if (PyArg_ParseTuple(args, "O!:removeChannel", &ChannelType, &ch)) {
         SaltoChannelWrapper *channel = [SaltoChannelWrapper wrapperForChannel:ch];
         [[NSApp delegate] performSelectorOnMainThread:@selector(removeChannel:)
                                            withObject:channel waitUntilDone:NO];
+        Py_INCREF(Py_None);
+        result = Py_None;
     } else {
         PyErr_SetString(PyExc_TypeError, "removeChannel() takes a Channel argument");
     }
 
-    Py_INCREF(Py_None);
-    return Py_None;
+    return result;
 }
 
 PyObject *saltoGuiTerminate(PyObject *pyself) {
