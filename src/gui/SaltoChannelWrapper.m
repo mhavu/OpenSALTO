@@ -377,10 +377,11 @@
                     pointIndex += pointCount;
                 } else {
                     // Aggregate data points to two points (min and max) per pixel.
-                    NSUInteger i = 1;
+                    NSUInteger i = 0;
                     for (NSUInteger p = skipCount; p < pointCount + skipCount; p += 2) {
-                        double max = data[segment.location - dataOffset];
+                        double max = data[segment.location + i - dataOffset];
                         double min = max;
+                        i++;
                         double nextPixelBoundary = (p + 2) / 2 * sampleCount / pixelCount;
                         while (i < nextPixelBoundary && i < sampleCount) {
                             if (data[segment.location + i - dataOffset] > max) {
