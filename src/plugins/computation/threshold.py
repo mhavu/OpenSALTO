@@ -29,14 +29,16 @@ class Plugin(salto.Plugin):
                                  inputs = inputs,
                                  outputs = [('channelTable', 'S', 0, 0)])
     def _position(self, data, lower, upper, includelower, includeupper):
-        if (includelower and includeupper):
-            result = np.where((data >= lower) & (data <= upper))
-        elif includeupper:
-            result = np.where((data > lower) & (data <= upper))
-        elif includelower:
-            result = np.where((data >= lower) & (data < upper))
-        else:
-            result = np.where((data > lower) & (data < upper))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            if (includelower and includeupper):
+                result = np.where((data >= lower) & (data <= upper))
+            elif includeupper:
+                result = np.where((data > lower) & (data <= upper))
+            elif includelower:
+                result = np.where((data >= lower) & (data < upper))
+            else:
+                result = np.where((data > lower) & (data < upper))
         return result[0]
     def _addEvent(self, channel, startpos, endpos = None, duration = None):
         if (endpos is None and duration is None) or (endpos is not None and duration is not None):
