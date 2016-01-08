@@ -31,12 +31,12 @@ class Plugin(salto.Plugin):
             if not channel.matches(another):
                 raise TypeError("Input channels must be of same type and from same time period")
         chTable = salto.ChannelTable()
-        normArray = np.linalg.norm([ch.scale * ch.data + ch.offset
+        normArray = np.linalg.norm([ch.values()
                                     for ch in iChannels.values()], axis = 0)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             for name, ch in iChannels.items():
-                inclination = salto.Channel(np.arccos((ch.scale * ch.data + ch.offset) / normArray),
+                inclination = salto.Channel(np.arccos(ch.values() / normArray),
                                             ch.samplerate, ch.fills,
                                             unit = "rad", type = "angle",
                                             start_sec = ch.start_sec, start_nsec = ch.start_nsec)
