@@ -90,10 +90,6 @@ static void Event_dealloc(Event* self) {
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject *Event_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    return (PyObject *)type->tp_alloc(type, 0);
-}
-
 static int Event_init(Event *self, PyObject *args, PyObject *kwds) {
     int result;
     size_t size;
@@ -197,7 +193,7 @@ static PyObject *Event_start(Event *self) {
     
     timespec = Py_BuildValue("Ll", self->start_sec, self->start_nsec);  // new
     if (timespec) {
-        result = datetimeFromTimespec(NULL, timespec);
+        result = datetimeFromTimespec(NULL, timespec);  // new
         Py_DECREF(timespec);
     } else {
         result = NULL;
@@ -211,7 +207,7 @@ static PyObject *Event_end(Event *self) {
     
     timespec = Py_BuildValue("Ll", self->end_sec, self->end_nsec);  // new
     if (timespec) {
-        result = datetimeFromTimespec(NULL, timespec);
+        result = datetimeFromTimespec(NULL, timespec);  // new
         Py_DECREF(timespec);
     } else {
         result = NULL;
@@ -233,7 +229,7 @@ static PyObject *Event_union(Event *self, PyObject *args) {
     list = PySequence_List(args);  // new
     result = PySet_New(NULL);  // new
     if (list && result) {
-        PyList_Sort(list);  // new
+        PyList_Sort(list);
         size = PyList_GET_SIZE(list);
         e1 = (Event *)PyObject_CallFunction((PyObject *)&EventType, "isLlLls", self->type,
                                             self->subtype, self->start_sec, self->start_nsec,
@@ -385,5 +381,5 @@ PyTypeObject EventType = {
     offsetof(Event, dict),       // tp_dictoffset
     (initproc)Event_init,        // tp_init
     0,                           // tp_alloc
-    Event_new                    // tp_new
+    PyType_GenericNew            // tp_new
 };

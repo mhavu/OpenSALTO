@@ -27,7 +27,12 @@ double duration(const char *chTable, const char *name) {
     channel = (PyObject *)getChannel(chTable, name);
     state = PyGILState_Ensure();
     value = PyObject_CallMethod(channel, "duration", NULL);  // new
-    duration = PyFloat_AsDouble(value);
+    if (value) {
+        duration = PyFloat_AsDouble(value);
+        Py_DECREF(value);
+    } else {
+        duration = NAN;
+    }
     PyGILState_Release(state);
 
     return duration;
@@ -186,7 +191,7 @@ PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
 
 void *newIntegerChannel(const char *chTable, const char *name, size_t length, size_t size, int isSigned, size_t nParts) {
     int typenum;
-    Channel *ch;
+    Channel *ch = NULL;
     void *ptr = NULL;
     PyObject *dataArray, *fillArray;
     npy_intp nSamples[1];
@@ -204,13 +209,17 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
                                                           dataArray, 0.0);  // new
                 } else {
                     fillArray = newFillArray(NULL, nParts - 1);  //new
-                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdO",
-                                                          dataArray, 0.0, fillArray);  // new
+                    if (fillArray) {
+                        ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdO",
+                                                              dataArray, 0.0, fillArray);  // new
+                        Py_DECREF(fillArray);
+                    }
                 }
-                if (ch && addChannel(chTable, name, ch) == 0) {
+                if (ch && addChannel(chTable, name, ch) == 0) {  // increase reference count
                     ptr = PyArray_DATA((PyArrayObject *)ch->data);
                     Py_DECREF(ch);
                 }
+                Py_DECREF(dataArray);
             }
             PyGILState_Release(state);
         } else {
@@ -226,7 +235,7 @@ void *newIntegerChannel(const char *chTable, const char *name, size_t length, si
 
 void *newRealChannel(const char *chTable, const char *name, size_t length, size_t size, size_t nParts) {
     int typenum;
-    Channel *ch;
+    Channel *ch = NULL;
     void *ptr = NULL;
     PyObject *dataArray, *fillArray;
     npy_intp nSamples[1];
@@ -246,14 +255,18 @@ void *newRealChannel(const char *chTable, const char *name, size_t length, size_
                     ch->offset = NAN;
                 } else {
                     fillArray = newFillArray(NULL, nParts - 1);  //new
-                    ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOdd",
-                                                          dataArray, 0.0, fillArray,
-                                                          NAN, NAN);  // new
+                    if (fillArray) {
+                        ch = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOdd",
+                                                              dataArray, 0.0, fillArray,
+                                                              NAN, NAN);  // new
+                        Py_DECREF(fillArray);
+                    }
                 }
-                if (ch && addChannel(chTable, name, ch) == 0) {
+                if (ch && addChannel(chTable, name, ch) == 0) {  // increase reference count
                     ptr = PyArray_DATA((PyArrayObject *)ch->data);
                     Py_DECREF(ch);
                 }
+                Py_DECREF(dataArray);
             }
             PyGILState_Release(state);
         } else {
@@ -276,10 +289,12 @@ Channel *getChannel(const char *chTable, const char *name) {
     channelTable = PyDict_GetItemString(chTableDict, chTable);  // borrowed
     if (channelTable) {
         channels = PyObject_GetAttrString(channelTable, "channels");  // new
-        ch = (Channel *)PyDict_GetItemString(channels, name);  // borrowed
-        if (ch && !PyObject_TypeCheck(ch, &ChannelType))
-            ch = NULL;
-        Py_DECREF(channels);
+        if (channels) {
+            ch = (Channel *)PyDict_GetItemString(channels, name);  // borrowed
+            if (ch && !PyObject_TypeCheck(ch, &ChannelType))
+                ch = NULL;
+            Py_DECREF(channels);
+        }
     }
     PyGILState_Release(state);
 
@@ -536,7 +551,7 @@ int registerFileFormat(void *obj, const char *format, const char **exts, size_t 
         extList = PyList_New(n_exts);  // new
         if (registerFormat && name && extList) {
             for (int i = 0; i < n_exts; i++) {
-                PyList_SET_ITEM(extList, i, PyUnicode_FromString(exts[i]));  // stolen
+                PyList_SET_ITEM(extList, i, PyUnicode_FromString(exts[i]));  // new, stolen
             }
             o = PyObject_CallMethodObjArgs(obj, registerFormat, name, extList, NULL);  // new
             result = (o ? 0 : -1);
@@ -700,6 +715,7 @@ Event **getEvents(const char *chTable, const char *name, size_t *size) {
             iterator = PyObject_GetIter((PyObject *)ch->events);  // new
             while ((e = PyIter_Next(iterator))) {  // new
                 array[i++] = (Event *)e;
+                Py_DECREF(e);
             }
             Py_DECREF(iterator);
         }
@@ -727,7 +743,7 @@ void clearEvents(const char *chTable, const char *name) {
 
 Event *newEvent(EventVariety type, const char *subtype, struct timespec start,
                 struct timespec end, const char *description) {
-    Event *event = NULL;
+    Event *event;
     PyGILState_STATE state;
 
     state = PyGILState_Ensure();
@@ -895,8 +911,8 @@ static PyObject *PyInit_salto(void) {
             PyModule_AddObject(module, "Event", (PyObject *)&EventType);  // stolen
             // Add a __path__ attribute, so Python knows this is a package.
             path = PyList_New(1);  // new
-            PyList_SetItem(path, 0, PyUnicode_FromString("salto"));  // stolen
-            PyModule_AddObject(module, "__path__", path);
+            PyList_SetItem(path, 0, PyUnicode_FromString("salto"));  // new, stolen
+            PyModule_AddObject(module, "__path__", path); // stolen
             // Get the module dictionary.
             saltoDict = PyModule_GetDict(module);  // borrowed
             Py_XINCREF(saltoDict);
@@ -929,16 +945,16 @@ int saltoInit(const char *saltoPyPath, PyObject* (*guiInitFunc)(void)) {
     }
 
     // Import the OpenSALTO modules.
-    saltoModule = PyImport_ImportModule("salto");
+    saltoModule = PyImport_ImportModule("salto");  // new
     if (saltoModule) {
-        PyModule_AddObject(mainModule, "salto", saltoModule);
+        PyModule_AddObject(mainModule, "salto", saltoModule);  // stolen
     } else {
         PyErr_Print();
     }
     if (guiInitFunc) {
-        saltoGuiModule = PyImport_ImportModule("salto_gui");
+        saltoGuiModule = PyImport_ImportModule("salto_gui");  // new
         if (saltoGuiModule) {
-            PyModule_AddObject(saltoModule, "gui", saltoGuiModule);
+            PyModule_AddObject(saltoModule, "gui", saltoGuiModule);  // stolen
         } else {
             PyErr_Print();
         }

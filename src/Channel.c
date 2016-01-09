@@ -26,36 +26,13 @@ static void Channel_dealloc(Channel* self) {
     free(self->json);
     Py_DECREF(self->data);
     Py_XDECREF(self->dict);
-    Py_DECREF(self->fills);
+    Py_XDECREF(self->fills);
     Py_XDECREF(self->events);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject *Channel_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    Channel *self;
-    PyObject *data;
-    
-    data = PyTuple_GetItem(args, 0);  // borrowed
-    if (data && PyArray_Check(data)) {
-        self = (Channel *)type->tp_alloc(type, 0);
-        if (self) {
-            self->dict = NULL;
-            self->events = NULL;
-            self->fills = NULL;
-            Py_INCREF(data);
-            self->data = (PyArrayObject *)data;
-        }
-    } else {
-        PyErr_SetString(PyExc_TypeError, "Channel.new() takes a NumPy array as an argument");
-        self = NULL;
-    }
-
-    return (PyObject *)self;
-}
-
 static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
-    PyObject *data = NULL, *events = NULL, *fills = NULL;
-    int error;
+    PyObject *events = NULL, *fills = NULL;
     size_t size;
     char *tmp;
     static char *kwlist[] = {"data", "samplerate", "fills",
@@ -72,16 +49,35 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     self->offset = 0.0;
     self->start_sec = 0;
     self->start_nsec = 0;
-    error = !PyArg_ParseTupleAndKeywords(args, kwds, "Od|OddssLlssisO", kwlist,
-                                         &data,
-                                         &(self->samplerate),
-                                         &fills,
-                                         &(self->scale), &(self->offset),
-                                         &(self->unit), &(self->type),
-                                         &(self->start_sec), &(self->start_nsec),
-                                         &(self->device), &(self->serial_no),
-                                         &(self->resolution), &(self->json),
-                                         &events);
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O!d|OddssLlssisO", kwlist,
+                                     &PyArray_Type, &self->data,
+                                     &(self->samplerate),
+                                     &fills,
+                                     &(self->scale), &(self->offset),
+                                     &(self->unit), &(self->type),
+                                     &(self->start_sec), &(self->start_nsec),
+                                     &(self->device), &(self->serial_no),
+                                     &(self->resolution), &(self->json),
+                                     &events)) {
+        return -1;
+    }
+    if (self->start_nsec < 0 || self->start_nsec > 999999999) {
+        PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
+        return -1;
+    }
+    // Check that fills has the correct type descriptor.
+    self->fills = (PyArrayObject *)newFillArray(fills, 0);  // new
+    if (self->fills) {
+        self->events = (PySetObject *)PySet_New(events);  // new
+        if (!self->events) {
+            Py_DECREF(self->fills);
+            return -1;
+        }
+    } else {
+        return -1;
+    }
+
+    Py_INCREF(self->data);
     if (self->device) {
         size = strlen(self->device) + 1;
         tmp = self->device;
@@ -127,26 +123,8 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         self->json = malloc(3);
         strcpy(self->json, "{}");
     }
-    if (!error && (self->start_nsec < 0 || self->start_nsec > 999999999)) {
-        error = -1;
-        PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
-    }
-    if (!error) {
-        // Check that fills has the correct type descriptor.
-        self->fills = (PyArrayObject *)newFillArray(fills, 0);
-        if (self->fills) {
-            self->events = (PySetObject *)PySet_New(events);  // new
-            if (!self->events) {
-                Py_DECREF(self->fills);
-                error = -1;
-                PyErr_SetString(PyExc_RuntimeError, "Creating events failed");
-            }
-        } else {
-            error = -1;
-        }
-    }
 
-    return error;
+    return 0;
 }
 
 static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
@@ -372,7 +350,6 @@ static PyObject *Channel_eventUnion(Channel *self, PyObject *args) {
                 error = -1;
                 break;
             }
-            Py_XDECREF(ch);
         }
         if (!error) {
             result = PySet_New(events);  // new
@@ -802,19 +779,21 @@ static PyObject *Channel_sampleOffset(Channel *self, PyObject *args) {
 }
 
 static PyObject *Channel_sampleTime(Channel *self, PyObject *args) {
-    PyObject *offset, *argTuple, *delta, *start, *result = NULL;
+    PyObject *offset, *argTuple, *delta = NULL, *start, *result = NULL;
     
     offset = Channel_sampleOffset(self, args);
     if (offset) {
         argTuple = PyTuple_Pack(1, offset);  // new
-        delta = timedeltaFromFloat(NULL, argTuple);  // new
+        if (argTuple) {
+            delta = timedeltaFromFloat(NULL, argTuple);  // new
+            Py_DECREF(argTuple);
+        }
         start = Channel_start(self);  // new
         if (start && delta) {
-            result = PyNumber_Add(start, delta);
+            result = PyNumber_Add(start, delta);  // new
         } else {
             PyErr_SetString(PyExc_RuntimeError, "Failed to instantiate a datetime object");
         }
-        Py_XDECREF(argTuple);
         Py_XDECREF(delta);
         Py_XDECREF(start);
     }
@@ -1040,7 +1019,7 @@ static PyObject *Channel_quantities(Channel *self, PyObject *args, PyObject *kwd
     
     values = Channel_values(self, args, kwds);
     if (values) {
-        result = PyObject_CallMethod(unitRegistry(), "Quantity", "Os", values, self->unit);
+        result = PyObject_CallMethod(unitRegistry(), "Quantity", "Os", values, self->unit);  // new
         if (!result) {
             PyErr_SetString(PyExc_RuntimeError, "Failed to get channel quantities");
         }
@@ -1310,7 +1289,6 @@ static void stft_apply(struct stft *stft) {
         if (F) {
             // TODO: Save the result.
             PyObject_CallFunctionObjArgs(stft_fun, F, NULL);  // new
-            Py_DECREF(stft);
         } else {
             PyErr_SetString(PyExc_RuntimeError, "Wrapping STFT result as PyArray_Object failed");
         }
@@ -1355,6 +1333,8 @@ static PyObject *Channel_filter(Channel *self, PyObject *args, PyObject *kwds) {
             PyErr_SetString(PyExc_ValueError, "Overlap in filter() must be less than kernel size");
             return NULL;
         }
+    } else {
+        return NULL;
     }
     
     // Make fftSize a power of two 4 - 8 times kernelSize.
@@ -1530,8 +1510,9 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
         fillValues = PyLong_FromLong(0);  // new
     } else if (PyArg_ValidateKeywordArguments(kwds)) {
         fillValues = PyDict_GetItemString(kwds, "fill_values");  // borrowed
-        Py_INCREF(fillValues);
-        if (!fillValues) {
+        if (fillValues) {
+            Py_INCREF(fillValues);
+        } else {
             fillValues = PyLong_FromLong(0);  // new
         }
     } else {
@@ -1570,250 +1551,250 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
             PyErr_SetString(PyExc_TypeError, "collate() takes a Channel objects as arguments");
             error = -1;
         }
-        if (!error) {
-            unit = PyObject_CallMethod(unitRegistry(), "parse_expression", "s", unitstr);  // new
-            dimensionality = unit ? PyObject_GetAttrString(unit, "dimensionality") : NULL;  // new
-            conversionFactorList = PyList_New(nParts);  // new
-            if (unit && dimensionality && conversionFactorList) {
-                obj = PyFloat_FromDouble(1.0);  // new
-                PyList_SET_ITEM(conversionFactorList, 0, obj);  // stolen
-            } else {
-                PyErr_SetString(PyExc_RuntimeError, "Unit check failed in collate()");
-                error = -1;
-            }
+    }
+    if (!error) {
+        unit = PyObject_CallMethod(unitRegistry(), "parse_expression", "s", unitstr);  // new
+        dimensionality = unit ? PyObject_GetAttrString(unit, "dimensionality") : NULL;  // new
+        conversionFactorList = PyList_New(nParts);  // new
+        if (unit && dimensionality && conversionFactorList) {
+            obj = PyFloat_FromDouble(1.0);  // new
+            PyList_SET_ITEM(conversionFactorList, 0, obj);  // stolen
+        } else {
+            PyErr_SetString(PyExc_RuntimeError, "Unit check failed in collate()");
+            error = -1;
         }
-        if (!error) {
-            for (i = 1; i < nParts; i++) {
-                // Check that the rest of the channels are
-                // compatible with the first one.
-                item = PyList_GET_ITEM(chList, i);  // borrowed
-                if (PyObject_TypeCheck(item, &ChannelType)) {
-                    ch = (Channel *)item;
-                    otherType = PyArray_TYPE(ch->data);
-                    if (strcmp(typestr, ch->type) == 0) {
-                        oldScale = ch->scale;
-                        oldOffset = ch->offset;
-                        if (ch->samplerate != samplerate) {
-                            /*
-                            // Resample to match the first channel.
-                            // TODO: Allow setting samplerate.
-                            argTuple = Py_BuildValue("(d)", samplerate);  // new
-                            ch = (Channel *)Channel_resample((Channel *)item, argTuple, NULL);
-                            Py_DECREF(argTuple);
-                            PyList_SetItem(chList, i, (PyObject *)ch);
-                             */
-                            error = -1;
-                            PyErr_SetString(PyExc_ValueError, "Samplerates do not match");
-                            break;
+    }
+    if (!error) {
+        for (i = 1; i < nParts; i++) {
+            // Check that the rest of the channels are
+            // compatible with the first one.
+            item = PyList_GET_ITEM(chList, i);  // borrowed
+            if (PyObject_TypeCheck(item, &ChannelType)) {
+                ch = (Channel *)item;
+                otherType = PyArray_TYPE(ch->data);
+                if (strcmp(typestr, ch->type) == 0) {
+                    oldScale = ch->scale;
+                    oldOffset = ch->offset;
+                    if (ch->samplerate != samplerate) {
+                        /*
+                         // Resample to match the first channel.
+                         // TODO: Allow setting samplerate.
+                         argTuple = Py_BuildValue("(d)", samplerate);  // new
+                         ch = (Channel *)Channel_resample((Channel *)item, argTuple, NULL);
+                         Py_DECREF(argTuple);
+                         PyList_SetItem(chList, i, (PyObject *)ch);
+                         */
+                        error = -1;
+                        PyErr_SetString(PyExc_ValueError, "Samplerates do not match");
+                        break;
+                    }
+                    localUnit = PyObject_CallMethod(unitRegistry(), "parse_expression", "s", ch->unit);  // new
+                    conversionFactor = NULL;
+                    obj = localUnit ? PyObject_CallMethod(localUnit, "to", "O", unit) : NULL;  // new
+                    if (obj) {
+                        conversionFactor = PyObject_GetAttrString(obj, "magnitude");  // new
+                        if (conversionFactor) {
+                            PyList_SET_ITEM(conversionFactorList, i, conversionFactor);  // stolen
                         }
-                        localUnit = PyObject_CallMethod(unitRegistry(), "parse_expression", "s", ch->unit);  // new
-                        conversionFactor = NULL;
-                        obj = localUnit ? PyObject_CallMethod(localUnit, "to", "O", unit) : NULL;  // new
-                        if (obj) {
-                            conversionFactor = PyObject_GetAttrString(obj, "magnitude");  // new
-                            if (conversionFactor) {
-                                PyList_SET_ITEM(conversionFactorList, i, conversionFactor);  // stolen
+                        Py_DECREF(obj);
+                    }
+                    if (!conversionFactor) {
+                        PyErr_SetString(PyExc_RuntimeError, "Storing unit conversion factor in collate() failed");
+                        error = -1;
+                        Py_XDECREF(localUnit);
+                        break;
+                    }
+                    localDimensionality = localUnit ? PyObject_GetAttrString(localUnit, "dimensionality") : NULL;  // new
+                    if (localDimensionality) {
+                        if (PyObject_RichCompareBool(dimensionality, localDimensionality, Py_EQ)) {
+                            if (otherType != thisType ||
+                                ch->scale != scale || ch->offset != offset ||
+                                PyObject_RichCompareBool(unit, localUnit, Py_NE)) {
+                                // Convert to double.
+                                thisType = NPY_DOUBLE;
+                                scale = 1.0;
+                                offset = 0.0;
                             }
-                            Py_DECREF(obj);
-                        }
-                        if (!conversionFactor) {
-                            PyErr_SetString(PyExc_RuntimeError, "Storing unit conversion factor in collate() failed");
-                            error = -1;
-                            Py_XDECREF(localUnit);
-                            break;
-                        }
-                        localDimensionality = localUnit ? PyObject_GetAttrString(localUnit, "dimensionality") : NULL;  // new
-                        if (localDimensionality) {
-                            if (PyObject_RichCompareBool(dimensionality, localDimensionality, Py_EQ)) {
-                                if (otherType != thisType ||
-                                    ch->scale != scale || ch->offset != offset ||
-                                    PyObject_RichCompareBool(unit, localUnit, Py_NE)) {
-                                    // Convert to double.
-                                    thisType = NPY_DOUBLE;
-                                    scale = 1.0;
-                                    offset = 0.0;
-                                }
-                                length += PyArray_DIM(ch->data, 0);
-                                if (ch->fills) {
-                                    nFills += PyArray_DIM(ch->fills, 0);
-                                }
-                            } else {
-                                PyErr_Format(PyExc_TypeError, "Channel objects with incompatible units %s and %s can not be collated", unitstr, ch->unit);
-                                error = -1;
-                                Py_DECREF(localDimensionality);
-                                Py_DECREF(localUnit);
-                                break;
+                            length += PyArray_DIM(ch->data, 0);
+                            if (ch->fills) {
+                                nFills += PyArray_DIM(ch->fills, 0);
                             }
+                        } else {
+                            PyErr_Format(PyExc_TypeError, "Channel objects with incompatible units %s and %s can not be collated", unitstr, ch->unit);
+                            error = -1;
                             Py_DECREF(localDimensionality);
                             Py_DECREF(localUnit);
-                        } else {
-                            PyErr_SetString(PyExc_RuntimeError, "Checking dimensionality in collate() failed");
-                            error = -1;
-                            Py_XDECREF(localUnit);
                             break;
                         }
+                        Py_DECREF(localDimensionality);
+                        Py_DECREF(localUnit);
                     } else {
-                        PyErr_SetString(PyExc_TypeError, "Channel objects in collate() need to be of same type");
+                        PyErr_SetString(PyExc_RuntimeError, "Checking dimensionality in collate() failed");
                         error = -1;
+                        Py_XDECREF(localUnit);
                         break;
                     }
                 } else {
-                    PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+                    PyErr_SetString(PyExc_TypeError, "Channel objects in collate() need to be of same type");
                     error = -1;
                     break;
                 }
+            } else {
+                PyErr_SetString(PyExc_TypeError, "collate() takes a list of Channel objects as an argument");
+                error = -1;
+                break;
             }
         }
-        if (!error) {
-            // Reserve space for the fills between the collated channels.
-            nFills += nParts - 1;
-            length += nParts - 1;
-            // Check that fillValues has the right shape.
-            obj = PyArray_FROM_OTF(fillValues, thisType, NPY_ARRAY_CARRAY_RO);  // new
-            Py_DECREF(fillValues);
+    }
+    if (!error) {
+        // Reserve space for the fills between the collated channels.
+        nFills += nParts - 1;
+        length += nParts - 1;
+        // Check that fillValues has the right shape.
+        obj = PyArray_FROM_OTF(fillValues, thisType, NPY_ARRAY_CARRAY_RO);  // new
+        Py_DECREF(fillValues);
+        if (!obj) {
+            PyErr_SetString(PyExc_TypeError, "fill_values must be scalar or array-like");
+            error = -1;
+        }
+        if (PyArray_NDIM((PyArrayObject *)obj) == 0) {
+            nNonlocalFills = nParts - 1;
+            dims.ptr = &nNonlocalFills;
+            dims.len = 1;
+            fillValues = obj;
+            obj = PyArray_Resize((PyArrayObject *)obj, &dims, 0, NPY_CORDER);  // new
             if (!obj) {
-                PyErr_SetString(PyExc_TypeError, "fill_values must be scalar or array-like");
                 error = -1;
             }
-            if (PyArray_NDIM((PyArrayObject *)obj) == 0) {
-                nNonlocalFills = nParts - 1;
-                dims.ptr = &nNonlocalFills;
-                dims.len = 1;
-                fillValues = obj;
-                obj = PyArray_Resize((PyArrayObject *)obj, &dims, 0, NPY_CORDER);  // new
+        } else if (PyArray_NDIM((PyArrayObject *)obj) > 1 ||
+                   PyArray_DIM((PyArrayObject *)obj, 0) != nParts - 1) {
+            Py_DECREF(obj);
+            PyErr_SetString(PyExc_TypeError, "fill_values must be scalar or have a length one less than the number of channels");
+            error = -1;
+        }
+        obj = NULL;
+    }
+    if (!error) {
+        data = (PyArrayObject *)PyArray_EMPTY(1, &length, thisType, 0);  // new
+        fills = (PyArrayObject *)newFillArray(NULL, nFills);
+        if (!fills) {
+            PyErr_SetString(PyExc_RuntimeError, "Error creating fill array in collate()");
+            error = -1;
+        }
+    }
+    if (!error) {
+        fillDst = PyArray_DATA(fills);
+        fill = 0;
+        nFillSamples = 0;
+        sample = 0;
+        events = PySet_New(NULL);  // new
+        argTuple = PyTuple_New(0);  // new
+        for (i = 0; i < nParts; i++) {
+            ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
+            
+            if (i > 0) {
+                // Add a fill between files: calculate fill length.
+                t = ch->start_sec + ch->start_nsec / 1e9;
+                fillLen = round((t - t0) * samplerate - (sample + nFillSamples));
+                // TODO: Specify minimum fill lengths.
+                // (If the fill is shorter than minimum, store it as
+                // ordinary samples instead of a fill.)
+                if (fillLen > 0) {
+                    fillDst[fill].pos = sample;
+                    fillDst[fill].len = fillLen;
+                    obj = PyArray_GETITEM((PyArrayObject *)fillValues,
+                                          PyArray_GETPTR1((PyArrayObject *)fillValues, i - 1));
+                    if (obj) {
+                        error = PyArray_SETITEM(data, PyArray_GETPTR1(data, sample++), obj);
+                        Py_DECREF(obj);
+                        if (error) {
+                            break;
+                        }
+                    } else {
+                        error = -1;
+                        break;
+                    }
+                } else if (fillLen == 0) {
+                    // TODO: Allow some overlap to account for rounding errors.
+                    // TODO: Remove the fill completely.
+                    fillDst[fill].pos = sample;
+                    fillDst[fill].len = 0;
+                } else {
+                    fprintf(stderr, "Channels overlap by %zd samples\n", -fillLen);
+                    PyErr_SetString(PyExc_ValueError, "Can not collate() Channel objects that overlap");
+                    error = -1;
+                    break;
+                }
+                fill++;
+                nFillSamples += fillLen;
+            }
+            
+            if (thisType == NPY_DOUBLE) {
+                // Get scaled values, and convert units.
+                obj = Channel_values(ch, argTuple, NULL);  // new
                 if (!obj) {
                     error = -1;
+                    break;
                 }
-            } else if (PyArray_NDIM((PyArrayObject *)obj) > 1 ||
-                       PyArray_DIM((PyArrayObject *)obj, 0) != nParts - 1) {
+                conversionFactor = PyList_GET_ITEM(conversionFactorList, i);  // borrowed
+                if (conversionFactor) {
+                    values = (PyArrayObject *)PyNumber_Multiply(obj, conversionFactor);  // new
+                }
                 Py_DECREF(obj);
-                PyErr_SetString(PyExc_TypeError, "fill_values must be scalar or have a length one less than the number of channels");
+            } else {
+                values = ch->data;
+                Py_INCREF(values);
+            }
+            if (values) {
+                size = PyArray_NBYTES(values);
+                memcpy(PyArray_GETPTR1(data, sample), PyArray_DATA(values), size);
+                Py_DECREF(values);
+            } else {
+                PyErr_SetString(PyExc_RuntimeError, "Failed to get channel data values");
                 error = -1;
+                break;
             }
-            obj = NULL;
-        }
-        if (!error) {
-            data = (PyArrayObject *)PyArray_EMPTY(1, &length, thisType, 0);  // new
-            fills = (PyArrayObject *)newFillArray(NULL, nFills);
-            if (!fills) {
-                PyErr_SetString(PyExc_RuntimeError, "Error creating fill array in collate()");
+            if (ch->fills) {
+                // Copy the fills from all sparse channels.
+                nLocalFills = PyArray_DIM(ch->fills, 0);
+                fillSrc = PyArray_DATA(ch->fills);
+                for (j = 0; j < nLocalFills; j++) {
+                    fillDst[fill].pos = sample + fillSrc[j].pos;
+                    fillDst[fill++].len = fillSrc[j].len;
+                    nFillSamples += fillSrc[j].len;
+                }
+            }
+            sample += PyArray_DIM(ch->data, 0);
+            obj = PyObject_CallMethod(events, "update", "O", ch->events);  // new
+            if (obj) {
+                Py_DECREF(obj);
+                obj = NULL;
+            } else {
+                PyErr_SetString(PyExc_ValueError, "Updating events in collate() failed");
                 error = -1;
+                break;
             }
         }
-        if (!error) {
-            fillDst = PyArray_DATA(fills);
-            fill = 0;
-            nFillSamples = 0;
-            sample = 0;
-            events = PySet_New(NULL);  // new
-            argTuple = PyTuple_New(0);  // new
-            for (i = 0; i < nParts; i++) {
-                ch = (Channel *)PyList_GET_ITEM(chList, i);  // borrowed
-                
-                if (i > 0) {
-                    // Add a fill between files: calculate fill length.
-                    t = ch->start_sec + ch->start_nsec / 1e9;
-                    fillLen = round((t - t0) * samplerate - (sample + nFillSamples));
-                    // TODO: Specify minimum fill lengths.
-                    // (If the fill is shorter than minimum, store it as
-                    // ordinary samples instead of a fill.)
-                    if (fillLen > 0) {
-                        fillDst[fill].pos = sample;
-                        fillDst[fill].len = fillLen;
-                        obj = PyArray_GETITEM((PyArrayObject *)fillValues,
-                                              PyArray_GETPTR1((PyArrayObject *)fillValues, i - 1));
-                        if (obj) {
-                            error = PyArray_SETITEM(data, PyArray_GETPTR1(data, sample++), obj);
-                            Py_DECREF(obj);
-                            if (error) {
-                                break;
-                            }
-                        } else {
-                            error = -1;
-                            break;
-                        }
-                    } else if (fillLen == 0) {
-                        // TODO: Allow some overlap to account for rounding errors.
-                        // TODO: Remove the fill completely.
-                        fillDst[fill].pos = sample;
-                        fillDst[fill].len = 0;
-                    } else {
-                        fprintf(stderr, "Channels overlap by %zd samples\n", -fillLen);
-                        PyErr_SetString(PyExc_ValueError, "Can not collate() Channel objects that overlap");
-                        error = -1;
-                        break;
-                    }
-                    fill++;
-                    nFillSamples += fillLen;
-                }
-
-                if (thisType == NPY_DOUBLE) {
-                    // Get scaled values, and convert units.
-                    obj = Channel_values(ch, argTuple, NULL);  // new
-                    if (!obj) {
-                        error = -1;
-                        break;
-                    }
-                    conversionFactor = PyList_GET_ITEM(conversionFactorList, i);  // borrowed
-                    if (conversionFactor) {
-                        values = (PyArrayObject *)PyNumber_Multiply(obj, conversionFactor);  // new
-                    }
-                    Py_DECREF(obj);
-                } else {
-                    values = ch->data;
-                    Py_INCREF(values);
-                }
-                if (values) {
-                    size = PyArray_NBYTES(values);
-                    memcpy(PyArray_GETPTR1(data, sample), PyArray_DATA(values), size);
-                    Py_DECREF(values);
-                } else {
-                    PyErr_SetString(PyExc_RuntimeError, "Failed to get channel data values");
-                    error = -1;
-                    break;
-                }
-                if (ch->fills) {
-                    // Copy the fills from all sparse channels.
-                    nLocalFills = PyArray_DIM(ch->fills, 0);
-                    fillSrc = PyArray_DATA(ch->fills);
-                    for (j = 0; j < nLocalFills; j++) {
-                        fillDst[fill].pos = sample + fillSrc[j].pos;
-                        fillDst[fill++].len = fillSrc[j].len;
-                        nFillSamples += fillSrc[j].len;
-                    }
-                }
-                sample += PyArray_DIM(ch->data, 0);
-                obj = PyObject_CallMethod(events, "update", "O", ch->events);  // new
-                if (obj) {
-                    Py_DECREF(obj);
-                    obj = NULL;
-                } else {
-                    PyErr_SetString(PyExc_ValueError, "Updating events in collate() failed");
-                    error = -1;
-                    break;
-                }
-            }
-            Py_DECREF(argTuple);
-        }
-        if (!error) {
-            // Create a new channel.
-            result = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOddssLl",
-                                                      data, samplerate, fills,
-                                                      scale, offset, unitstr, typestr,
-                                                      start.tv_sec, start.tv_nsec);  // new
-            if (result) {
-                Py_DECREF(result->events);
-                result->events = (PySetObject *)events;
-            }
-        }
-        Py_XDECREF(data);
-        Py_XDECREF(fills);
-        Py_XDECREF(unit);
-        Py_XDECREF(dimensionality);
-        Py_XDECREF(conversionFactorList);
-        Py_DECREF(chList);
+        Py_DECREF(argTuple);
     }
-    
+    if (!error) {
+        // Create a new channel.
+        result = (Channel *)PyObject_CallFunction((PyObject *)&ChannelType, "OdOddssLl",
+                                                  data, samplerate, fills,
+                                                  scale, offset, unitstr, typestr,
+                                                  start.tv_sec, start.tv_nsec);  // new
+        if (result) {
+            Py_DECREF(result->events);
+            result->events = (PySetObject *)events;
+        }
+    }
+    Py_XDECREF(data);
+    Py_XDECREF(fills);
+    Py_XDECREF(unit);
+    Py_XDECREF(dimensionality);
+    Py_XDECREF(conversionFactorList);
+    Py_DECREF(chList);
+
     return (PyObject *)result;
 }
 
@@ -1897,5 +1878,5 @@ PyTypeObject ChannelType = {
     offsetof(Channel, dict),     // tp_dictoffset
     (initproc)Channel_init,      // tp_init
     0,                           // tp_alloc
-    Channel_new                  // tp_new
+    PyType_GenericNew            // tp_new
 };
