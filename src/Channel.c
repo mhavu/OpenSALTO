@@ -127,6 +127,130 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
     return 0;
 }
 
+static PyObject *Channel_copy(Channel *self, PyObject *args, PyObject *kwds) {
+    PyArrayObject *data;
+    PyArrayObject *fills;
+    double samplerate;
+    double scale;
+    double offset;
+    char *unit;
+    char *type;
+    long long start_sec;
+    long start_nsec;
+    char *device;
+    char *serial_no;
+    int resolution;
+    char *json;
+    PySetObject *events;
+    PyObject *copy = NULL;
+    static char *kwlist[] = {"data", "samplerate", "fills",
+        "scale", "offset", "unit", "type",
+        "start_sec", "start_nsec", "device", "serial_no", "resolution",
+        "json", "events", NULL};
+    
+    data = self->data;
+    fills = self->fills;
+    samplerate = self->samplerate;
+    scale = self->scale;
+    offset = self->offset;
+    unit = self->unit;
+    type = self->type;
+    start_sec = self->start_sec;
+    start_nsec = self->start_nsec;
+    device = self->device;
+    serial_no = self->serial_no;
+    resolution = self->resolution;
+    json = self->json;
+    events = self->events;
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "|O!dOddssLlssisO", kwlist,
+                                     &PyArray_Type, &data, &samplerate,
+                                     &fills, &scale, &offset,
+                                     &unit, &type, &start_sec, &start_nsec,
+                                     &device, &serial_no, &resolution, &json,
+                                     &events)) {
+        copy = PyObject_CallFunction((PyObject *)&ChannelType, "OdOddssLlssisO",
+                                     data, samplerate, fills, scale, offset,
+                                     unit, type, start_sec, start_nsec,
+                                     device, serial_no, resolution, json,
+                                     events);  // new
+    }
+    
+    return copy;
+}
+
+static PyObject *Channel_simpleCopy(Channel *self) {
+    return PyObject_CallFunction((PyObject *)&ChannelType, "OdOddssLlssisO",
+                                 self->data,
+                                 self->samplerate,
+                                 self->fills,
+                                 self->scale, self->offset,
+                                 self->unit, self->type,
+                                 self->start_sec, self->start_nsec,
+                                 self->device, self->serial_no,
+                                 self->resolution, self->json,
+                                 self->events);  // new
+}
+
+static PyObject *Channel_deepCopy(Channel *self, PyObject *args) {
+    PyObject *data, *fills, *events = NULL, *ptr, *copy = NULL, *memo = NULL;
+    PyObject *item, *iterator, *eCopy;
+
+    if (!PyArg_ParseTuple(args, "|O!", &PyDict_Type, &memo)) {
+        return NULL;
+    }
+    if (memo) {
+        Py_INCREF(memo);
+    } else {
+        memo = PyDict_New();  // new
+    }
+    data = PyObject_CallMethod((PyObject *)self->data, "__deepcopy__", "O", memo);  // new
+    fills = PyObject_CallMethod((PyObject *)self->fills, "__deepcopy__", "O", memo);  // new
+    ptr = PyLong_FromVoidPtr(self->events);  // new
+    if (ptr) {
+        events = PyDict_GetItem(memo, ptr);  // borrowed
+        if (!events) {
+            events = PySet_New(NULL);  // new
+            iterator = PyObject_GetIter((PyObject *)self->events);
+            if (events && iterator) {
+                while ((item = PyIter_Next(iterator))) {
+                    eCopy = PyObject_CallMethod(item, "__copy__", NULL);  // new
+                    if (eCopy) {
+                        PySet_Add(events, eCopy);
+                        Py_DECREF(eCopy);
+                    } else {
+                        break;
+                    }
+                    Py_DECREF(item);
+                }
+                Py_DECREF(iterator);
+            } else if (events) {
+                Py_DECREF(events);
+                events = NULL;
+            }
+            if (!PyErr_Occurred()) {
+                PyDict_SetItem(memo, ptr, events);
+            }
+        }
+        Py_DECREF(ptr);
+    }
+    if (data && fills && events) {
+        copy = PyObject_CallFunction((PyObject *)&ChannelType, "OdOddssLlssisO",
+                                     data, self->samplerate, fills,
+                                     self->scale, self->offset,
+                                     self->unit, self->type,
+                                     self->start_sec, self->start_nsec,
+                                     self->device, self->serial_no,
+                                     self->resolution, self->json,
+                                     events);  // new
+    }
+    Py_XDECREF(memo);
+    Py_XDECREF(data);
+    Py_XDECREF(fills);
+    Py_XDECREF(events);
+    
+    return copy;
+}
+
 static PyObject *Channel_richcmp(Channel *self, PyObject *other, int op) {
     // Compares channel start times
     PyObject *result;
@@ -1799,6 +1923,9 @@ static PyObject *Channel_collate(Channel *self, PyObject *args, PyObject *kwds) 
 }
 
 static PyMethodDef Channel_methods[] = {
+    {"copy", (PyCFunction)Channel_copy, METH_VARARGS | METH_KEYWORDS, "copy of a channel object"},
+    {"__copy__", (PyCFunction)Channel_simpleCopy, METH_NOARGS, "copy of a channel object"},
+    {"__deepcopy__", (PyCFunction)Channel_deepCopy, METH_VARARGS, "deep copy of a channel object"},
     {"start", (PyCFunction)Channel_start, METH_NOARGS, "channel start time as a datetime object"},
     {"duration", (PyCFunction)Channel_duration, METH_NOARGS, "channel duration in seconds"},
     {"end", (PyCFunction)Channel_end, METH_NOARGS, "channel end time as a datetime object"},

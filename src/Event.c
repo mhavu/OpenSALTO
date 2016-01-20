@@ -125,6 +125,48 @@ static int Event_init(Event *self, PyObject *args, PyObject *kwds) {
     return result;
 }
 
+static PyObject *Event_copy(Event *self, PyObject *args, PyObject *kwds) {
+    EventVariety type;
+    char *subtype;
+    long long start_sec;
+    long start_nsec;
+    long long end_sec;
+    long end_nsec;
+    char *description;
+    PyObject *copy = NULL;
+    static char *kwlist[] = {"type", "subtype", "start_sec", "start_nsec",
+        "end_sec", "end_nsec", "description", NULL};
+    
+    type = self->type;
+    subtype = self->subtype;
+    start_sec = self->start_sec;
+    start_nsec = self->start_nsec;
+    end_sec = self->end_sec;
+    end_nsec = self->end_nsec;
+    description = self->description;
+    if (PyArg_ParseTupleAndKeywords(args, kwds, "|isLlLls", kwlist,
+                                    &type, &subtype,
+                                    &start_sec, &start_nsec,
+                                    &end_sec, &end_nsec,
+                                    &description)) {
+        copy = PyObject_CallFunction((PyObject *)&EventType, "isLlLls",
+                                     type, subtype,
+                                     start_sec, start_nsec,
+                                     end_sec, end_nsec,
+                                     description);  // new
+    }
+    
+    return copy;
+}
+
+static PyObject *Event_simplecopy(Event *self) {
+    return PyObject_CallFunction((PyObject *)&EventType, "isLlLls",
+                                 self->type, self->subtype,
+                                 self->start_sec, self->start_nsec,
+                                 self->end_sec, self->end_nsec,
+                                 self->description);  // new
+}
+
 static PyObject *Event_richcmp(Event *self, PyObject *other, int op) {
     // Compares event start times
     PyObject *result;
@@ -322,6 +364,8 @@ static PyObject *Event_intersection(Event *self, PyObject *args) {
 }
 
 static PyMethodDef Event_methods[] = {
+    {"copy", (PyCFunction)Event_copy, METH_VARARGS | METH_KEYWORDS, "copy of an event object"},
+    {"__copy__", (PyCFunction)Event_simplecopy, METH_NOARGS, "copy of an event object"},
     {"start", (PyCFunction)Event_start, METH_NOARGS, "event start time as a datetime object"},
     {"duration", (PyCFunction)Event_duration, METH_NOARGS, "event duration in seconds"},
     {"end", (PyCFunction)Event_end, METH_NOARGS, "event end time as a datetime object"},
