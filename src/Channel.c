@@ -1111,27 +1111,56 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
     // from the beginning of the channel.
     PyObject *result = NULL;
     PyObject *startObj = NULL, *stopObj = NULL;
-    Py_ssize_t start, stop, fillPos[2] = {0, 0};
+    PyArrayObject *scalarArray;
+    Py_ssize_t start, stop, size, fillPos[2] = {0, 0};
     int include_fills;
     static char *kwlist[] = {"start", "stop", "include_fills", NULL};
     int error = 0;
     
     start = 0;
-    stop = PyArray_SIZE(self->data);
+    size = PyArray_SIZE(self->data);
+    stop = size;
     include_fills = 0;
     if (PyArg_ParseTupleAndKeywords(args, kwds, "|OOp:values", kwlist, &startObj, &stopObj, &include_fills)) {
         if (startObj) {
-            start = convertToIndex(self, startObj, &fillPos[0]);
-            if (start < 0) {
+            Py_INCREF(startObj);
+            if (PyArray_CheckScalar(startObj)) {
+                scalarArray = (PyArrayObject *)PyArray_EnsureArray(startObj);  // stolen
+                startObj = PyArray_GETITEM(scalarArray, PyArray_DATA(scalarArray));  // new
+                Py_DECREF(scalarArray);
+            }
+            if (startObj) {
+                start = convertToIndex(self, startObj, &fillPos[0]);
+                Py_DECREF(startObj);
+                if (!stopObj) {
+                    stop = start + 1;
+                }
+                if (start < 0) {
+                    PyErr_Format(PyExc_IndexError, "Start index %zd is out of range", start);
+                    error = -1;
+                }
+            } else {
                 error = -1;
             }
         }
         if (!error && stopObj) {
-            stop = convertToIndex(self, stopObj, &fillPos[1]);
-            if (stop < 0) {
-                error = -1;
+            Py_INCREF(stopObj);
+            if (PyArray_CheckScalar(stopObj)) {
+                scalarArray = (PyArrayObject *)PyArray_EnsureArray(stopObj);  // stolen
+                stopObj = PyArray_GETITEM(scalarArray, PyArray_DATA(scalarArray));  // new
+                Py_DECREF(scalarArray);
+            }
+            if (stopObj) {
+                stop = convertToIndex(self, stopObj, &fillPos[1]);
+                Py_DECREF(stopObj);
+                if (stop < 0 || stop >= PyArray_SIZE(self->data)) {
+                    PyErr_Format(PyExc_IndexError, "Stop index %zd is out of range [0, %zd]", stop, size - 1);
+                    error = -1;
+                } else {
+                    stop++;
+                }
             } else {
-                stop++;
+                error = -1;
             }
         }
         if (!error) {
