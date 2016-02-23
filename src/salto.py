@@ -153,9 +153,10 @@ class Plugin:
     def unregisterComputation(self, name):
         self._computations.pop(name, None)
     def compute(self, name, inputs):
-        # TODO: Raise an exception if an unregistered plugin is called.
-        func, inputSpec, outputSpec, dtypes = self._computations.get(name)
+        func, inputSpec, outputSpec, dtypes = self._computations[name]
         minChannels, maxChannels = inputSpec[0][2:4]
+        if minChannels and not maxChannels:
+            maxChannels = np.inf
         chTable = inputs.get('channelTable')
         nChannels = len(salto.channelTables[chTable].channels) if chTable else 0
         if nChannels < minChannels or nChannels > maxChannels:
@@ -172,6 +173,7 @@ class Plugin:
             outputs = {k: v.decode('utf-8') if isinstance(v, bytes) else v for k, v in outputs.items()}
         else:
             inputArgs = {i[0]:inputs.get(i[0], i[3]) for i in inputSpec}
+            inputArgs = {k:v for k, v in inputArgs.items() if v is not None}
             outputs = func(inputArgs)
         return outputs
 
@@ -252,9 +254,8 @@ class PluginManager:
         return result
     # convenience functions for calling plugins
     def compute(self, compname, inputs):
-        plugin = self._computations.get(compname)
-        if plugin:
-            return plugin.compute(compname, inputs)
+        plugin = self._computations[compname]
+        return plugin.compute(compname, inputs)
     def detect(self, filename):
         _, ext = os.path.splitext(filename)
         formatsWithExt = self.query(ext = ext, mode = 'r')
