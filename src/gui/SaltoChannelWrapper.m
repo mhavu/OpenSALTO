@@ -79,12 +79,12 @@
     for (npy_intp i = 0; i < fillCount; i++) {
         SaltoChannelSegment dataSegment = {
             .location = sampleIndex,
-            .length = fills[i].pos - sampleIndex - 1,
+            .length = fills[i].pos - sampleIndex,
             .expandedLocation = expandedSampleIndex,
-            .expandedLength = fills[i].pos - sampleIndex - 1};
+            .expandedLength = fills[i].pos - sampleIndex};
         sampleIndex = fills[i].pos;
         expandedSampleIndex += dataSegment.length;
-        if (dataSegment.length > 0) {
+        if (dataSegment.length > 1) {
             [_segments insertObject:[NSValue valueWithChannelSegment:dataSegment]
                             atIndex:segmentIndex++];
         }
@@ -92,8 +92,8 @@
             .location = sampleIndex++,
             .length = 0,
             .expandedLocation = expandedSampleIndex,
-            .expandedLength = fills[i].len};
-        expandedSampleIndex += fills[i].len;
+            .expandedLength = fills[i].len + 1};
+        expandedSampleIndex += fills[i].len + 1;
         [_segments insertObject:[NSValue valueWithChannelSegment:fillSegment]
                         atIndex:segmentIndex++];
     }
@@ -323,6 +323,14 @@
             }
             if (!data) {
                 NSLog(@"Failed to get Python objects in %@", NSStringFromSelector(_cmd));
+                PyObject *ptype, *pvalue, *traceback;
+                PyErr_Fetch(&ptype, &pvalue, &traceback);
+                if (pvalue) {
+                    NSLog(@"%s", PyUnicode_AsUTF8(pvalue));
+                    Py_DECREF(pvalue);
+                }
+                Py_DECREF(ptype);
+                Py_XDECREF(traceback);
             }
         }
         Py_XDECREF(startPyObj);
@@ -360,13 +368,13 @@
                 sampleCount = segment.length;
             }
             NSUInteger pixelCount = ceil(sampleCount / self.samplerate * pixelsPerSecond);
-            NSUInteger pointCount = MIN(range.location + range.length - pointIndex,
-                                        segment.pointCount);
             NSUInteger skipCount = 0;
             if (pointIndex < range.location) {
                 skipCount = range.location - pointIndex;
                 pointIndex = range.location;
             }
+            NSUInteger pointCount = MIN(range.location + range.length - pointIndex,
+                                        segment.pointCount);
             if (fieldEnum == CPTScatterPlotFieldY && data) {
                 // Y axis (data values)
                 if (sampleCount / pixelCount <= maxPointsPerPixel) {
@@ -395,7 +403,7 @@
                         values[pointIndex++ - range.location] = (p % 2) ? min : max;
                     }
                 }
-            } else {
+            } else if (fieldEnum == CPTScatterPlotFieldX) {
                 // X axis (time)
                 if (sampleCount / pixelCount <= maxPointsPerPixel) {
                     // Show all data points.
@@ -413,20 +421,19 @@
             }
         } else {
             // Fill segment
-            if (fieldEnum == CPTScatterPlotFieldY) {
+            if (fieldEnum == CPTScatterPlotFieldY && data) {
                 // Y axis (data values)
                 for (NSUInteger i = 0; i < 2; i++) {
-                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
+                    if (pointIndex >= range.location && pointIndex <= range.location + range.length) {
                         values[pointIndex - range.location] = data[segment.location - dataOffset];
                     }
                     pointIndex++;
                 }
-            } else {
+            } else if (fieldEnum == CPTScatterPlotFieldX) {
                 // X axis (time)
                 for (NSUInteger i = 0; i < 2; i++) {
-                    if (pointIndex >= range.location && pointIndex < range.location + range.length) {
-                        values[pointIndex - range.location] = (segment.expandedLocation + i * segment.expandedLength) / self.samplerate;
-                        values[pointIndex - range.location] += timeOffset;
+                    if (pointIndex >= range.location && pointIndex <= range.location + range.length) {
+                        values[pointIndex - range.location] = (segment.expandedLocation + i * segment.expandedLength) / self.samplerate + timeOffset;
                     }
                     pointIndex++;
                 }
