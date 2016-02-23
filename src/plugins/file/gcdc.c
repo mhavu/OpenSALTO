@@ -158,6 +158,8 @@ int readFile(const char *filename, const char *chTable) {
                     if (result != EOF) {
                         tm.tm_year -= 1900;
                         tm.tm_mon--;
+                        tm.tm_isdst = 0;
+                        tm.tm_gmtoff = 0;
                         start.tv_sec = mktime(&tm);
                         start.tv_nsec = start.tv_nsec * 1000000;
                     } else {

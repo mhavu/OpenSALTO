@@ -107,6 +107,8 @@ int readFile(const char *filename, const char *chTable) {
         time.tm_hour = header[18];
         time.tm_min = header[19];
         time.tm_sec = header[20];
+        time.tm_isdst = 0;
+        time.tm_gmtoff = 0;
         startTime.tv_sec = mktime(&time);
         startTime.tv_nsec = 0;
         paddingLength = blockLength;

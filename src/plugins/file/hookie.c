@@ -62,7 +62,9 @@ static time_t bcdToTime(uint8_t *buffer) {
     time.tm_hour = 10 * (buffer[3] >> 4) + (buffer[3] & 0x0F);
     time.tm_min = 10 * (buffer[4] >> 4) + (buffer[4] & 0x0F);
     time.tm_sec = 10 * (buffer[5] >> 4) + (buffer[5] & 0x0F);
-
+    time.tm_isdst = 0;
+    time.tm_gmtoff = 0;
+    
     return mktime(&time);
 }
 
