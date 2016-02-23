@@ -148,6 +148,7 @@ static int numpyType(size_t bytes_per_sample, int is_integer, int is_signed) {
 PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
     PyObject *fillArray, *tempObj;
     PyArray_Descr *fillDescr, *argDescr;
+    Channel_Fill *fillData;
 
     /*
      TODO: Register a new data type for fill arrays:
@@ -180,6 +181,24 @@ PyObject *newFillArray(PyObject *fills, npy_intp nFills) {
             fillArray = PyArray_FromAny(fills, fillDescr, 1, 1, NPY_ARRAY_CARRAY_RO, NULL);  // new, steals fillDescr
             if (!fillArray) {
                 PyErr_SetString(PyExc_ValueError, "Argument fills is of incompatible type");
+            }
+        }
+        if (fillArray) {
+            fillData = PyArray_DATA((PyArrayObject *)fillArray);
+            nFills = PyArray_DIM((PyArrayObject *)fillArray, 0);
+            for (npy_intp i = 0; i < nFills; i++) {
+                if (fillData[i].pos < 0) {
+                    PyErr_SetString(PyExc_ValueError, "Negative fill positions are not allowed");
+                    Py_DECREF(fillArray);
+                    fillArray = NULL;
+                    break;
+                }
+                if (fillData[i].len < 0) {
+                    PyErr_SetString(PyExc_ValueError, "Negative fill lengths are not allowed");
+                    Py_DECREF(fillArray);
+                    fillArray = NULL;
+                    break;
+                }
             }
         }
     } else {
