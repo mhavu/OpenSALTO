@@ -1065,7 +1065,7 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
 static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_pos) {
     // Checks that object o is an integer or converts it to integer, if it is
     // a datetime or timedelta. If the offset specified by o is inside a fill,
-    // fill_pos is set to the number samples between the fill position and the
+    // fill_pos is set to the number of samples between fill position and the
     // specified offset. Returns -1 if an error occurs.
     npy_intp len, fill, nFills;
     Py_ssize_t index;
@@ -1078,7 +1078,9 @@ static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_po
         // Argument o is already an index.
         Py_INCREF(o);
         nFills = 0;
+        tGiven = NAN;
     } else {
+        tGiven = timeAsOffset(self, o);
         // Convert float, timedelta, or datetime to an index.
         o = PyObject_CallMethod((PyObject *)self, "sampleIndex", "O", o);  // new
         nFills = PyArray_DIM(self->fills, 0);
@@ -1092,9 +1094,12 @@ static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_po
         *fill_pos = 0;
         for (fill = 0; fill < nFills; fill++) {
             if (fills[fill].pos == index) {
-                tGiven = timeAsOffset(self, o);
                 tFill = Channel_sampleOffsetAsDouble(self, index);
-                *fill_pos = round((tGiven - tFill) * self->samplerate);
+                if (!isnan(tGiven)) {
+                    *fill_pos = round((tGiven - tFill) * self->samplerate);
+                } else {
+                    *fill_pos = 0;
+                }
                 break;
             }
         }
