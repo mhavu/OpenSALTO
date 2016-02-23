@@ -24,7 +24,7 @@ static void Channel_dealloc(Channel* self) {
     free(self->unit);
     free(self->type);
     free(self->json);
-    Py_DECREF(self->data);
+    Py_XDECREF(self->data);
     Py_XDECREF(self->dict);
     Py_XDECREF(self->fills);
     Py_XDECREF(self->events);
@@ -39,6 +39,7 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         "scale", "offset", "unit", "type",
         "start_sec", "start_nsec", "device", "serial_no", "resolution",
         "json", "events", NULL};
+    int result = 0;
 
     self->device = NULL;
     self->serial_no = NULL;
@@ -59,25 +60,9 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
                                      &(self->device), &(self->serial_no),
                                      &(self->resolution), &(self->json),
                                      &events)) {
-        return -1;
+        result = -1;
     }
-    if (self->start_nsec < 0 || self->start_nsec > 999999999) {
-        PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
-        return -1;
-    }
-    // Check that fills has the correct type descriptor.
-    self->fills = (PyArrayObject *)newFillArray(fills, 0);  // new
-    if (self->fills) {
-        self->events = (PySetObject *)PySet_New(events);  // new
-        if (!self->events) {
-            Py_DECREF(self->fills);
-            return -1;
-        }
-    } else {
-        return -1;
-    }
-
-    Py_INCREF(self->data);
+    Py_XINCREF(self->data);
     if (self->device) {
         size = strlen(self->device) + 1;
         tmp = self->device;
@@ -124,7 +109,26 @@ static int Channel_init(Channel *self, PyObject *args, PyObject *kwds) {
         strcpy(self->json, "{}");
     }
 
-    return 0;
+    // Check that fills has the correct type descriptor.
+    self->fills = (PyArrayObject *)newFillArray(fills, 0);  // new
+    if (self->fills) {
+        self->events = (PySetObject *)PySet_New(events);  // new
+        if (!self->events) {
+            Py_DECREF(self->fills);
+            self->fills = NULL;
+            result = -1;
+        }
+    } else {
+        result = -1;
+    }
+
+    // Check validity of start_nsec
+    if (self->start_nsec < 0 || self->start_nsec > 999999999) {
+        PyErr_SetString(PyExc_ValueError, "start_nsec is out of range");
+        result = -1;
+    }
+
+    return result;
 }
 
 static PyObject *Channel_copy(Channel *self, PyObject *args, PyObject *kwds) {
