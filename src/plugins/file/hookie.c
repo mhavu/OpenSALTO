@@ -80,10 +80,10 @@ int readFile(const char *filename, const char *chTable) {
     Channel channel[3];
     const char *names[3] = {"X", "Y", "Z"};
     char serialno[28], tag[28], value[28], json[512] = "{";
-    double samplerate, partDuration, timedelta, clockRatio;
+    double samplerate, partDuration, timedelta, clockRatio, t;
     Error err = SUCCESS;
     struct timespec startTime;
-    time_t t, *timecodes;
+    time_t *timecodes;
     const char *tmpTable;
     size_t *posArray = NULL, *lenArray = NULL;
 
@@ -192,6 +192,7 @@ int readFile(const char *filename, const char *chTable) {
         nParts = 1;
         longestPart = 0;
         blkForLongestPart = 0;
+        pos = 0;
         for (blk = 0; blk < nBlocks; blk++) {
             blklen = fread(buffer, 1, 512, fp);
             if (blklen == 512 && buffer[0] == 0xAA && buffer[1] == 0xAA) {
@@ -200,7 +201,7 @@ int readFile(const char *filename, const char *chTable) {
                 for (i = 0; i < samplesPerBlock; i++) {
                     for (ch = 0; ch < nChannels; ch++) {
                         sample = &buffer[8 + 2 * (nChannels * i + ch)];
-                        channel[ch].buffer[samplesPerBlock * blk + i] = letoh16(sample);
+                        channel[ch].buffer[pos + i] = letoh16(sample);
                     }
                 }
                 // Check whether the device has entered sleep mode.
@@ -210,11 +211,15 @@ int readFile(const char *filename, const char *chTable) {
                     if (partLen[nParts - 1] > partLen[longestPart]) {
                         blkForLongestPart = blk - partLen[nParts - 1];
                         longestPart = nParts - 1;
+                        if (!isDynamic) {
+                            pos++;
+                        }
                     }
                     partLen[nParts++] = 1;
                 } else {
                     partLen[nParts - 1]++;
                 }
+                pos += samplesPerBlock;
             } else {
                 // Ignore packet.
                 if (blklen == 512) {
@@ -237,8 +242,17 @@ int readFile(const char *filename, const char *chTable) {
         // Compute drift between RTC and sampling clock.
         partDuration = partLen[longestPart] * samplesPerBlock / samplerate;
         timedelta = timecodes[blkForLongestPart + partLen[longestPart] - 1] - timecodes[blkForLongestPart];
-        clockRatio = partDuration / timedelta;
-        snprintf(strchr(json, 0), sizeof(json) - strlen(json), "\"Clock drift\": %.6f}", clockRatio - 1.0);
+        if (timedelta > 0) {
+            clockRatio = partDuration / timedelta;
+            snprintf(strchr(json, 0), sizeof(json) - strlen(json), "\"Clock drift\": %.6f}", clockRatio - 1.0);
+        } else if (timedelta == 0) {
+            clockRatio = 1.0;
+        } else {
+            err = INVALID_FILE;
+        }
+    }
+    
+    if (!err) {
         // Add fills, if necessary.
         if (nParts > 1) {
             posArray = calloc(nParts - 1, sizeof(size_t));
@@ -255,11 +269,17 @@ int readFile(const char *filename, const char *chTable) {
                     // Adjust for the drift as if it were the RTC that drifts.
                     // This way we can correct the samplerate later.
                     t = (timecodes[blk] - startTime.tv_sec) * clockRatio;
-                    lenArray[fill] = round(t * samplerate) - pos;
-                    pos += lenArray[fill];
-                    if (!isDynamic) {
-                        i++;
-                        lenArray[fill]--;
+                    lenArray[fill] = round(t * samplerate);
+                    if (pos < lenArray[fill]) {
+                        lenArray[fill] -= pos;
+                        pos += lenArray[fill];
+                        if (!isDynamic) {
+                            i++;
+                            lenArray[fill]--;
+                        }
+                    } else {
+                        // TODO: Remove empty fills.
+                        lenArray[fill] = 0;
                     }
                     posArray[fill] = i - 1;
                 }
@@ -275,11 +295,6 @@ int readFile(const char *filename, const char *chTable) {
             channel[ch].data = newSparseInt16Channel(tmpTable, channel[ch].name, length, nParts);
             memcpy(channel[ch].data, channel[ch].buffer, length * sizeof(uint16_t));
             if (nParts > 1) {
-                if (!isDynamic) {
-                    for (fill = 0; fill < nParts - 1; fill++) {
-                        channel[ch].buffer[posArray[fill]] = 0;
-                    }
-                }
                 setFills(tmpTable, channel[ch].name, posArray, lenArray);
             }
             // range: [-16 16] * 9.81 m/s^2

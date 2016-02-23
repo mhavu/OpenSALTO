@@ -32,7 +32,10 @@ class Plugin(salto.Plugin):
                 tmpTable = salto.ChannelTable()
                 salto.channelTables[tmpName] = tmpTable
                 tableList.append(tmpTable)
-                pm.read(os.path.join(dirname, file), fmt, tmpName)
+                try:
+                    pm.read(os.path.join(dirname, file), fmt, tmpName)
+                except OSError as e:
+                    print("Ignoring %s: %s" % (file, e.args[0]))
                 salto.channelTables.pop(tmpName, None)
                 for name, ch in tmpTable.channels.items():
                     if name not in channels:
