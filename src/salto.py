@@ -327,7 +327,6 @@ del moduleName
 def main():
     salto.__dict__.update({'CUSTOM_EVENT': 0, 'ACTION_EVENT': 1, 'ARTIFACT_EVENT': 2, 'CALCULATED_EVENT': 3, 'MARKER_EVENT': 4, 'TIMER_EVENT': 5})
     salto.units = pint.UnitRegistry()
-    salto.Q_ = salto.units.Quantity
     salto.channelTables = {'main': salto.ChannelTable(gui = True)}
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
