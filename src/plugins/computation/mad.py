@@ -70,7 +70,7 @@ class Plugin(salto.Plugin):
     """OpenSALTO filter plugin for computing mean amplitude deviation"""
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
-        inputs = [('channelTable', 'S', 1, 1),
+        inputs = [('channelTable', 'S', 1, 0),
                   ('epoch', 'i', "length of the MAD computation window (samples)", None)]
         self.registerComputation('MAD', self._mad,
                                  inputs = inputs,
