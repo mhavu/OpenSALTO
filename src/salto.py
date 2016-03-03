@@ -8,10 +8,13 @@
 #  GNU General Public License version 3 or later.
 #
 
-import re, json, os, pint, code
+import re, json, pint
+import code
+import os, platform, sys
 import importlib.machinery
 from datetime import datetime
 import ctypes as c
+import _ctypes
 import numpy as np
 from collections import OrderedDict
 
@@ -198,19 +201,43 @@ class PluginManager:
         return self._computations
     def discover(self, path):
         for filename in os.listdir(path):
-            plugin, ext = os.path.splitext(filename)
-            isLoadable = ext.lower() in (".dylib", ".so", ".dll")
-            isPy = ext.lower() in (".py", ".pyc", ".pyo") 
-            if isLoadable:
+            try:
                 self.load(os.path.join(path, filename))
-            elif isPy:
-                filepath = os.path.join(path, filename)
-                loader = importlib.machinery.SourceFileLoader("salto." + plugin, filepath)
-                setattr(salto, plugin, loader.load_module())
-                self.register(getattr(salto, plugin).Plugin(self))
+            except TypeError:
+                pass
     def load(self, filepath):
+            filename = os.path.basename(filepath)
+            plugin, ext = os.path.splitext(filename)
+            isLibrary = ext.lower() in ('.dylib', '.so', '.dll')
+            isModule = ext.lower() in ('.py', '.pyc', '.pyo')
+            if isLibrary:
+                self.loadLibrary(filepath)
+            elif isModule:
+                self.loadModule(filepath, plugin)
+            else:
+                raise TypeError("File %s is not a dynamically linked library or a Python file" % filename)
+    def loadLibrary(self, filepath):
         cdll = c.CDLL(filepath, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
+    def loadModule(self, filepath, name):
+        loader = importlib.machinery.SourceFileLoader('salto.' + name, filepath)
+        setattr(salto, name, loader.load_module())
+        self.register(getattr(salto, name).Plugin(self))
+    def unload(self, plugin):
+        cdll = plugin.cdll
+        self.unregister(plugin)
+        if cdll:
+            filepath = cdll._name
+            if platform.system() == 'Windows':
+                _ctypes.FreeLibrary(cdll._handle)
+            else:
+                _ctypes.dlclose(cdll._handle)
+        else:
+            filepath = sys.modules[plugin.__module__].__file__
+        return filepath
+    def reload(self, plugin):
+        filepath = self.unload(plugin)
+        self.load(filepath)
     def register(self, plugin):
         if plugin not in self._plugins:
             self._plugins.append(plugin)
@@ -222,7 +249,7 @@ class PluginManager:
         for computation in plugin.computations:
             self._computations.setdefault(computation, plugin)
     def unregister(self, plugin):
-        self._plugins.pop(plugin, None)
+        self._plugins.remove(plugin)
         self._importFormats = {key: value
             for key, value in self._importFormats.items()
             if value is not plugin}
@@ -330,7 +357,7 @@ def main():
     salto.channelTables = {'main': salto.ChannelTable(gui = True)}
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
-    salto.pluginManager.discover("plugins")
+    salto.pluginManager.discover('plugins')
     if hasattr(salto, 'gui'):
         salto.setquit()
     del salto.setquit
