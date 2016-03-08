@@ -84,6 +84,13 @@ class Plugin:
             if err != 0:
                 raise RuntimeError(self._cdll.describeError(err).decode('utf-8'))
     @property
+    def file(self):
+        if self._cdll:
+            filepath = self._cdll._name
+        else:
+            filepath = sys.modules[self.__module__].__file__
+        return filepath
+    @property
     def cdll(self):
         return self._cdll
     @property
@@ -199,41 +206,43 @@ class PluginManager:
     @property
     def computations(self):
         return self._computations
-    def discover(self, path):
+    def discover(self, path, check_loaded = True):
         for filename in os.listdir(path):
             try:
-                self.load(os.path.join(path, filename))
+                self.load(os.path.join(path, filename), check_loaded)
             except TypeError:
                 pass
-    def load(self, filepath):
-            filename = os.path.basename(filepath)
-            plugin, ext = os.path.splitext(filename)
-            isLibrary = ext.lower() in ('.dylib', '.so', '.dll')
-            isModule = ext.lower() in ('.py', '.pyc', '.pyo')
-            if isLibrary:
-                self.loadLibrary(filepath)
-            elif isModule:
-                self.loadModule(filepath, plugin)
-            else:
-                raise TypeError("File %s is not a dynamically linked library or a Python file" % filename)
-    def loadLibrary(self, filepath):
+    def isLoaded(self, filepath):
+        return any(os.path.samefile(filepath, p.file) for p in self._plugins)
+    def load(self, filepath, check_loaded = True):
+        if check_loaded and self.isLoaded(filepath):
+            raise ValueError("Plugin %s is already loaded" % filepath)
+        filename = os.path.basename(filepath)
+        plugin, ext = os.path.splitext(filename)
+        isLibrary = ext.lower() in ('.dylib', '.so', '.dll')
+        isModule = ext.lower() in ('.py', '.pyc', '.pyo')
+        if isLibrary:
+            self._loadLibrary(filepath)
+        elif isModule:
+            self._loadModule(filepath, plugin)
+        else:
+            raise TypeError("File %s is not a dynamically linked library or a Python file" % filename)
+    def _loadLibrary(self, filepath):
         cdll = c.CDLL(filepath, mode = c.RTLD_LOCAL)
         self.register(salto.Plugin(self, cdll))
-    def loadModule(self, filepath, name):
+    def _loadModule(self, filepath, name):
         loader = importlib.machinery.SourceFileLoader('salto.' + name, filepath)
         setattr(salto, name, loader.load_module())
         self.register(getattr(salto, name).Plugin(self))
     def unload(self, plugin):
+        filepath = plugin.file
         cdll = plugin.cdll
         self.unregister(plugin)
         if cdll:
-            filepath = cdll._name
             if platform.system() == 'Windows':
                 _ctypes.FreeLibrary(cdll._handle)
             else:
                 _ctypes.dlclose(cdll._handle)
-        else:
-            filepath = sys.modules[plugin.__module__].__file__
         return filepath
     def reload(self, plugin):
         filepath = self.unload(plugin)
@@ -241,13 +250,13 @@ class PluginManager:
     def register(self, plugin):
         if plugin not in self._plugins:
             self._plugins.append(plugin)
-        for format, attrs in plugin.formats.items():
-            if attrs['readfunc']:
-                self._importFormats.setdefault(format, plugin)
-            if attrs['writefunc']:
-                self._exportFormats.setdefault(format, plugin)
-        for computation in plugin.computations:
-            self._computations.setdefault(computation, plugin)
+            for format, attrs in plugin.formats.items():
+                if attrs['readfunc']:
+                    self._importFormats.setdefault(format, plugin)
+                if attrs['writefunc']:
+                    self._exportFormats.setdefault(format, plugin)
+            for computation in plugin.computations:
+                self._computations.setdefault(computation, plugin)
     def unregister(self, plugin):
         self._plugins.remove(plugin)
         self._importFormats = {key: value
@@ -357,7 +366,7 @@ def main():
     salto.channelTables = {'main': salto.ChannelTable(gui = True)}
     salto.sessionData = {}
     salto.pluginManager = salto.PluginManager()
-    salto.pluginManager.discover('plugins')
+    salto.pluginManager.discover('plugins', False)
     if hasattr(salto, 'gui'):
         salto.setquit()
     del salto.setquit
