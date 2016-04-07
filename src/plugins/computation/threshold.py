@@ -22,8 +22,8 @@ class Plugin(salto.Plugin):
                   ('upper', 'f', 'upper threshold', np.inf),
                   ('includelower', 'i', 'include lower threshold', 1),
                   ('includeupper', 'i', 'include upper threshold', 0),
-                  ('minduration', 'f', 'minimum event duration (s)', None),
-                  ('minbreak', 'f', 'minimum time between events (s)', None)]
+                  ('minduration', 'f', 'minimum event duration (s)', 0.0),
+                  ('minbreak', 'f', 'minimum time between events (s)', 0.0)]
         self.registerComputation("threshold",
                                  self._threshold,
                                  inputs = inputs,
