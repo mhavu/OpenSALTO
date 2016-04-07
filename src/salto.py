@@ -318,6 +318,7 @@ class PluginManager:
             salto.channelTables.pop(chTableName, None)
         return format
     def read(self, filename, format, chTableName = None):
+        # The optional argument is format. Switch if necessary. 
         if chTableName is None:
             format, chTableName = (None, format)
         if format is None:
