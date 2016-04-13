@@ -18,19 +18,19 @@ class Plugin(salto.Plugin):
     def __init__(self, manager):
         super(Plugin, self).__init__(manager)
         inputs = [('channelTable', 'S', 1, 1),
-                  ('lower', 'f', 'lower threshold', -np.inf),
-                  ('upper', 'f', 'upper threshold', np.inf),
-                  ('includelower', 'i', 'include lower threshold', 1),
-                  ('includeupper', 'i', 'include upper threshold', 0),
-                  ('minduration', 'f', 'minimum event duration (s)', 0.0),
-                  ('minbreak', 'f', 'minimum time between events (s)', 0.0)]
-        self.registerComputation("threshold",
+                  ('lower', 'f', "lower threshold", -np.inf),
+                  ('upper', 'f', "upper threshold", np.inf),
+                  ('includelower', 'i', "include lower threshold", 1),
+                  ('includeupper', 'i', "include upper threshold", 0),
+                  ('minduration', 'f', "minimum event duration (s)", 0.0),
+                  ('minbreak', 'f', "minimum time between events (s)", 0.0)]
+        self.registerComputation('threshold',
                                  self._threshold,
                                  inputs = inputs,
                                  outputs = [('channelTable', 'S', 0, 0)])
     def _position(self, data, lower, upper, includelower, includeupper):
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
+            warnings.simplefilter('ignore', RuntimeWarning)
             if (includelower and includeupper):
                 result = np.where((data >= lower) & (data <= upper))
             elif includeupper:
@@ -41,7 +41,9 @@ class Plugin(salto.Plugin):
                 result = np.where((data > lower) & (data < upper))
         return result[0]
     def _createEvent(self, channel, startpos, endpos = None, duration = None):
-        if (endpos is None and duration is None) or (endpos is not None and duration is not None):
+        neither = endpos is None and duration is None
+        both = endpos is not None and duration is not None
+        if neither or both:
             raise ValueError("Specify either endpos or duration, but not both.")
         start = channel.timecodes(startpos, startpos)[0]
         if duration:
@@ -50,8 +52,10 @@ class Plugin(salto.Plugin):
             end = channel.timecodes(endpos, endpos)[0]
         event = salto.Event(type = salto.CALCULATED_EVENT,
                             subtype = 'threshold',
-                            start_sec = int(start), start_nsec = int(math.fmod(start, 1.0) * 1e9),
-                            end_sec = int(end), end_nsec = int(math.fmod(end, 1.0) * 1e9))
+                            start_sec = int(start),
+                            start_nsec = int(math.fmod(start, 1.0) * 1e9),
+                            end_sec = int(end),
+                            end_nsec = int(math.fmod(end, 1.0) * 1e9))
         return event
     def _removeShortBreaks(self, events, minbreak):
         event1 = events[0]
@@ -68,7 +72,9 @@ class Plugin(salto.Plugin):
         for channel in iChannels.values():
             lower = (inputs['lower'] - channel.offset) / channel.scale
             upper = (inputs['upper'] - channel.offset) / channel.scale
-            positions = self._position(channel.data, lower, upper, inputs['includelower'], inputs['includeupper'])
+            positions = self._position(channel.data, lower, upper,
+                                       inputs['includelower'],
+                                       inputs['includeupper'])
             if positions.size > 0:
                 # Recode the positions as slices.
                 starts = np.insert(np.where(np.diff(positions) != 1)[0] + 1, 0, 0)
