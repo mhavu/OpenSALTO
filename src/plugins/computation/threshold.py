@@ -5,7 +5,7 @@
 #  A filter that creates events for the sections of the channel
 #  that are in the given range.
 #
-#  Copyright 2015 Marko Havu. Released under the terms of
+#  Copyright 2015, 2016 Marko Havu. Released under the terms of
 #  GNU General Public License version 3 or later.
 #
 
@@ -40,7 +40,7 @@ class Plugin(salto.Plugin):
             else:
                 result = np.where((data > lower) & (data < upper))
         return result[0]
-    def _addEvent(self, channel, startpos, endpos = None, duration = None):
+    def _createEvent(self, channel, startpos, endpos = None, duration = None):
         if (endpos is None and duration is None) or (endpos is not None and duration is not None):
             raise ValueError("Specify either endpos or duration, but not both.")
         start = channel.timecodes(startpos, startpos)[0]
@@ -52,7 +52,17 @@ class Plugin(salto.Plugin):
                             subtype = 'threshold',
                             start_sec = int(start), start_nsec = int(math.fmod(start, 1.0) * 1e9),
                             end_sec = int(end), end_nsec = int(math.fmod(end, 1.0) * 1e9))
-        channel.events.add(event)
+        return event
+    def _removeShortBreaks(self, events, minbreak):
+        event1 = events[0]
+        rest = events[1:]
+        for event2 in rest:
+            if (event2.start() - event1.end()).total_seconds() < minbreak:
+                event1.end_sec = event2.end_sec
+                event1.end_nsec = event2.end_nsec
+            else:
+                break
+        return event1
     def _threshold(self, inputs):
         iChannels = salto.channelTables[inputs['channelTable']].channels
         for channel in iChannels.values():
@@ -65,14 +75,34 @@ class Plugin(salto.Plugin):
                 lengths = np.diff(np.append(starts, len(positions)) - 1)
                 positions = list(zip(positions[starts], lengths))
             fill = 0
+            events = []
             for start, length in positions:
-                # TODO: Implement minbreak.
+                # Create events.
                 extra = 0
                 while (fill < channel.fills.size) and (channel.fills[fill]['pos'] < start + length):
                     if channel.fills[fill]['pos'] == start + length - 1:
                         extra = channel.fills[fill]['len']
                     fill += 1
                 duration = (length + extra) / channel.samplerate
-                if inputs['minduration'] is None or duration >= inputs['minduration']:
-                    self._addEvent(channel, start, duration = duration)
+                events.append(self._createEvent(channel, start, duration = duration))
+            if inputs['minduration']:
+                # Make sure all events are at least minduration in length.
+                valid = [i for i, e in enumerate(events)
+                         if e.duration() >= inputs['minduration']]
+                events = [events[slice(i1, i2)]
+                          for i1, i2 in zip(valid, valid[1:] + [len(events)])]
+                if inputs['minbreak']:
+                    # Extend events at least minduration in length, for each
+                    # event less than minbreak apart.
+                    events = [self._removeShortBreaks(elist, inputs['minbreak'])
+                              for elist in events]
+            if events and inputs['minbreak']:
+                # Merge events that are less than minbreak apart.
+                rest = events[:]
+                events = []
+                while rest:
+                    events.append(self._removeShortBreaks(rest, inputs['minbreak']))
+                    rest = [e for e in rest if e.end() > events[-1].end()]
+            for e in events:
+                channel.events.add(e)
         return {}
