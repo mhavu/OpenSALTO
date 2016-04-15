@@ -95,13 +95,15 @@ class Plugin(salto.Plugin):
                 # Make sure all events are at least minduration in length.
                 valid = [i for i, e in enumerate(events)
                          if e.duration() >= inputs['minduration']]
-                events = [events[slice(i1, i2)]
-                          for i1, i2 in zip(valid, valid[1:] + [len(events)])]
                 if inputs['minbreak']:
                     # Extend events at least minduration in length, for each
                     # event less than minbreak apart.
+                    events = [events[slice(i1, i2)]
+                              for i1, i2 in zip(valid, valid[1:] + [len(events)])]
                     events = [self._removeShortBreaks(elist, inputs['minbreak'])
                               for elist in events]
+                else:
+                    events = [events[i] for i in valid]
             if events and inputs['minbreak']:
                 # Merge events that are less than minbreak apart.
                 rest = events[:]
