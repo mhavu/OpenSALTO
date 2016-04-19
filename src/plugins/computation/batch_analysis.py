@@ -9,7 +9,7 @@
 #
 
 import salto
-import os, datetime
+import os, datetime, math
 import csv, warnings
 from openpyxl import Workbook
 from openpyxl.cell import Cell
@@ -61,8 +61,9 @@ class Plugin(salto.Plugin):
             size = comm.Get_size()
             rank = comm.Get_rank()
             if rank == 0:
-                source = [inputs['source'][i:i+size]
-                          for i in range(0, len(inputs['source']), size)]
+                each = math.ceil(len(inputs['source']) / size)
+                source = [inputs['source'][i*each:(i+1)*each] for i in range(size)]
+                source.reverse()
             else:
                 source = None
             source = comm.scatter(source, root=0)
