@@ -45,22 +45,22 @@ class Plugin(salto.Plugin):
         self.setExportFunc("GViewer", self._write)
     def _read(self, filename, chTable):
         with h5py.File(filename, 'r') as f:
-            metadata = dict(subjectID = f['measurement'].attrs['subject'].item().decode('utf-8'),
-                            notes = "\n".join([l.decode('utf-8')
+            metadata = dict(subjectID = f['measurement'].attrs['subject'].item().decode('latin_1'),
+                            notes = "\n".join([l.decode('latin_1')
                                                for l in f['measurement'].attrs['notes'].tolist()]),
                             measurement = int(f['measurement'].value.item()))
             samplerate = float(f.attrs['samplerate'].item())
-            device = (f['source'].attrs['device'].item().decode('utf-8')
+            device = (f['source'].attrs['device'].item().decode('latin_1')
                       if 'device' in f['source'].attrs
                       else "unknown")
-            serial = (f['source'].attrs['serialno'].item().decode('utf-8')
+            serial = (f['source'].attrs['serialno'].item().decode('latin_1')
                       if 'serialno' in f['source'].attrs
                       else "unknown")
             resolution = f['source'].attrs['resolution'].item()
             datasets = [f[d] for d in f.keys() if d.startswith('dataset')]
             # Multi-channel variables 
-            name = ["\n".join([l.decode('utf-8') for l in d.attrs['name'].tolist()]) for d in datasets]
-            starttime = [timespecFromString(d.attrs['starttime'].item().decode('utf-8'))
+            name = ["\n".join([l.decode('latin_1') for l in d.attrs['name'].tolist()]) for d in datasets]
+            starttime = [timespecFromString(d.attrs['starttime'].item().decode('latin_1'))
                          for d in datasets]
             data = [9.81 * d[()] for d in datasets]
             events = [d.attrs['events'] if 'events' in d.attrs else [] for d in datasets]
@@ -79,7 +79,7 @@ class Plugin(salto.Plugin):
                     start = datetimeFromMatlabDatenum(e['startTime']).timestamp()
                     end = datetimeFromMatlabDatenum(e['endTime']).timestamp()
                     event = salto.Event(type = salto.ACTION_EVENT,
-                                        subtype = e['description'].decode('utf-8'),
+                                        subtype = e['description'].decode('latin_1'),
                                         start_sec = int(start), start_nsec = int(math.fmod(start, 1.0)),
                                         end_sec = int(end), end_nsec = int(math.fmod(end, 1.0)))
                     ch.events.add(event)
@@ -132,7 +132,7 @@ class Plugin(salto.Plugin):
             measurement.attrs['subject'] = np.array([subject], dtype = 'S')
             notes = salto.sessionData.get('notes', "")
             measurement.attrs['notes'] = np.array([notes], dtype = 'S')
-            start_str = min([d.attrs['starttime'].item().decode('utf-8')
+            start_str = min([d.attrs['starttime'].item().decode('latin_1')
                              for d in f.values() if 'starttime' in d.attrs]) if dset else timestr
             src = np.array([("unknown", start_str)], dtype=[('filename', 'S8'), ('starttime', 'S24')])
             source = f.create_dataset("source", data = src)
