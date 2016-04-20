@@ -98,51 +98,53 @@ class Plugin(salto.Plugin):
             else:
                 reports[basename] = result['table']
         chTables.pop(tableName)
-        if comm and rank == 0:
+        if comm:
             reports = comm.gather(reports, root=0)
-            reports = {k: v for d in reports for k, v in d.items()}
+            if rank == 0:
+                reports = {k: v for d in reports for k, v in d.items()}
         # Create the report.
-        datestr = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        params = pm.computations[inputs['analysis']].computations[inputs['analysis']][1]
-        preamble = [["analysis date", datestr],
-                    ["analysis plugin", inputs['analysis']]]
-        preamble += [[p[0], inputs.get(p[0], p[3]), p[2]]
-                     for p in params if p[0] != 'channelTable']
-        if inputs['result_format'].lower() == 'xlsx':
-            wb = Workbook()
-            ws = wb.active
-            ws.title = "settings"
-            for row in preamble:
-                ws.append(row)
-            # TODO: Set column widths.
-            if isFlat:
-                ws = wb.create_sheet()
-                ws.title = "results"
-                headers = [reports[k]['header'] for k in reports
-                           if 'header' in reports[k]]
-                if headers and headers.count(headers[0]) == len(headers):
-                    # All headers are equal.
-                    ws.append(setStyle(ws, ['Filename'] + headers[0], self.boldstyle))
-                else:
-                    raise NotImplementedError("Combining tables with different structures is not implemented yet")
-                for basename, report in reports.items():
-                    for row in report['data']:
-                        ws.append([basename] + row)
+        if not comm or rank == 0:
+            datestr = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            params = pm.computations[inputs['analysis']].computations[inputs['analysis']][1]
+            preamble = [["analysis date", datestr],
+                        ["analysis plugin", inputs['analysis']]]
+            preamble += [[p[0], inputs.get(p[0], p[3]), p[2]]
+                         for p in params if p[0] != 'channelTable']
+            if inputs['result_format'].lower() == 'xlsx':
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "settings"
+                for row in preamble:
+                    ws.append(row)
                 # TODO: Set column widths.
-            else:
-                for basename, report in reports.items():
+                if isFlat:
                     ws = wb.create_sheet()
-                    ws.title = basename
-                    if 'header' in report:
-                        ws.append(setStyle(ws, report['header'], self.boldstyle))
-                    for row in report['data']:
-                        ws.append(row)
-                    for row in report.get('summary', []):
-                        ws.append(setStyle(ws, row, self.boldstyle))
+                    ws.title = "results"
+                    headers = [reports[k]['header'] for k in reports
+                               if 'header' in reports[k]]
+                    if headers and headers.count(headers[0]) == len(headers):
+                        # All headers are equal.
+                        ws.append(setStyle(ws, ['Filename'] + headers[0], self.boldstyle))
+                    else:
+                        raise NotImplementedError("Combining tables with different structures is not implemented yet")
+                    for basename, report in reports.items():
+                        for row in report['data']:
+                            ws.append([basename] + row)
                     # TODO: Set column widths.
-            wb.save(inputs['result_file_path'])
-        elif inputs['result_format'].lower() == 'csv':
-            raise NotImplementedError("CSV reporting is not implemented yet")
-        elif inputs['result_format'].lower() == 'html':
-            raise NotImplementedError("HTML reporting is not implemented yet")
+                else:
+                    for basename, report in reports.items():
+                        ws = wb.create_sheet()
+                        ws.title = basename
+                        if 'header' in report:
+                            ws.append(setStyle(ws, report['header'], self.boldstyle))
+                        for row in report['data']:
+                            ws.append(row)
+                        for row in report.get('summary', []):
+                            ws.append(setStyle(ws, row, self.boldstyle))
+                        # TODO: Set column widths.
+                wb.save(inputs['result_file_path'])
+            elif inputs['result_format'].lower() == 'csv':
+                raise NotImplementedError("CSV reporting is not implemented yet")
+            elif inputs['result_format'].lower() == 'html':
+                raise NotImplementedError("HTML reporting is not implemented yet")
         return {}
