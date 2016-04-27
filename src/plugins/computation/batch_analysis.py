@@ -97,7 +97,7 @@ class Plugin(salto.Plugin):
                 reports[basename] = result['html']
             else:
                 reports[basename] = result['table']
-        chTables.pop(tableName)
+        chTables.pop(tableName, None)
         if comm:
             reports = comm.gather(reports, root=0)
             if rank == 0:
