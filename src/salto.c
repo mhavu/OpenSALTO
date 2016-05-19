@@ -342,7 +342,7 @@ struct timespec channelEndTime(Channel *ch) {
         channelData(ch, &length);
         if (length > 0) {
             total += length;
-            duration = (total - 1) / ch->samplerate;
+            duration = total / ch->samplerate;
             t = endTimeFromDuration(ch->start_sec, ch->start_nsec, duration);
         } else {
             t.tv_sec = ch->start_sec;

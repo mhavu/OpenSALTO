@@ -286,7 +286,7 @@
     NSTimeInterval endTime = MIN(startTime + appDelegate.visibleRange, self.duration);
     NSTimeInterval timeOffset = (appDelegate.alignment == SaltoAlignCalendarDate) ? self.startTime : 0.0;
     NSUInteger start = round(startTime * self.samplerate);
-    NSUInteger end = round(endTime * self.samplerate);
+    NSUInteger end = round(endTime * self.samplerate - 1);
     
     PyArrayObject *dataArray = NULL;
     double *data = NULL;
@@ -317,7 +317,7 @@
             }
         }
         if (startPyObj && endPyObj) {
-            dataArray = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "values", "OO",startPyObj, endPyObj);  // new
+            dataArray = (PyArrayObject *)PyObject_CallMethod((PyObject *)self.channel, "values", "OO", startPyObj, endPyObj);  // new
             if (dataArray) {
                 data = PyArray_DATA(dataArray);
             }

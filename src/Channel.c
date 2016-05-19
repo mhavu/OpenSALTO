@@ -353,7 +353,7 @@ static PyObject *Channel_duration(Channel *self) {
 }
 
 static PyObject *Channel_timecodes(Channel *self, PyObject *args, PyObject *kwds) {
-    npy_intp i, start, end, length, nFills, offset, fill;
+    npy_intp i, start, end, length, nFills, extra, fill;
     Channel_Fill *fills;
     double *timecodes, t;
     PyObject *result = NULL;
@@ -376,18 +376,18 @@ static PyObject *Channel_timecodes(Channel *self, PyObject *args, PyObject *kwds
             if (self->fills) {
                 fills = PyArray_DATA(self->fills);
                 nFills = PyArray_DIM(self->fills, 0);
-                offset = 0;
+                extra = 0;
                 fill = 0;
                 while (fills[fill].pos < start && fill < nFills) {
-                    offset += fills[fill].len;
+                    extra += fills[fill].len;
                     fill++;
                 }
                 for (i = 0; i <= end - start; i++) {
+                    timecodes[i] = (timecodes[i] + extra) / self->samplerate + t;
                     if (fill < nFills && fills[fill].pos == start + i) {
-                        offset += fills[fill].len;
+                        extra += fills[fill].len;
                         fill++;
                     }
-                    timecodes[i] = (timecodes[i] + offset) / self->samplerate + t;
                 }
             } else {
                 for (i = 0; i <= end - start; i++) {
@@ -1063,10 +1063,10 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
 }
 
 static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_pos) {
-    // Checks that object o is an integer or converts it to integer, if it is
-    // a datetime or timedelta. If the offset specified by o is inside a fill,
-    // fill_pos is set to the number of samples between fill position and the
-    // specified offset. Returns -1 if an error occurs.
+    // Checks that object o is an integer or, if it is a datetime, timedelta, or
+    // float, converts it to integer. If the offset specified by o is inside a
+    // fill, fill_pos is set to the number of samples between fill position and
+    // the specified offset. Returns -1 if an error occurs.
     npy_intp len, fill, nFills;
     Py_ssize_t index;
     Channel_Fill *fills;
@@ -1157,8 +1157,15 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
             }
             if (stopObj) {
                 stop = convertToIndex(self, stopObj, &fillPos[1]);
+                // If the arguments specify a time range, do not include the
+                // sample at the upper boundary.
+                if (!PyLong_Check(stopObj) && stop > 0) {
+                    if (timeAsOffset(self, stopObj) < channelDuration(self)) {
+                        stop--;
+                    }
+                }
                 Py_DECREF(stopObj);
-                if (stop < 0 || stop >= PyArray_SIZE(self->data)) {
+                if (stop < 0 || stop >= size) {
                     PyErr_Format(PyExc_IndexError, "Stop index %zd is out of range [0, %zd]", stop, size - 1);
                     error = -1;
                 } else {
