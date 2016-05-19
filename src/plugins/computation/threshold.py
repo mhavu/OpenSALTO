@@ -72,6 +72,8 @@ class Plugin(salto.Plugin):
         for channel in iChannels.values():
             lower = (inputs['lower'] - channel.offset) / channel.scale
             upper = (inputs['upper'] - channel.offset) / channel.scale
+            if channel.scale < 0:
+                (lower, upper) = (upper, lower)
             positions = self._position(channel.data, lower, upper,
                                        inputs['includelower'],
                                        inputs['includeupper'])
@@ -86,7 +88,7 @@ class Plugin(salto.Plugin):
                 # Create events.
                 extra = 0
                 while (fill < channel.fills.size) and (channel.fills[fill]['pos'] < start + length):
-                    if channel.fills[fill]['pos'] == start + length - 1:
+                    if channel.fills[fill]['pos'] >= start:
                         extra = channel.fills[fill]['len']
                     fill += 1
                 duration = (length + extra) / channel.samplerate
