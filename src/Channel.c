@@ -1129,6 +1129,7 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
     int include_fills;
     static char *kwlist[] = {"start", "stop", "include_fills", NULL};
     int error = 0;
+    double t1, t2;
     
     start = 0;
     size = PyArray_SIZE(self->data);
@@ -1144,6 +1145,11 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
             }
             if (startObj) {
                 start = convertToIndex(self, startObj, &fillPos[0]);
+                if (PyLong_Check(startObj)) {
+                    t1 = Channel_sampleOffsetAsDouble(self, start);
+                } else {
+                    t1 = timeAsOffset(self, startObj);
+                }
                 Py_DECREF(startObj);
                 if (!stopObj) {
                     stop = start + 1;
@@ -1166,9 +1172,11 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
             if (stopObj) {
                 stop = convertToIndex(self, stopObj, &fillPos[1]);
                 // If the arguments specify a time range, do not include the
-                // sample at the upper boundary.
+                // sample at the upper boundary, unless it is at the end of the
+                // channel or the (non-nil) range includes just one sample.
                 if (!PyLong_Check(stopObj) && stop > 0) {
-                    if (timeAsOffset(self, stopObj) < channelDuration(self)) {
+                    t2 = timeAsOffset(self, stopObj);
+                    if (t2 < channelDuration(self) && (stop > start || t2 <= t1)) {
                         stop--;
                     }
                 }
