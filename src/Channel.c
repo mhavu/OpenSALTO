@@ -907,25 +907,33 @@ static PyObject *Channel_sampleOffset(Channel *self, PyObject *args) {
 }
 
 static PyObject *Channel_sampleTime(Channel *self, PyObject *args) {
-    PyObject *offset, *argTuple, *delta = NULL, *start, *result = NULL;
+    PyObject *argTuple, *delta = NULL, *start, *result = NULL;
+    npy_intp index;
+    double offset;
     
-    offset = Channel_sampleOffset(self, args);
-    if (offset) {
-        argTuple = PyTuple_Pack(1, offset);  // new
-        if (argTuple) {
-            delta = timedeltaFromFloat(NULL, argTuple);  // new
-            Py_DECREF(argTuple);
-        }
-        start = Channel_start(self);  // new
-        if (start && delta) {
-            result = PyNumber_Add(start, delta);  // new
-        } else {
-            PyErr_SetString(PyExc_RuntimeError, "Failed to instantiate a datetime object");
-        }
-        Py_XDECREF(delta);
-        Py_XDECREF(start);
+    if (!PyArg_ParseTuple(args, "n:sampleOffset", &index)) {
+        return NULL;
     }
     
+    offset = Channel_sampleOffsetAsDouble(self, index);
+    if (isnan(offset)) {
+        return NULL;
+    }
+    
+    argTuple = Py_BuildValue("(d)", offset);  // new
+    if (argTuple) {
+        delta = timedeltaFromFloat(NULL, argTuple);  // new
+        Py_DECREF(argTuple);
+    }
+    start = Channel_start(self);  // new
+    if (start && delta) {
+        result = PyNumber_Add(start, delta);  // new
+    } else {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to instantiate a datetime object");
+    }
+    Py_XDECREF(delta);
+    Py_XDECREF(start);
+
     return result;
 }
 
