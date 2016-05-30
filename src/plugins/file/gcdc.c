@@ -161,7 +161,7 @@ int readFile(const char *filename, const char *chTable) {
                         tm.tm_isdst = 0;
                         tm.tm_gmtoff = 0;
                         start.tv_sec = mktime(&tm);
-                        start.tv_nsec = start.tv_nsec * 1000000;
+                        start.tv_nsec *= 1000000;
                     } else {
                         fclose(fp);
                         fprintf(stderr, "readFile(): Invalid start time\n");
@@ -257,7 +257,7 @@ int readFile(const char *filename, const char *chTable) {
                         if (nSamples == 0) {
                             first = sample->t;
                             start.tv_sec += (int)first;
-                            start.tv_nsec += fmodf(first, 1.0f) * 1000000000;
+                            start.tv_nsec += fmodf(first, 1.0f) * 1e9;
                             if (start.tv_nsec > 1000000000) {
                                 start.tv_sec++;
                                 start.tv_nsec -= 1000000000;
@@ -311,15 +311,16 @@ int readFile(const char *filename, const char *chTable) {
                     free((void *)name[i]);
                 }
                 // Resample data using constant sample interval.
-                t = 0.5 / samplerate;
+                t = 1.0 / samplerate;
                 n = 0;
                 for (j = 1; j < length; j++) {
-                    for (i = 0; i < nChannels; i++) {
-                        if (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t))
-                            n++;
-                        channel[i][j] = data[n].a[i];
-                        t += 1.0 / samplerate;
+                    while (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t)) {
+                        n++;
                     }
+                    for (i = 0; i < nChannels; i++) {
+                        channel[i][j] = data[n].a[i];
+                    }
+                    t += 1.0 / samplerate;
                 }
                 deleteChannelTable(tmpTable);
                 free((void *)tmpTable);
