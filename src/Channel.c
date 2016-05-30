@@ -1070,46 +1070,72 @@ static PyObject *Channel_valuesFromIndex(Channel *self,
     return result;
 }
 
-static Py_ssize_t convertToIndex(Channel *self, PyObject *o, Py_ssize_t *fill_pos) {
+static int isFill(Channel *self, Py_ssize_t index) {
+    npy_intp fill, nFills;
+    Channel_Fill *fills;
+    int result = 0;
+    
+    nFills = PyArray_DIM(self->fills, 0);
+    fills = PyArray_DATA(self->fills);
+    for (fill = 0; fill < nFills; fill++) {
+        if (fills[fill].pos == index) {
+            result = 1;
+            break;
+        }
+    }
+    
+    return result;
+}
+
+static Py_ssize_t convertToIndex(Channel *self, PyObject *o, int exclude, Py_ssize_t *fill_pos) {
     // Checks that object o is an integer or, if it is a datetime, timedelta, or
     // float, converts it to integer. If the offset specified by o is inside a
     // fill, fill_pos is set to the number of samples between fill position and
-    // the specified offset. Returns -1 if an error occurs.
-    npy_intp len, fill, nFills;
+    // the specified offset. If exclude is set, and object o is a datetime,
+    // timedelta, or float, the index specified by o is decremented. Returns -1
+    // if an error occurs.
+    npy_intp len;
     Py_ssize_t index;
-    Channel_Fill *fills;
-    double tGiven, tFill;
+    double tGiven, tIndex;
     
     index = -1;
     len = PyArray_DIM(self->data, 0);
     if (PyLong_Check(o)) {
         // Argument o is already an index.
         Py_INCREF(o);
-        nFills = 0;
         tGiven = NAN;
+        exclude = 0;
     } else {
         tGiven = timeAsOffset(self, o);
         // Convert float, timedelta, or datetime to an index.
         o = PyObject_CallMethod((PyObject *)self, "sampleIndex", "O", o);  // new
-        nFills = PyArray_DIM(self->fills, 0);
-        fills = PyArray_DATA(self->fills);
+        exclude = exclude ? 1 : 0;
     }
     if (o) {
         index = PyLong_AsSsize_t(o);
         Py_DECREF(o);
         index = (index < 0) ? len + index : index;
-        // Calculate fill length.
-        *fill_pos = 0;
-        for (fill = 0; fill < nFills; fill++) {
-            if (fills[fill].pos == index) {
-                tFill = Channel_sampleOffsetAsDouble(self, index);
-                if (!isnan(tGiven)) {
-                    *fill_pos = round((tGiven - tFill) * self->samplerate);
-                } else {
-                    *fill_pos = 0;
+        if (exclude) {
+            if (!isFill(self, index)) {
+                index--;
+            } else {
+                tIndex = Channel_sampleOffsetAsDouble(self, index);
+                if (round((tGiven - tIndex) * self->samplerate) - 1 < 0) {
+                    index--;
                 }
-                break;
             }
+        }
+        if (!isnan(tGiven) && isFill(self, index)) {
+            // Calculate fill length.
+            tIndex = Channel_sampleOffsetAsDouble(self, index);
+            *fill_pos = round((tGiven - tIndex) * self->samplerate) - exclude;
+            if (*fill_pos < 0) {
+                // Due to rounding errors, *fill_pos may be -1 if the specified
+                // time is exactly half way between two samples.
+                *fill_pos = 0;
+            }
+        } else {
+            *fill_pos = 0;
         }
     } else {
         PyErr_SetString(PyExc_TypeError, "Argument o in convertToIndex() must be integer, float, timedelta, or datetime");
@@ -1144,7 +1170,7 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
                 Py_DECREF(scalarArray);
             }
             if (startObj) {
-                start = convertToIndex(self, startObj, &fillPos[0]);
+                start = convertToIndex(self, startObj, 0, &fillPos[0]);
                 if (PyLong_Check(startObj)) {
                     t1 = Channel_sampleOffsetAsDouble(self, start);
                 } else {
@@ -1170,14 +1196,14 @@ static PyObject *Channel_values(Channel *self, PyObject *args, PyObject *kwds) {
                 Py_DECREF(scalarArray);
             }
             if (stopObj) {
-                stop = convertToIndex(self, stopObj, &fillPos[1]);
-                // If the arguments specify a time range, do not include the
-                // sample at the upper boundary, unless it is at the end of the
-                // channel or the (non-nil) range includes just one sample.
-                if (!PyLong_Check(stopObj) && stop > 0) {
+                stop = convertToIndex(self, stopObj, 0, &fillPos[1]);
+                if (!PyLong_Check(stopObj)) {
+                    // If the arguments specify a time range, do not include the
+                    // sample at the upper boundary, unless it is at the end of the
+                    // channel or the (non-nil) range includes just one sample.
                     t2 = timeAsOffset(self, stopObj);
                     if (t2 < channelDuration(self) && (stop > start || t2 <= t1)) {
-                        stop--;
+                        stop = convertToIndex(self, stopObj, 1, &fillPos[1]);
                     }
                 }
                 Py_DECREF(stopObj);
