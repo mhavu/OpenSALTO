@@ -186,7 +186,8 @@ int readFile(const char *filename, const char *chTable) {
 
     // Determine resolution and scale based on model description.
     if (!err) {
-        if (strncmp(model, "X16-", 4) == 0) {
+        if (strncmp(model, "ADXL345", 7) == 0
+            || strncmp(model, "X16-", 4) == 0) {
             // range: [-16.0 16.0] * 9.81 m/s^2
             resolution = 16;
             scale = 9.81 / 2048;
@@ -311,16 +312,16 @@ int readFile(const char *filename, const char *chTable) {
                     free((void *)name[i]);
                 }
                 // Resample data using constant sample interval.
-                t = 1.0 / samplerate;
+                t = 0.0;
                 n = 0;
                 for (j = 1; j < length; j++) {
+                    t += 1.0 / samplerate;
                     while (n < nSamples - 1 && (t - data[n].t) >= (data[n+1].t - t)) {
                         n++;
                     }
                     for (i = 0; i < nChannels; i++) {
                         channel[i][j] = data[n].a[i];
                     }
-                    t += 1.0 / samplerate;
                 }
                 deleteChannelTable(tmpTable);
                 free((void *)tmpTable);
