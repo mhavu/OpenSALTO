@@ -89,7 +89,7 @@ class Plugin(salto.Plugin):
                 extra = 0
                 while (fill < channel.fills.size) and (channel.fills[fill]['pos'] < start + length):
                     if channel.fills[fill]['pos'] >= start:
-                        extra = channel.fills[fill]['len']
+                        extra += channel.fills[fill]['len']
                     fill += 1
                 duration = (length + extra) / channel.samplerate
                 events.append(self._createEvent(channel, start, duration = duration))
