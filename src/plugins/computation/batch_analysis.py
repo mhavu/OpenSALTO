@@ -4,29 +4,26 @@
 #
 #  An OpenSALTO batch analysis report plugin
 #
-#  Copyright 2016 Marko Havu. Released under the terms of
+#  Copyright 2016–2021 Mediavec Ky. Released under the terms of
 #  GNU General Public License version 3 or later.
 #
 
 import salto
-import os, datetime, math
-import csv, warnings
-from openpyxl import Workbook
-from openpyxl.cell import Cell
-from openpyxl.styles import Style, Font
+import os, math
+from datetime import datetime
+import csv, xlsxwriter
+from itertools import chain
 
-def setStyle(ws, value, style):
-    # Silence the warning about using a composite Style object instead of Font.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", UserWarning)
-        try:
-            result = [Cell(ws, column='A', row = 1, value=item) for item in value]
-            for cell in result:
-                cell.style = style
-        except TypeError:
-            result = Cell(ws, column='A', row = 1, value=value)
-            result.style = style
-    return result
+class ColumnWidths():
+    def __init__(self, data):
+        self.widths = [8.0] * len(data)
+        self.update(data)
+    def update(self, data):
+        for i in range(len(data)):
+            if type(data[i]) == datetime and self.widths[i] < 16:
+                self.widths[i] = 16
+            elif type(data[i]) == str and len(data[i]) > self.widths[i]:
+                self.widths[i] = len(data[i])
 
 class Plugin(salto.Plugin):
     """OpenSALTO plugin for batch analysis
@@ -45,14 +42,41 @@ class Plugin(salto.Plugin):
                   ('result_format', 'S', "format of the result file", 'xlsx'),
                   ('analysis', 'S', "name of the analysis plugin to be used", None),
                   ('parameters', 'f', "input parameters for the analysis plugin", {}),
+                  ('unravel_keys', 'O', "sequence of parameter keys that should be unraveled", ()),
                   ('options', 'O', "sequence of options ('flat', 'structured')", ('flat')),
                   ('communicator', 'O', "MPI communicator object (optional)", None)
                   ]
         self.registerComputation('batch analysis', self._report,
                                  inputs = inputs,
                                  outputs = [])
-        self.datestyle = Style(number_format='yyyy-mm-dd h:mm:ss')
-        self.boldstyle = Style(font=Font(bold=True))
+
+    @staticmethod
+    def _mergeHeaders(headers):
+        """Merges a list of headers that have a common order but may have
+           missing items
+        """
+        longest = max(*headers, key=len)
+        full = list(set(chain(*headers)))
+        result = longest + [key for key in full if key not in longest]
+        for h in headers:
+            while True:
+                order = [result.index(item) for item in h]
+                swap = [(o, s) for o, s in zip(order, sorted(order)) if o != s]
+                if swap:
+                    result.insert(swap[0][1], result.pop(swap[0][0]))
+                else:
+                    break
+        return result
+
+    @staticmethod
+    def _columnOrder(source, target):
+        """Returns the source indices for items in target or -1 if not found"""
+        def index(item):
+            if item in source:
+                return source.index(item)
+            else:
+                return -1
+        return [index(item) for item in target]
 
     def _report(self, inputs):
         comm = inputs.get('communicator')
@@ -77,18 +101,24 @@ class Plugin(salto.Plugin):
         # Check the that filenames in source are unique.
         basenames = [os.path.basename(path) for path in source]
         if len(basenames) != len(set(basenames)):
-            raise ValueException('The basenames in source are not unique')
+            raise ValueException("The basenames in source are not unique")
+        # Check keys to unravel.
+        for key in inputs['unravel_keys']:
+            if len(inputs['parameters'][key]) != len(basenames):
+                raise ValueException("Lengths of source and %s do not match" % key)
         # Run the analysis.
         chTables = salto.channelTables
         pm = salto.pluginManager
         tableName = salto.makeUniqueKey(salto.channelTables, 'temp')
         reports = {}
-        for path, basename in zip(source, basenames):
+        for i, (path, basename) in enumerate(zip(source, basenames)):
             print(basename)
             chTables[tableName] = salto.ChannelTable()
             pm.read(path, inputs['source_format'], tableName)
             parameters = inputs['parameters'].copy()
             parameters['channelTable'] = tableName
+            for key in inputs['unravel_keys']:
+                parameters[key] = inputs['parameters'][key][i]
             result = pm.compute(inputs['analysis'], parameters)
             tmpTable = result.get('channelTable')
             if tmpTable:
@@ -104,47 +134,115 @@ class Plugin(salto.Plugin):
                 reports = {k: v for d in reports for k, v in d.items()}
         # Create the report.
         if not comm or rank == 0:
-            datestr = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            datestr = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             params = pm.computations[inputs['analysis']].computations[inputs['analysis']][1]
             preamble = [["analysis date", datestr],
                         ["analysis plugin", inputs['analysis']]]
-            preamble += [[p[0], inputs.get(p[0], p[3]), p[2]]
-                         for p in params if p[0] != 'channelTable']
+            preamble += [[p[0], inputs['parameters'].get(p[0], p[3]), p[2]]
+                         for p in params if p[0] != 'channelTable' and
+                                            p[0] not in inputs['unravel_keys']]
             if inputs['result_format'].lower() == 'xlsx':
-                wb = Workbook()
-                ws = wb.active
-                ws.title = "settings"
-                for row in preamble:
-                    ws.append(row)
-                # TODO: Set column widths.
+                wb = xlsxwriter.Workbook(inputs['result_file_path'],
+                                         {'constant_memory': True,
+                                          'nan_inf_to_errors': True,
+                                          'default_date_format': 'yyyy-dd-mm hh:mm:ss'})
+                ws = wb.add_worksheet('settings')
+                bold = wb.add_format({'bold': 1})
+                width = 8
+                row = 0
+                for row_data in preamble:
+                    ws.write_row(row, 0, row_data)
+                    row += 1
+                    if len(row_data[0]) > width:
+                        width = len(row_data[0])
+                ws.set_column('A:A', width)
                 if isFlat:
-                    ws = wb.create_sheet()
-                    ws.title = "results"
+                    ws = wb.add_worksheet('results')
+                    row = 0
                     headers = [reports[k]['header'] for k in reports
                                if 'header' in reports[k]]
                     if headers and headers.count(headers[0]) == len(headers):
                         # All headers are equal.
-                        ws.append(setStyle(ws, ['Filename'] + headers[0], self.boldstyle))
+                        header = ['Filename'] + headers[0]
+                        ws.write_row(row, 0, header, bold)
+                        row += 1
+                        rearrangeColumns = False
+                    elif len(headers) == len(reports):
+                        # Headers are not equal.
+                        header = ['Filename'] + self._mergeHeaders(headers)
+                        ws.write_row(row, 0, header, bold)
+                        row += 1
+                        rearrangeColumns = True
                     else:
-                        raise NotImplementedError("Combining tables with different structures is not implemented yet")
+                        raise ValueError("Header is required if all headers are not equal")
+                    widths = ColumnWidths(header)
                     for basename, report in reports.items():
-                        for row in report['data']:
-                            ws.append([basename] + row)
-                    # TODO: Set column widths.
+                        if rearrangeColumns:
+                            order = self._columnOrder(report['header'],
+                                                      header[1:])
+                        for row_raw in report['data']:
+                            if rearrangeColumns:
+                                row_data = [(row_raw + [None])[i] for i in order]
+                            else:
+                                row_data = row_raw
+                            ws.write_row(row, 0, [basename] + row_data)
+                            row += 1
+                            widths.update([basename] + row_data)
+                    # Set column widths.
+                    for i, w in enumerate(widths.widths):
+                        ws.set_column(i, i, w)
                 else:
                     for basename, report in reports.items():
-                        ws = wb.create_sheet()
-                        ws.title = basename
+                        ws = wb.add_worksheet(basename)
+                        row = 0
                         if 'header' in report:
-                            ws.append(setStyle(ws, report['header'], self.boldstyle))
-                        for row in report['data']:
-                            ws.append(row)
-                        for row in report.get('summary', []):
-                            ws.append(setStyle(ws, row, self.boldstyle))
-                        # TODO: Set column widths.
-                wb.save(inputs['result_file_path'])
+                            ws.write_row(row, 0, report['header'], bold)
+                            widths = ColumnWidths(report['header'])
+                            row += 1
+                        else:
+                            widths = ColumnWidths(report['data'][0])
+                        for row_data in report['data']:
+                            ws.write_row(row, 0, row_data)
+                            widths.update(row_data)
+                            row += 1
+                        for row_data in report.get('summary', []):
+                            ws.write_row(row, 0, row_data, bold)
+                            widths.update(row_data)
+                            row += 1
+                        # Set column widths.
+                        for i, w in enumerate(widths.widths):
+                            ws.set_column(i, i, w)
+                wb.close()
             elif inputs['result_format'].lower() == 'csv':
-                raise NotImplementedError("CSV reporting is not implemented yet")
+                with open(inputs['result_file_path'], 'w') as f:
+                    writer = csv.writer(f)
+                    # TODO: Add preamble (separate file?)
+                    headers = [reports[k]['header'] for k in reports
+                               if 'header' in reports[k]]
+                    if headers and headers.count(headers[0]) == len(headers):
+                        # All headers are equal.
+                        header = ['Filename'] + headers[0]
+                        rearrangeColumns = False
+                    elif len(headers) == len(reports):
+                        # Headers are not equal.
+                        header = ['Filename'] + self._mergeHeaders(headers)
+                        rearrangeColumns = True
+                    else:
+                        raise ValueError("Header is required if all headers "
+                                         "are not equal.")
+                    writer.writerow(header)
+                    for basename, report in reports.items():
+                        if rearrangeColumns:
+                            order = self._columnOrder(report['header'],
+                                                      header[1:])
+                        for row_raw in report['data']:
+                            if rearrangeColumns:
+                                row_data = [(row_raw + [None])[i] for i in order]
+                            else:
+                                row_data = row_raw
+                            writer.writerow([basename] + row_data)
             elif inputs['result_format'].lower() == 'html':
                 raise NotImplementedError("HTML reporting is not implemented yet")
+            else:
+                raise ValueError("Unknown result format %s" % inputs['result_format'])
         return {}
